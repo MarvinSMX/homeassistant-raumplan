@@ -44,9 +44,10 @@
     static getStubConfig() {
       return {
         image: '/local/raumplan.png',
+        rotation: 0,
         entities: [
-          { entity: 'light.example', x: 25, y: 30 },
-          { entity: 'sensor.example', x: 75, y: 40 }
+          { entity: 'light.example', x: 25, y: 30, scale: 1, color: '#ffc107' },
+          { entity: 'sensor.example', x: 75, y: 40, scale: 1 }
         ]
       };
     }
@@ -64,7 +65,8 @@
       this._config = {
         image: img,
         entities: Array.isArray(config && config.entities) ? config.entities : [],
-        title: (config && config.title) ? config.title : ''
+        title: (config && config.title) ? config.title : '',
+        rotation: Number(config && config.rotation) || 0
       };
       if (this._root) this._render();
     }
@@ -100,7 +102,8 @@
         room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; }
         room-plan-card .room-plan-container { position: relative; width: 100%; min-height: 320px; min-width: 0; }
         room-plan-card .room-plan-wrapper { display: grid; width: 100%; position: relative; min-width: 0; }
-        room-plan-card .room-plan-wrapper > img { grid-area: 1/1; width: 100%; height: auto; display: block; max-width: 100%; }
+        room-plan-card .room-plan-wrapper > .room-plan-img-wrap { grid-area: 1/1; overflow: hidden; transform-origin: center center; }
+        room-plan-card .room-plan-wrapper > .room-plan-img-wrap > img { width: 100%; height: auto; display: block; max-width: 100%; }
         room-plan-card .room-plan-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         room-plan-card .room-plan-overlay > * { pointer-events: auto; }
         room-plan-card .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
@@ -133,21 +136,29 @@
       const img = this._config.image;
       const entities = this._config.entities || [];
       const title = this._config.title;
+      const rotation = Number(this._config.rotation) || 0;
 
       let html = '';
       if (title) html += `<div style="padding: 8px 16px; font-weight: 600; color: var(--primary-text-color, #e1e1e1);">${title}</div>`;
       html += `<div class="room-plan-wrapper">`;
+      html += `<div class="room-plan-img-wrap" style="transform: rotate(${rotation}deg);">`;
       html += `<img src="${img}" alt="Raumplan" />`;
+      html += `</div>`;
       html += `<div class="room-plan-overlay">`;
 
       entities.forEach((ent) => {
         const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
         const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
-        const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
+        const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
         const state = this._hass?.states?.[ent.entity]?.state;
         const stateClass = state === 'on' ? ' state-on' : '';
-        html += `<div class="room-plan-entity${stateClass}" data-entity="${ent.entity}" style="left:${x}%;top:${y}%;" title="${getFriendlyName(this._hass, ent.entity)}: ${getStateDisplay(this._hass, ent.entity)}">
-          <ha-icon icon="${icon}"></ha-icon>
+        const baseSize = 44;
+        const size = Math.round(baseSize * scale);
+        const iconSize = Math.round(24 * scale);
+        let entStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
+        if (ent.color) entStyle += `background:${ent.color};color:#fff;`;
+        html += `<div class="room-plan-entity${stateClass}" data-entity="${ent.entity}" style="${entStyle}" title="${getFriendlyName(this._hass, ent.entity)}: ${getStateDisplay(this._hass, ent.entity)}">
+          <ha-icon icon="${ent.icon || getEntityIcon(this._hass, ent.entity)}" style="--mdc-icon-size:${iconSize}px;"></ha-icon>
         </div>`;
       });
 
@@ -179,6 +190,7 @@
     setConfig(c) {
       this._config = c ? { ...c } : { image: '', entities: [] };
       this._config.entities = Array.isArray(this._config.entities) ? this._config.entities : [];
+      this._config.rotation = Number(this._config.rotation) || 0;
       this._render();
     }
 
@@ -215,11 +227,13 @@
         room-plan-editor .rp-hint { font-size: 12px; color: var(--secondary-text-color, #9e9e9e); margin-top: 6px; line-height: 1.4; }
         room-plan-editor .rp-hint code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
         room-plan-editor .rp-entity-list { display: flex; flex-direction: column; gap: 10px; }
-        room-plan-editor .rp-entity-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+        room-plan-editor .rp-entity-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px;
           background: var(--ha-card-background, #1e1e1e); border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
           border-radius: 10px; }
-        room-plan-editor .rp-entity-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
+        room-plan-editor .rp-entity-row input[data-field] { flex: 1; min-width: 120px; padding: 10px 12px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
           border-radius: 8px; font-size: 14px; background: var(--ha-card-background, #1e1e1e); color: var(--primary-text-color, #e1e1e1); }
+        room-plan-editor .rp-entity-row input[type="number"] { width: 70px; flex: none; }
+        room-plan-editor .rp-entity-row input[type="color"] { width: 36px; height: 36px; padding: 2px; flex: none; cursor: pointer; border-radius: 6px; }
         room-plan-editor .rp-entity-row input:focus { outline: none; border-color: var(--primary-color, #03a9f4); }
         room-plan-editor .rp-entity-pos { font-size: 11px; color: var(--secondary-text-color, #9e9e9e); min-width: 70px; text-align: right; }
         room-plan-editor .rp-btn-remove { padding: 8px 12px; border-radius: 8px; border: none; background: rgba(244, 67, 54, 0.2);
@@ -232,7 +246,8 @@
         room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 260px; border-radius: 12px;
           overflow: hidden; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: #1a1a1a;
           display: grid; }
-        room-plan-editor .rp-preview-wrap > img { grid-area: 1/1; width: 100%; height: auto; display: block; pointer-events: none; }
+        room-plan-editor .rp-preview-img-wrap { grid-area: 1/1; overflow: hidden; transform-origin: center center; }
+        room-plan-editor .rp-preview-img-wrap > img { width: 100%; height: auto; display: block; pointer-events: none; }
         room-plan-editor .rp-preview-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         room-plan-editor .rp-preview-overlay > * { pointer-events: auto; }
         room-plan-editor .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
@@ -249,6 +264,7 @@
 
     _render() {
       const img = typeof this._config.image === 'string' ? this._config.image : (this._config.image?.location || '');
+      const rotation = Number(this._config.rotation) || 0;
       const entities = this._config.entities || [];
       const entityIds = this._hass && this._hass.states ? Object.keys(this._hass.states).sort() : [];
 
@@ -261,6 +277,15 @@
               <input type="text" id="rp-image-url" value="${img}" placeholder="/local/raumplan.png" />
               <div class="rp-hint">Bild unter <code>config/www/</code> speichern, dann <code>/local/dateiname.png</code> angeben.</div>
             </div>
+            <div class="rp-field rp-field-inline">
+              <label>Drehung (Grad)</label>
+              <select id="rp-rotation" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: var(--ha-card-background, #1e1e1e); color: var(--primary-text-color, #e1e1e1); font-size: 14px;">
+                <option value="0" ${rotation === 0 ? 'selected' : ''}>0°</option>
+                <option value="90" ${rotation === 90 ? 'selected' : ''}>90°</option>
+                <option value="180" ${rotation === 180 ? 'selected' : ''}>180°</option>
+                <option value="270" ${rotation === 270 ? 'selected' : ''}>270°</option>
+              </select>
+            </div>
           </div>
           <div class="rp-section">
             <div class="rp-section-title"><ha-icon icon="mdi:format-list-bulleted"></ha-icon> Entitäten (Koordinaten per Drag & Drop)</div>
@@ -270,9 +295,13 @@
         const listId = 'rp-entity-list-' + i;
         const x = Number(ent.x) || 50;
         const y = Number(ent.y) || 50;
+        const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
+        const color = ent.color || '';
         html += `<div class="rp-entity-row" data-index="${i}">
           <input type="text" data-field="entity" list="${listId}" value="${ent.entity}" placeholder="light.wohnzimmer" />
           <datalist id="${listId}">${entityIds.slice(0, 200).map(eid => `<option value="${eid}">${getFriendlyName(this._hass, eid)}</option>`).join('')}</datalist>
+          <input type="number" data-field="scale" min="0.3" max="2" step="0.1" value="${scale}" placeholder="1" title="Skalierung" />
+          <input type="color" data-field="color" value="${color || '#03a9f4'}" title="Farbe" />
           <span class="rp-entity-pos">${x.toFixed(1)}%, ${y.toFixed(1)}%</span>
           <button type="button" class="rp-btn-remove rp-remove-entity" data-index="${i}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
         </div>`;
@@ -286,14 +315,21 @@
             <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
             <div class="rp-hint">Kreise auf dem Plan per Drag & Drop verschieben</div>
             <div class="rp-preview-wrap" id="rp-preview">
-              <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
+              <div class="rp-preview-img-wrap" style="transform: rotate(${rotation}deg);">
+                <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
+              </div>
               <div class="rp-preview-overlay">`;
 
       entities.forEach((ent, i) => {
         const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
         const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
+        const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
+        const size = Math.round(44 * scale);
+        const iconSize = Math.round(22 * scale);
         const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
-        html += `<div class="rp-editor-dot editor-dot" data-index="${i}" style="left:${x}%;top:${y}%;" title="${ent.entity}"><ha-icon icon="${icon}"></ha-icon></div>`;
+        let dotStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
+        if (ent.color) dotStyle += `background:${ent.color};`;
+        html += `<div class="rp-editor-dot editor-dot" data-index="${i}" style="${dotStyle}" title="${ent.entity}"><ha-icon icon="${icon}" style="--mdc-icon-size:${iconSize}px;"></ha-icon></div>`;
       });
 
       html += `
@@ -311,8 +347,21 @@
         this._fireConfigChanged(this._config);
       });
 
+      const rotEl = this.querySelector('#rp-rotation');
+      if (rotEl) {
+        rotEl.addEventListener('change', () => {
+          this._config.rotation = Number(rotEl.value) || 0;
+          const wrap = this.querySelector('.rp-preview-img-wrap');
+          if (wrap) wrap.style.transform = `rotate(${this._config.rotation}deg)`;
+          this._fireConfigChanged(this._config);
+        });
+      }
+
       this.querySelectorAll('.rp-entity-row input').forEach(input => {
         input.addEventListener('change', () => this._syncEntities());
+        input.addEventListener('input', (e) => {
+          if (e.target.dataset.field === 'scale' || e.target.dataset.field === 'color') this._syncEntities();
+        });
       });
 
       this.querySelectorAll('.rp-remove-entity').forEach(btn => {
@@ -352,12 +401,20 @@
       const entities = [];
       rows.forEach((row, i) => {
         const entityInput = row.querySelector('input[data-field="entity"]');
+        const scaleInput = row.querySelector('input[data-field="scale"]');
+        const colorInput = row.querySelector('input[data-field="color"]');
         const ent = this._config.entities[i] || {};
+        const scale = scaleInput ? Math.min(2, Math.max(0.3, Number(scaleInput.value) || 1)) : (ent.scale ?? 1);
+        const colorVal = colorInput?.value?.trim() || '';
+        const hadColor = !!ent.color;
+        const color = (colorVal && (colorVal !== '#03a9f4' || hadColor)) ? colorVal : undefined;
         entities.push({
           entity: (entityInput?.value || '').trim() || ent.entity || '',
           x: ent.x ?? 50,
           y: ent.y ?? 50,
-          icon: ent.icon
+          icon: ent.icon,
+          scale: scale,
+          color: color
         });
       });
       this._config.entities = entities;

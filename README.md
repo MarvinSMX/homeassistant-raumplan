@@ -21,17 +21,23 @@ Lovelace-Karte für einen **Raumplan als Bild** mit per **Koordinaten (x, y)** p
 ```yaml
 type: custom:room-plan-card
 image: /local/raumplan.png
+rotation: 0
 entities:
   - entity: light.wohnzimmer
     x: 25
     y: 30
+    scale: 1
+    color: "#ffc107"
   - entity: sensor.temperatur_bad
     x: 75
     y: 40
+    scale: 1.2
   - entity: light.kueche
     x: 50
     y: 70
     icon: mdi:ceiling-light
+    scale: 0.8
+    color: "#4caf50"
 ```
 
 ### Parameter
@@ -39,8 +45,11 @@ entities:
 | Parameter    | Beschreibung                                           |
 |-------------|--------------------------------------------------------|
 | `image`     | URL des Raumplan-Bildes (PNG, JPG, SVG)               |
+| `rotation`  | Optional: Drehung des Bildes in Grad (0, 90, 180, 270)|
 | `entities`  | Liste mit `entity`, `x`, `y` (Prozent 0–100)           |
 | `icon`      | Optional: MDI-Icon (z.B. `mdi:ceiling-light`)         |
+| `scale`     | Optional: Skalierung pro Entität (0.3–2, Standard: 1)|
+| `color`     | Optional: Farbe pro Entität (Hex, z.B. `#ffc107`)    |
 | `title`     | Optional: Überschrift über der Karte                  |
 
 ### Anzeige in Home Assistant
