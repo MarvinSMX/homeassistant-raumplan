@@ -99,11 +99,12 @@
       const style = document.createElement('style');
       style.setAttribute('data-room-plan', '1');
       style.textContent = `
-        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; }
-        room-plan-card .room-plan-container { position: relative; width: 100%; min-height: 320px; min-width: 0; }
-        room-plan-card .room-plan-wrapper { display: grid; width: 100%; position: relative; min-width: 0; }
-        room-plan-card .room-plan-wrapper > .room-plan-img-wrap { grid-area: 1/1; overflow: hidden; transform-origin: center center; }
-        room-plan-card .room-plan-wrapper > .room-plan-img-wrap > img { width: 100%; height: auto; display: block; max-width: 100%; }
+        room-plan-card { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        room-plan-card .room-plan-container { position: relative; flex: 1; min-height: 200px; width: 100%; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+        room-plan-card .room-plan-wrapper { display: grid; flex: 1; width: 100%; position: relative; min-width: 0; min-height: 0; }
+        room-plan-card .room-plan-wrapper > .room-plan-img-wrap { grid-area: 1/1; overflow: hidden; transform-origin: center center; display: flex; }
+        room-plan-card .room-plan-wrapper > .room-plan-img-wrap > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
         room-plan-card .room-plan-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         room-plan-card .room-plan-overlay > * { pointer-events: auto; }
         room-plan-card .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
@@ -243,11 +244,11 @@
           background: transparent; color: var(--primary-color, #03a9f4); font-size: 14px; font-weight: 500;
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
         room-plan-editor .rp-btn-add:hover { border-color: var(--primary-color, #03a9f4); background: rgba(3, 169, 244, 0.08); }
-        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 260px; border-radius: 12px;
+        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 260px; height: 280px; border-radius: 12px;
           overflow: hidden; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: #1a1a1a;
           display: grid; }
-        room-plan-editor .rp-preview-img-wrap { grid-area: 1/1; overflow: hidden; transform-origin: center center; }
-        room-plan-editor .rp-preview-img-wrap > img { width: 100%; height: auto; display: block; pointer-events: none; }
+        room-plan-editor .rp-preview-img-wrap { grid-area: 1/1; overflow: hidden; transform-origin: center center; display: flex; }
+        room-plan-editor .rp-preview-img-wrap > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; pointer-events: none; }
         room-plan-editor .rp-preview-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         room-plan-editor .rp-preview-overlay > * { pointer-events: auto; }
         room-plan-editor .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
