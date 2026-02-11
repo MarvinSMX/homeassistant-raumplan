@@ -96,6 +96,30 @@
         this.appendChild(this._root);
       }
       this._render();
+      this._removeCardChrome();
+      requestAnimationFrame(() => this._removeCardChrome());
+    }
+
+    _removeCardChrome() {
+      let el = this.parentElement || (this.getRootNode?.()?.host ?? null);
+      const styleCard = (card) => {
+        card.style.setProperty('background', 'transparent', 'important');
+        card.style.setProperty('border', 'none', 'important');
+        card.style.setProperty('box-shadow', 'none', 'important');
+        card.style.setProperty('padding', '0', 'important');
+      };
+      while (el && el !== document.body) {
+        if (el.tagName === 'HA-CARD') {
+          styleCard(el);
+          break;
+        }
+        const haCard = el.shadowRoot?.querySelector?.('ha-card');
+        if (haCard) {
+          styleCard(haCard);
+          break;
+        }
+        el = el.parentElement || (el.getRootNode?.()?.host ?? null);
+      }
     }
 
     _injectStyles() {
@@ -103,6 +127,7 @@
       const style = document.createElement('style');
       style.setAttribute('data-room-plan', '1');
       style.textContent = `
+        ha-card:has(room-plan-card) { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; overflow: hidden !important; }
         room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; background: transparent !important; }
         room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent !important; border: none !important; box-shadow: none !important; }
         room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: transparent !important; }
@@ -482,12 +507,15 @@
       const entities = this._config.entities || [];
 
       const doc = this.ownerDocument || document;
-      if (!doc.getElementById('rp-position-fullscreen-styles')) {
-        const style = doc.createElement('style');
+      const topDoc = (typeof window !== 'undefined' && window.top?.document) || doc;
+      const targetDoc = topDoc;
+      if (!targetDoc.getElementById('rp-position-fullscreen-styles')) {
+        const style = targetDoc.createElement('style');
         style.id = 'rp-position-fullscreen-styles';
         style.textContent = `
-          .rp-position-fullscreen { position: fixed; inset: 0; z-index: 2147483647; background: rgba(0,0,0,0.95); display: flex;
-            flex-direction: column; padding: 16px; box-sizing: border-box; pointer-events: auto; touch-action: none; }
+          .rp-position-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+            width: 100vw !important; height: 100vh !important; z-index: 2147483647; background: rgba(0,0,0,0.95); display: flex;
+            flex-direction: column; padding: 16px; box-sizing: border-box; pointer-events: auto; touch-action: none; margin: 0 !important; }
           .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 100; padding: 12px 20px;
             border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
             display: flex; align-items: center; gap: 8px; pointer-events: auto; }
@@ -509,10 +537,10 @@
           .rp-position-fullscreen .rp-editor-dot:active { cursor: grabbing; }
           .rp-position-fullscreen .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
         `;
-        (doc.head || doc.documentElement).appendChild(style);
+        (targetDoc.head || targetDoc.documentElement).appendChild(style);
       }
 
-      const overlay = doc.createElement('div');
+      const overlay = targetDoc.createElement('div');
       overlay.className = 'rp-position-fullscreen';
       overlay.innerHTML = `
         <button type="button" class="rp-position-close" id="rp-position-close" title="Schließen (Esc)">
@@ -535,7 +563,8 @@
             }).join('')}
           </div>
         </div>`;
-      this.appendChild(overlay);
+      const appendTarget = targetDoc.body || targetDoc.documentElement;
+      appendTarget.appendChild(overlay);
 
       const startDrag = (e, dot) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); };
       overlay.querySelectorAll('.editor-dot').forEach(dot => {
@@ -546,10 +575,10 @@
 
       const close = () => {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        doc.removeEventListener('keydown', escHandler);
+        targetDoc.removeEventListener('keydown', escHandler);
       };
       const escHandler = (e) => { if (e.key === 'Escape') close(); };
-      doc.addEventListener('keydown', escHandler);
+      targetDoc.addEventListener('keydown', escHandler);
       const closeBtn = overlay.querySelector('#rp-position-close');
       if (closeBtn) {
         const doClose = (e) => { e.preventDefault(); e.stopPropagation(); close(); };
