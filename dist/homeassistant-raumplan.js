@@ -99,12 +99,15 @@
       const style = document.createElement('style');
       style.setAttribute('data-room-plan', '1');
       style.textContent = `
-        room-plan-card { display: flex; flex-direction: column; width: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; align-self: stretch; }
-        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1; min-height: 0; width: 100%; max-width: 100%; display: flex; flex-direction: column; }
-        room-plan-card .room-plan-container { position: relative; flex: 1; min-height: 0; width: 100%; max-width: 100%; overflow: hidden; display: flex; flex-direction: column; }
-        room-plan-card .room-plan-wrapper { display: flex; flex: 1; min-height: 0; width: 100%; position: relative; align-items: center; justify-content: center; overflow: hidden; }
-        room-plan-card .room-plan-inner { position: relative; max-width: 100%; max-height: 100%; flex-shrink: 0; }
-        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
+        room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; }
+        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; }
+        room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        room-plan-card .room-plan-inner { position: relative; max-width: 100%; max-height: 100%; }
+        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
+          filter: brightness(0.92) contrast(1.05) saturate(0.9); }
+        room-plan-card .room-plan-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+          background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
         room-plan-card .room-plan-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         room-plan-card .room-plan-overlay > * { pointer-events: auto; }
         room-plan-card .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
@@ -144,6 +147,7 @@
       html += `<div class="room-plan-wrapper">`;
       html += `<div class="room-plan-inner" style="transform: rotate(${rotation}deg);">`;
       html += `<img src="${img}" alt="Raumplan" />`;
+      html += `<div class="room-plan-theme-tint"></div>`;
       html += `<div class="room-plan-overlay">`;
 
       entities.forEach((ent) => {
@@ -261,7 +265,10 @@
           overflow: hidden; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: #1a1a1a;
           width: 100%; }
         room-plan-editor .rp-preview-inner { position: relative; max-width: 100%; width: 100%; margin: 0 auto; }
-        room-plan-editor .rp-preview-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; pointer-events: none; }
+        room-plan-editor .rp-preview-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; pointer-events: none;
+          filter: brightness(0.92) contrast(1.05) saturate(0.9); }
+        room-plan-editor .rp-preview-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+          background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
         room-plan-editor .rp-preview-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         room-plan-editor .rp-preview-overlay > * { pointer-events: auto; }
         room-plan-editor .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
@@ -331,6 +338,7 @@
             <div class="rp-preview-wrap" id="rp-preview">
               <div class="rp-preview-inner" id="rp-preview-inner" style="transform: rotate(${rotation}deg);">
                 <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
+                <div class="rp-preview-theme-tint"></div>
                 <div class="rp-preview-overlay">`;
 
       entities.forEach((ent, i) => {
