@@ -81,7 +81,8 @@
     connectedCallback() {
       if (!this._root) {
         this._root = document.createElement('ha-card');
-        this._root.style.overflow = 'hidden';
+        this._root.className = 'room-plan-ha-card';
+        this._root.style.cssText = 'overflow: hidden; padding: 0 !important;';
         this._container = document.createElement('div');
         this._container.className = 'room-plan-container';
         this._root.appendChild(this._container);
@@ -96,20 +97,23 @@
       const style = document.createElement('style');
       style.id = 'room-plan-card-styles';
       style.textContent = `
-        .room-plan-container { position: relative; width: 100%; min-height: 320px; }
-        .room-plan-wrapper { display: grid; width: 100%; position: relative; }
-        .room-plan-wrapper > img { grid-area: 1/1; width: 100%; height: auto; display: block; }
+        .room-plan-ha-card { padding: 0 !important; }
+        room-plan-card .room-plan-ha-card { padding: 0 !important; }
+        .room-plan-container { position: relative; width: 100%; min-height: 320px; min-width: 0; }
+        .room-plan-wrapper { display: grid; width: 100%; position: relative; min-width: 0; }
+        .room-plan-wrapper > img { grid-area: 1/1; width: 100%; height: auto; display: block; max-width: 100%; }
         .room-plan-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         .room-plan-overlay > * { pointer-events: auto; }
         .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
           width: 44px; height: 44px; border-radius: 50%;
-          background: var(--ha-card-background, #fff); color: var(--primary-text-color);
-          box-shadow: 0 2px 12px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center;
-          cursor: pointer; z-index: 2; border: 3px solid rgba(255,255,255,0.9);
+          background: var(--card-background-color, var(--ha-card-background, #1e1e1e));
+          color: var(--primary-text-color, #e1e1e1);
+          box-shadow: 0 2px 12px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;
+          cursor: pointer; z-index: 2; border: 3px solid rgba(255,255,255,0.15);
           transition: transform 0.15s; }
         .room-plan-entity:hover { transform: translate(-50%,-50%) scale(1.1); }
         .room-plan-entity ha-icon { --mdc-icon-size: 24px; }
-        .room-plan-entity.state-on { color: var(--state-icon-on-color, #ffc107); }
+        .room-plan-entity.state-on { color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)) !important; }
       `;
       document.head.appendChild(style);
     }
@@ -132,7 +136,7 @@
       const title = this._config.title;
 
       let html = '';
-      if (title) html += `<div style="padding: 8px 16px 0; font-weight: 600;">${title}</div>`;
+      if (title) html += `<div style="padding: 8px 16px; font-weight: 600; color: var(--primary-text-color, #e1e1e1);">${title}</div>`;
       html += `<div class="room-plan-wrapper">`;
       html += `<img src="${img}" alt="Raumplan" />`;
       html += `<div class="room-plan-overlay">`;

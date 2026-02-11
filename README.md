@@ -43,7 +43,19 @@ entities:
 | `icon`      | Optional: MDI-Icon (z.B. `mdi:ceiling-light`)         |
 | `title`     | Optional: Überschrift über der Karte                  |
 
-### Koordinaten
+### Anzeige in Home Assistant
+
+Die Karte enthält Anpassungen für HA (kein Padding, Theme-Variablen). Wenn Layout-Probleme auftreten, kannst du mit **card-mod** nachhelfen:
+
+```yaml
+type: custom:room-plan-card
+# ... deine config ...
+card_mod:
+  style: |
+    ha-card { padding: 0 !important; }
+```
+
+## Koordinaten
 
 - **x** und **y** sind Prozentwerte (0–100) relativ zur Bildbreite und -höhe
 - **x: 0** = links, **x: 100** = rechts
@@ -57,6 +69,17 @@ entities:
 3. Bild-URL eintragen (z.B. `/local/raumplan.png`)
 4. Entitäten hinzufügen und in der Vorschau per Drag & Drop auf die richtigen Stellen ziehen
 5. Speichern – Klick auf einen Kreis öffnet die Entity-Details
+
+## Lokale Test-UI
+
+Frontend ohne Home Assistant testen:
+
+```bash
+cd homeassistant-raumplan
+python -m http.server 8080
+```
+
+Dann **http://localhost:8080/test/** im Browser öffnen. Siehe `test/README.md`.
 
 ## Lizenz
 
