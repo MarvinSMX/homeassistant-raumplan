@@ -74,6 +74,18 @@ entities:
   - **x**, **y**: Position in Prozent (0–100) auf dem Bild.
   - **icon** (optional): MDI-Icon, z. B. `mdi:sofa`, `mdi:thermometer`.
 
+## Fehlerbehebung
+
+**Karte erscheint nicht im Karten-Picker / „Kann nicht hinzugefügt werden“:**
+
+1. **Ressource prüfen:** Einstellungen → Dashboards → ⋮ → Ressourcen – die Karte muss mit URL und Typ „JavaScript-Modul“ eingetragen sein.
+2. **Cache leeren:** Browser-Cache leeren oder Strg+F5 (Hard-Refresh).
+3. **Seite neu laden:** Nach dem Hinzufügen der Ressource die Dashboard-Seite neu laden.
+4. **YAML-Modus:** Bei Dashboards im YAML-Modus die Karte manuell einfügen (siehe Konfiguration oben).
+5. **Konsole prüfen:** Browser-Entwicklertools (F12) → Konsole – bei Fehlern erscheinen dort Hinweise.
+
+**HACS-Installation:** Nach der Installation muss die Ressource unter „Dashboards → Ressourcen“ vorhanden sein. Falls nicht, sie manuell mit URL `/hacsfiles/homeassistant-raumplan/homeassistant-raumplan.js` und Typ „JavaScript-Modul“ hinzufügen.
+
 ## Hinweise
 
 - Die Positionen (x, y) sind **Prozentwerte** (0–100) und bleiben bei verschiedenen Bildschirmgrößen proportional.

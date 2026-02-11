@@ -45,10 +45,7 @@
     static getStubConfig() {
       return {
         image: '/local/raumplan.png',
-        entities: [
-          { entity: 'light.example', x: 20, y: 30 },
-          { entity: 'sensor.example_temperature', x: 80, y: 25 }
-        ]
+        entities: []
       };
     }
 
@@ -61,13 +58,10 @@
     }
 
     setConfig(config) {
-      if (!config || !config.image) {
-        throw new Error('Bitte ein Bild für den Raumplan angeben (image).');
-      }
       this._config = {
-        image: config.image,
-        entities: Array.isArray(config.entities) ? config.entities : [],
-        title: config.title || ''
+        image: (config && config.image) ? config.image : '',
+        entities: Array.isArray(config && config.entities) ? config.entities : [],
+        title: (config && config.title) ? config.title : ''
       };
       if (this._root) this._render();
     }
@@ -100,7 +94,10 @@
       style.id = 'room-plan-card-styles';
       style.textContent = `
         .room-plan-container { position: relative; width: 100%; min-height: 320px; }
-        .room-plan-container .room-plan-image {
+        .room-plan-container .room-plan-wrapper {
+          position: relative; display: block; width: 100%; line-height: 0;
+        }
+        .room-plan-container .room-plan-wrapper .room-plan-image {
           display: block; width: 100%; height: auto; vertical-align: top;
         }
         .room-plan-container .room-plan-entity {
@@ -110,6 +107,7 @@
           box-shadow: 0 2px 8px rgba(0,0,0,0.2);
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           font-size: 11px; color: var(--primary-text-color); cursor: default;
+          z-index: 2; pointer-events: auto;
         }
         .room-plan-container .room-plan-entity .entity-icon {
           font-size: 22px; margin-bottom: 2px;
@@ -125,7 +123,18 @@
     }
 
     _render() {
-      if (!this._container || !this._config.image) return;
+      if (!this._container) return;
+
+      // Kein Bild = Hinweis zur Konfiguration
+      if (!this._config.image) {
+        this._container.innerHTML = `
+          <div style="padding: 24px; text-align: center; color: var(--secondary-text-color);">
+            <ha-icon icon="mdi:cog" style="font-size: 48px; margin-bottom: 16px; display: block;"></ha-icon>
+            <p><strong>Interaktiver Raumplan</strong></p>
+            <p>Bitte konfigurieren: Karte bearbeiten und Bild-URL eintragen.</p>
+          </div>`;
+        return;
+      }
 
       const img = this._config.image;
       const entities = this._config.entities || [];
@@ -190,21 +199,49 @@
       const style = document.createElement('style');
       style.id = 'room-plan-editor-styles';
       style.textContent = `
-        .room-plan-editor { padding: 16px; }
-        .room-plan-editor label { display: block; margin-top: 12px; margin-bottom: 4px; font-weight: 500; }
-        .room-plan-editor input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; }
-        .room-plan-editor .editor-preview { position: relative; width: 100%; min-height: 280px; margin-top: 16px;
-          border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; background: #f5f5f5; }
-        .room-plan-editor .editor-preview img { display: block; width: 100%; height: auto; pointer-events: none; }
-        .room-plan-editor .editor-dot { position: absolute; width: 36px; height: 36px; margin-left: -18px; margin-top: -18px;
-          border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center;
-          cursor: grab; font-size: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-        .room-plan-editor .editor-dot:active { cursor: grabbing; }
-        .room-plan-editor .entity-list { margin-top: 12px; }
-        .room-plan-editor .entity-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .room-plan-editor .entity-row input { flex: 1; }
-        .room-plan-editor .entity-row button { padding: 6px 12px; }
-        .room-plan-editor .add-entity { margin-top: 12px; }
+        .rp-editor { padding: 20px; max-width: 560px; }
+        .rp-editor * { box-sizing: border-box; }
+        .rp-section { margin-bottom: 24px; }
+        .rp-section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--primary-text-color); }
+        .rp-section-title ha-icon { color: var(--primary-color); opacity: 0.9; }
+        .rp-field { margin-bottom: 16px; }
+        .rp-field label { display: block; font-size: 12px; font-weight: 500; color: var(--secondary-text-color); margin-bottom: 6px; }
+        .rp-field input { width: 100%; padding: 12px 14px; border: 1px solid var(--divider-color); border-radius: 8px;
+          background: var(--ha-card-background, #fff); color: var(--primary-text-color); font-size: 14px;
+          transition: border-color 0.2s, box-shadow 0.2s; }
+        .rp-field input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--primary-color); }
+        .rp-field input::placeholder { color: var(--secondary-text-color); opacity: 0.7; }
+        .rp-hint { font-size: 12px; color: var(--secondary-text-color); margin-top: 6px; line-height: 1.4; }
+        .rp-hint code { background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+        .rp-preview-wrap { position: relative; width: 100%; min-height: 260px; margin-top: 12px;
+          border-radius: 12px; overflow: hidden; background: var(--card-background-color, #f5f5f5);
+          border: 1px solid var(--divider-color); box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); }
+        .rp-preview-wrap img { display: block; width: 100%; height: auto; pointer-events: none; vertical-align: top; line-height: 0; }
+        .rp-editor-dot { position: absolute; width: 40px; height: 40px; left: 0; top: 0;
+          transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color);
+          color: white; display: flex; align-items: center; justify-content: center; cursor: grab;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.25); z-index: 10; user-select: none; touch-action: none;
+          border: 3px solid rgba(255,255,255,0.9); transition: transform 0.15s; }
+        .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
+        .rp-editor-dot:active { cursor: grabbing; }
+        .rp-editor-dot ha-icon { --mdc-icon-size: 20px; }
+        .rp-entity-list { display: flex; flex-direction: column; gap: 10px; }
+        .rp-entity-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+          background: var(--ha-card-background, #fff); border: 1px solid var(--divider-color);
+          border-radius: 10px; transition: border-color 0.2s, box-shadow 0.2s; }
+        .rp-entity-row:hover { border-color: var(--primary-color); }
+        .rp-entity-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--divider-color);
+          border-radius: 8px; font-size: 14px; background: var(--ha-card-background, #fff); }
+        .rp-entity-row input:focus { outline: none; border-color: var(--primary-color); }
+        .rp-entity-pos { font-size: 11px; color: var(--secondary-text-color); min-width: 52px; text-align: right; }
+        .rp-btn-remove { padding: 8px 12px; border-radius: 8px; border: none; background: rgba(244, 67, 54, 0.12);
+          color: #f44336; font-size: 13px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 6px; }
+        .rp-btn-remove:hover { background: rgba(244, 67, 54, 0.2); }
+        .rp-btn-add { padding: 12px 18px; border-radius: 10px; border: 2px dashed var(--divider-color);
+          background: transparent; color: var(--primary-color); font-size: 14px; font-weight: 500;
+          cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
+        .rp-btn-add:hover { border-color: var(--primary-color); background: rgba(3, 169, 244, 0.08); }
+        .rp-drag-hint { font-size: 12px; color: var(--secondary-text-color); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
       `;
       document.head.appendChild(style);
     }
@@ -215,42 +252,48 @@
       const entities = this._config.entities || [];
 
       let html = `
-        <div class="room-plan-editor">
-          <label>Bild-URL des Raumplans</label>
-          <input type="text" id="room-plan-image-url" value="${img}" placeholder="/local/raumplan.png oder https://..." />
-          <p style="margin:4px 0 0; font-size: 12px; color: var(--secondary-text-color);">
-            Bild z.B. unter <code>config/www/</code> speichern, dann <code>/local/dateiname.png</code> angeben.
-          </p>
-          <label class="entity-list">Entitäten (Position per Drag & Drop im Vorschau-Bild setzen)</label>
-      `;
+        <div class="rp-editor">
+          <div class="rp-section">
+            <div class="rp-section-title"><ha-icon icon="mdi:image"></ha-icon> Raumplan-Bild</div>
+            <div class="rp-field">
+              <label for="room-plan-image-url">Bild-URL</label>
+              <input type="text" id="room-plan-image-url" value="${img}" placeholder="/local/raumplan.png oder https://..." />
+              <div class="rp-hint">Bild unter <code>config/www/</code> speichern, dann <code>/local/dateiname.png</code> angeben.</div>
+            </div>
+          </div>
+          <div class="rp-section">
+            <div class="rp-section-title"><ha-icon icon="mdi:format-list-bulleted"></ha-icon> Entitäten</div>
+            <div class="rp-entity-list">`;
 
       const entityIds = this._hass && this._hass.states ? Object.keys(this._hass.states).sort() : [];
       entities.forEach((ent, i) => {
-        const name = getFriendlyName(this._hass, ent.entity) || ent.entity;
         const listId = 'room-plan-entity-list-' + i;
-        html += `<div class="entity-row" data-index="${i}">
+        html += `<div class="rp-entity-row" data-index="${i}">
           <input type="text" value="${ent.entity}" data-field="entity" list="${listId}" placeholder="z.B. light.wohnzimmer" />
           <datalist id="${listId}">${entityIds.slice(0, 200).map(eid => `<option value="${eid}">${getFriendlyName(this._hass, eid)}</option>`).join('')}</datalist>
-          <span style="flex:0 0 60px; font-size: 11px;">${Number(ent.x).toFixed(0)}%, ${Number(ent.y).toFixed(0)}%</span>
-          <button type="button" class="remove-entity" data-index="${i}">Entfernen</button>
+          <span class="rp-entity-pos">${Number(ent.x).toFixed(0)}%, ${Number(ent.y).toFixed(0)}%</span>
+          <button type="button" class="rp-btn-remove remove-entity" data-index="${i}"><ha-icon icon="mdi:delete-outline"></ha-icon> Entfernen</button>
         </div>`;
       });
 
       html += `
-        <div class="add-entity">
-          <button type="button" id="room-plan-add-entity">+ Entität hinzufügen</button>
-        </div>
-        <label>Vorschau – Entitäten auf dem Plan verschieben</label>
-        <div class="editor-preview" id="room-plan-preview">
-          <img id="room-plan-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
-          ${(img ? entities.map((ent, i) => {
-            const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
-            const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
-            const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
-            return `<div class="editor-dot" data-index="${i}" style="left:${x}%;top:${y}%;" title="${ent.entity}"><ha-icon icon="${icon}"></ha-icon></div>`;
-          }).join('') : '')}
-        </div>
-      </div>`;
+            </div>
+            <button type="button" class="rp-btn-add" id="room-plan-add-entity"><ha-icon icon="mdi:plus"></ha-icon> Entität hinzufügen</button>
+          </div>
+          <div class="rp-section">
+            <div class="rp-section-title"><ha-icon icon="mdi:arrow-all"></ha-icon> Positionierung</div>
+            <div class="rp-drag-hint"><ha-icon icon="mdi:gesture"></ha-icon> Punkte auf dem Plan per Drag & Drop verschieben</div>
+            <div class="rp-preview-wrap" id="room-plan-preview">
+              <img id="room-plan-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
+              ${(img ? entities.map((ent, i) => {
+                const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
+                const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
+                const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
+                return `<div class="rp-editor-dot editor-dot" data-index="${i}" style="left:${x}%;top:${y}%;" title="${ent.entity}"><ha-icon icon="${icon}"></ha-icon></div>`;
+              }).join('') : '')}
+            </div>
+          </div>
+        </div>`;
 
       this.innerHTML = html;
 
@@ -285,15 +328,20 @@
         });
       }
 
-      // Drag & Drop auf den Punkten im Vorschau-Bereich
+      // Drag & Drop (Maus + Touch) auf den Punkten im Vorschau-Bereich
       if (preview) {
         preview.querySelectorAll('.editor-dot').forEach(dot => {
           dot.addEventListener('mousedown', (e) => this._startDrag(e, dot));
+          dot.addEventListener('touchstart', (e) => this._startDrag(e, dot), { passive: false });
         });
       }
-
-      document.addEventListener('mousemove', (e) => this._onDrag(e));
-      document.addEventListener('mouseup', () => this._endDrag());
+      if (!this._dragListenersAdded) {
+        this._dragListenersAdded = true;
+        document.addEventListener('mousemove', (e) => this._onDrag(e));
+        document.addEventListener('mouseup', () => this._endDrag());
+        document.addEventListener('touchmove', (e) => this._onDrag(e), { passive: false });
+        document.addEventListener('touchend', () => this._endDrag());
+      }
     }
 
     _syncEntitiesFromForm() {
@@ -313,23 +361,30 @@
 
     _startDrag(ev, dot) {
       ev.preventDefault();
+      ev.stopPropagation();
       const idx = parseInt(dot.dataset.index, 10);
       const ent = this._config.entities[idx];
       if (!ent) return;
       const rect = dot.parentElement.getBoundingClientRect();
-      const leftPct = (ev.clientX - rect.left) / rect.width * 100;
-      const topPct = (ev.clientY - rect.top) / rect.height * 100;
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const leftPct = (clientX - rect.left) / rect.width * 100;
+      const topPct = (clientY - rect.top) / rect.height * 100;
       this._dragOffset = { x: leftPct - (Number(ent.x) || 50), y: topPct - (Number(ent.y) || 50) };
       this._dragging = { index: idx, element: dot };
     }
 
     _onDrag(ev) {
       if (!this._dragging) return;
+      if (!this._dragging.element.isConnected) { this._dragging = null; return; }
+      ev.preventDefault();
       const preview = this.querySelector('#room-plan-preview');
       if (!preview) return;
       const rect = preview.getBoundingClientRect();
-      let x = (ev.clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
-      let y = (ev.clientY - rect.top) / rect.height * 100 - this._dragOffset.y;
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      let x = (clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
+      let y = (clientY - rect.top) / rect.height * 100 - this._dragOffset.y;
       x = Math.min(100, Math.max(0, x));
       y = Math.min(100, Math.max(0, y));
       const ent = this._config.entities[this._dragging.index];
