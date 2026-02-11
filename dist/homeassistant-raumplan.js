@@ -1,19 +1,25 @@
 /**
- * Interaktiver Raumplan - ha-floorplan Style
- * SVG-basiert, Entities werden auf SVG-Elemente gemappt.
- * Inspiriert von: https://github.com/ExperienceLovelace/ha-floorplan
+ * Interaktiver Raumplan - Bild mit per Koordinaten positionierten Entitäten
+ * Entitäten als Kreise mit Icons, Position per x,y (Prozent).
  */
 
 (function () {
   const CARD_TAG = 'room-plan-card';
   const EDITOR_TAG = 'room-plan-editor';
 
-  function getImageUrl(cfg) {
-    if (!cfg || !cfg.image) return null;
-    if (typeof cfg.image === 'string') return cfg.image;
-    if (cfg.image.location) return cfg.image.location;
-    if (cfg.image.sizes && cfg.image.sizes[0]) return cfg.image.sizes[0].location;
-    return null;
+  function getEntityIcon(hass, entityId) {
+    const state = hass?.states?.[entityId];
+    if (!state) return 'mdi:help-circle';
+    const icon = state.attributes?.icon;
+    if (icon) return icon;
+    const domain = entityId.split('.')[0];
+    const stateVal = state.state;
+    if (domain === 'light' || domain === 'switch') return stateVal === 'on' ? 'mdi:lightbulb-on' : 'mdi:lightbulb-outline';
+    if (domain === 'cover') return 'mdi:blinds';
+    if (domain === 'climate') return 'mdi:thermostat';
+    if (domain === 'sensor') return 'mdi:gauge';
+    if (domain === 'binary_sensor') return 'mdi:motion-sensor';
+    return 'mdi:circle';
   }
 
   function getFriendlyName(hass, entityId) {
@@ -21,11 +27,15 @@
     return state?.attributes?.friendly_name || entityId;
   }
 
-  function entityIdToClass(id) {
-    return 'ha-entity-' + (id || '').replace(/\./g, '-');
+  function getStateDisplay(hass, entityId) {
+    const state = hass?.states?.[entityId];
+    if (!state) return '—';
+    const uom = state.attributes?.unit_of_measurement;
+    if (uom) return state.state + ' ' + uom;
+    return state.state;
   }
 
-  // ---------- Hauptkarte (ha-floorplan Style) ----------
+  // ---------- Hauptkarte ----------
   class RoomPlanCard extends HTMLElement {
     static getConfigElement() {
       return document.createElement(EDITOR_TAG);
@@ -33,10 +43,10 @@
 
     static getStubConfig() {
       return {
-        image: '/local/floorplan.svg',
-        stylesheet: '/local/floorplan.css',
-        rules: [
-          { entity: 'light.example', element: 'area.livingroom', tap_action: 'toggle' }
+        image: '/local/raumplan.png',
+        entities: [
+          { entity: 'light.example', x: 25, y: 30 },
+          { entity: 'sensor.example', x: 75, y: 40 }
         ]
       };
     }
@@ -47,29 +57,21 @@
       this._hass = null;
       this._root = null;
       this._container = null;
-      this._svgRoot = null;
-      this._rules = [];
     }
 
     setConfig(config) {
-      const img = getImageUrl(config);
-      if (!img) {
-        this._config = { image: '', stylesheet: '', rules: [] };
-      } else {
-        this._config = {
-          image: config.image,
-          stylesheet: config.stylesheet || '',
-          rules: Array.isArray(config.rules) ? config.rules : [],
-          title: config.title || ''
-        };
-      }
-      this._rules = this._config.rules || [];
+      const img = (config && config.image) ? (typeof config.image === 'string' ? config.image : config.image.location || config.image) : '';
+      this._config = {
+        image: img,
+        entities: Array.isArray(config && config.entities) ? config.entities : [],
+        title: (config && config.title) ? config.title : ''
+      };
       if (this._root) this._render();
     }
 
     set hass(hass) {
       this._hass = hass;
-      if (this._svgRoot) this._applyStates();
+      if (this._root) this._render();
     }
 
     getCardSize() {
@@ -81,7 +83,6 @@
         this._root = document.createElement('ha-card');
         this._root.style.overflow = 'hidden';
         this._container = document.createElement('div');
-        this._container.id = 'floorplan';
         this._container.className = 'room-plan-container';
         this._root.appendChild(this._container);
         this.appendChild(this._root);
@@ -95,161 +96,83 @@
       const style = document.createElement('style');
       style.id = 'room-plan-card-styles';
       style.textContent = `
-        #floorplan { position: relative; width: 100%; min-height: 320px; }
-        #floorplan svg { width: 100%; height: auto; display: block; }
-        #floorplan svg, #floorplan svg * { vector-effect: non-scaling-stroke; pointer-events: all; }
-        .ha-entity:hover { stroke: var(--primary-color) !important; stroke-width: 1px !important; cursor: pointer; }
+        .room-plan-container { position: relative; width: 100%; min-height: 320px; }
+        .room-plan-wrapper { position: relative; display: block; width: 100%; line-height: 0; }
+        .room-plan-wrapper img { display: block; width: 100%; height: auto; vertical-align: top; }
+        .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
+          width: 44px; height: 44px; border-radius: 50%;
+          background: var(--ha-card-background, #fff); color: var(--primary-text-color);
+          box-shadow: 0 2px 12px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center;
+          cursor: pointer; z-index: 2; border: 3px solid rgba(255,255,255,0.9);
+          transition: transform 0.15s; }
+        .room-plan-entity:hover { transform: translate(-50%,-50%) scale(1.1); }
+        .room-plan-entity ha-icon { --mdc-icon-size: 24px; }
+        .room-plan-entity.state-on { color: var(--state-icon-on-color, #ffc107); }
       `;
       document.head.appendChild(style);
     }
 
-    async _render() {
+    _render() {
       if (!this._container) return;
 
-      const imgUrl = getImageUrl(this._config);
-      if (!imgUrl) {
+      if (!this._config.image) {
         this._container.innerHTML = `
           <div style="padding: 24px; text-align: center; color: var(--secondary-text-color);">
-            <ha-icon icon="mdi:vector-square" style="font-size: 48px; margin-bottom: 16px; display: block;"></ha-icon>
-            <p><strong>Interaktiver Raumplan (ha-floorplan Style)</strong></p>
-            <p>Bitte konfigurieren: SVG-URL und Rules mit entity + element (SVG-Element-ID).</p>
-            <p style="font-size: 12px; margin-top: 12px;">Siehe <a href="https://github.com/ExperienceLovelace/ha-floorplan" target="_blank">ha-floorplan</a> für Anleitung.</p>
+            <ha-icon icon="mdi:cog" style="font-size: 48px; margin-bottom: 16px; display: block;"></ha-icon>
+            <p><strong>Interaktiver Raumplan</strong></p>
+            <p>Bitte konfigurieren: Bild-URL und Entitäten mit Koordinaten.</p>
           </div>`;
         return;
       }
 
+      const img = this._config.image;
+      const entities = this._config.entities || [];
       const title = this._config.title;
+
       let html = '';
       if (title) html += `<div style="padding: 8px 16px 0; font-weight: 600;">${title}</div>`;
-      html += `<div class="room-plan-wrapper" style="position:relative;"></div>`;
+      html += `<div class="room-plan-wrapper">`;
+      html += `<img src="${img}" alt="Raumplan" />`;
+
+      entities.forEach((ent) => {
+        const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
+        const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
+        const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
+        const state = this._hass?.states?.[ent.entity]?.state;
+        const stateClass = state === 'on' ? ' state-on' : '';
+        html += `<div class="room-plan-entity${stateClass}" data-entity="${ent.entity}" style="left:${x}%;top:${y}%;" title="${getFriendlyName(this._hass, ent.entity)}: ${getStateDisplay(this._hass, ent.entity)}">
+          <ha-icon icon="${icon}"></ha-icon>
+        </div>`;
+      });
+
+      html += '</div>';
       this._container.innerHTML = html;
 
-      const wrapper = this._container.querySelector('.room-plan-wrapper');
-
-      try {
-        const isSvg = imgUrl.toLowerCase().endsWith('.svg');
-        if (isSvg) {
-          const base = window.location.origin;
-          const url = imgUrl.startsWith('/') ? base + imgUrl : imgUrl;
-          const res = await fetch(url);
-          const svgText = await res.text();
-          wrapper.innerHTML = svgText;
-          this._svgRoot = wrapper.querySelector('svg');
-          if (!this._svgRoot) {
-            wrapper.innerHTML = `<img src="${imgUrl}" alt="Raumplan" style="width:100%;height:auto;" />`;
-          }
-        } else {
-          wrapper.innerHTML = `<img src="${imgUrl}" alt="Raumplan" style="width:100%;height:auto;" />`;
-        }
-
-        if (this._config.stylesheet) {
-          const link = document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = this._config.stylesheet.startsWith('/') ? (window.location.origin + this._config.stylesheet) : this._config.stylesheet;
-          document.head.appendChild(link);
-        }
-
-        if (this._svgRoot) {
-          this._applyStates();
-          this._bindElements();
-        }
-      } catch (e) {
-        wrapper.innerHTML = `<div style="padding: 24px; color: #f44336;">Fehler beim Laden: ${e.message}</div>`;
-      }
-    }
-
-    _getElement(selector) {
-      if (!this._svgRoot) return null;
-      try {
-        return this._svgRoot.querySelector('[id="' + selector.replace(/"/g, '\\"') + '"]') ||
-          this._svgRoot.querySelector('#' + selector.replace(/\./g, '\\.'));
-      } catch (_) { return null; }
-    }
-
-    _applyStates() {
-      if (!this._svgRoot || !this._hass) return;
-
-      this._rules.forEach(rule => {
-        const entities = rule.entities || (rule.entity ? [rule.entity] : []);
-        const elements = rule.elements || (rule.element ? [rule.element] : []);
-
-        entities.forEach(entityId => {
-          const state = this._hass.states?.[entityId];
-          const stateVal = state ? state.state : 'unknown';
-          const cls = entityIdToClass(entityId);
-          const stateCls = 'state-' + String(stateVal).replace(/\s/g, '-');
-
-          elements.forEach(sel => {
-            const el = this._getElement(sel);
-            if (el) {
-              el.classList.add('ha-entity', cls);
-              Array.from(el.classList).filter(c => c.startsWith('state-')).forEach(c => el.classList.remove(c));
-              el.classList.add(stateCls);
-              el.dataset.entity = entityId;
-              el.dataset.state = stateVal;
-            }
-          });
+      this._container.querySelectorAll('.room-plan-entity').forEach(el => {
+        el.addEventListener('click', () => {
+          const entityId = el.dataset.entity;
+          const ev = new Event('hass-more-info', { bubbles: true, composed: true });
+          ev.detail = { entityId };
+          this.dispatchEvent(ev);
         });
       });
-    }
-
-    _bindElements() {
-      if (!this._svgRoot) return;
-
-      this._rules.forEach(rule => {
-        const entities = rule.entities || (rule.entity ? [rule.entity] : []);
-        const elements = rule.elements || (rule.element ? [rule.element] : []);
-        const tapAction = rule.tap_action || 'more-info';
-        const entityId = entities[0];
-
-        elements.forEach(sel => {
-          const el = this._getElement(sel);
-          if (el && entityId) {
-            el.style.cursor = 'pointer';
-            el.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              this._handleTap(entityId, tapAction);
-            });
-          }
-        });
-      });
-    }
-
-    _handleTap(entityId, action) {
-      if (!this._hass) return;
-
-      if (action === 'toggle') {
-        this._hass.callService('homeassistant', 'toggle', { entity_id: entityId });
-      } else if (action === 'more-info') {
-        const ev = new Event('hass-more-info', { bubbles: true, composed: true });
-        ev.detail = { entityId };
-        this.dispatchEvent(ev);
-      } else if (typeof action === 'object' && action.action === 'call-service') {
-        const svc = action.service || action.service_data?.service;
-        const data = action.service_data || {};
-        if (svc) {
-          const [domain, service] = svc.split('.');
-          this._hass.callService(domain, service, { ...data, entity_id: entityId });
-        }
-      } else if (typeof action === 'string' && action.includes('.')) {
-        const [domain, service] = action.split('.');
-        this._hass.callService(domain, service, { entity_id: entityId });
-      }
     }
   }
 
-  // ---------- Konfigurations-Editor ----------
+  // ---------- Konfigurations-Editor (Drag & Drop) ----------
   class RoomPlanEditor extends HTMLElement {
     constructor() {
       super();
-      this._config = { image: '', stylesheet: '', rules: [] };
+      this._config = { image: '', entities: [] };
       this._hass = null;
+      this._dragging = null;
+      this._dragOffset = { x: 0, y: 0 };
+      this._dragListenersAdded = false;
     }
 
     setConfig(c) {
-      this._config = c ? { ...c } : { image: '', stylesheet: '', rules: [] };
-      if (!Array.isArray(this._config.rules)) this._config.rules = [];
+      this._config = c ? { ...c } : { image: '', entities: [] };
+      this._config.entities = Array.isArray(this._config.entities) ? this._config.entities : [];
       this._render();
     }
 
@@ -285,10 +208,14 @@
         .rp-field input:focus { outline: none; border-color: var(--primary-color); }
         .rp-hint { font-size: 12px; color: var(--secondary-text-color); margin-top: 6px; line-height: 1.4; }
         .rp-hint code { background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-        .rp-rule-list { display: flex; flex-direction: column; gap: 10px; }
-        .rp-rule-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; padding: 12px;
-          background: var(--ha-card-background, #fff); border: 1px solid var(--divider-color); border-radius: 10px; }
-        .rp-rule-row input { padding: 10px 12px; border: 1px solid var(--divider-color); border-radius: 8px; font-size: 14px; }
+        .rp-entity-list { display: flex; flex-direction: column; gap: 10px; }
+        .rp-entity-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+          background: var(--ha-card-background, #fff); border: 1px solid var(--divider-color);
+          border-radius: 10px; }
+        .rp-entity-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--divider-color);
+          border-radius: 8px; font-size: 14px; }
+        .rp-entity-row input:focus { outline: none; border-color: var(--primary-color); }
+        .rp-entity-pos { font-size: 11px; color: var(--secondary-text-color); min-width: 70px; text-align: right; }
         .rp-btn-remove { padding: 8px 12px; border-radius: 8px; border: none; background: rgba(244, 67, 54, 0.12);
           color: #f44336; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
         .rp-btn-remove:hover { background: rgba(244, 67, 54, 0.2); }
@@ -296,8 +223,17 @@
           background: transparent; color: var(--primary-color); font-size: 14px; font-weight: 500;
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
         .rp-btn-add:hover { border-color: var(--primary-color); background: rgba(3, 169, 244, 0.08); }
-        .rp-preview-wrap { margin-top: 12px; border-radius: 12px; overflow: hidden; border: 1px solid var(--divider-color); background: #f5f5f5; min-height: 160px; }
-        .rp-preview-wrap img { display: block; width: 100%; height: auto; }
+        .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 260px; border-radius: 12px;
+          overflow: hidden; border: 1px solid var(--divider-color); background: #f5f5f5; line-height: 0; }
+        .rp-preview-wrap img { display: block; width: 100%; height: auto; pointer-events: none; vertical-align: top; }
+        .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
+          transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color); color: white;
+          display: flex; align-items: center; justify-content: center; cursor: grab;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.25); z-index: 10; user-select: none; touch-action: none;
+          border: 3px solid rgba(255,255,255,0.9); }
+        .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
+        .rp-editor-dot:active { cursor: grabbing; }
+        .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
       `;
       document.head.appendChild(style);
     }
@@ -305,48 +241,53 @@
     _render() {
       this._injectEditorStyles();
       const img = typeof this._config.image === 'string' ? this._config.image : (this._config.image?.location || '');
-      const stylesheet = this._config.stylesheet || '';
-      const rules = this._config.rules || [];
+      const entities = this._config.entities || [];
       const entityIds = this._hass && this._hass.states ? Object.keys(this._hass.states).sort() : [];
 
       let html = `
         <div class="rp-editor">
           <div class="rp-section">
-            <div class="rp-section-title"><ha-icon icon="mdi:vector-square"></ha-icon> SVG Raumplan (ha-floorplan Style)</div>
+            <div class="rp-section-title"><ha-icon icon="mdi:image"></ha-icon> Raumplan-Bild</div>
             <div class="rp-field">
-              <label>SVG-URL</label>
-              <input type="text" id="rp-image-url" value="${img}" placeholder="/local/floorplan.svg" />
-              <div class="rp-hint">SVG-Datei mit Element-IDs (z.B. area.wohnzimmer). In Inkscape erstellen.</div>
-            </div>
-            <div class="rp-field">
-              <label>CSS-Stylesheet (optional)</label>
-              <input type="text" id="rp-stylesheet-url" value="${stylesheet}" placeholder="/local/floorplan.css" />
+              <label>Bild-URL</label>
+              <input type="text" id="rp-image-url" value="${img}" placeholder="/local/raumplan.png" />
+              <div class="rp-hint">Bild unter <code>config/www/</code> speichern, dann <code>/local/dateiname.png</code> angeben.</div>
             </div>
           </div>
           <div class="rp-section">
-            <div class="rp-section-title"><ha-icon icon="mdi:link-variant"></ha-icon> Rules (Entity → SVG-Element)</div>
-            <div class="rp-rule-list">`;
+            <div class="rp-section-title"><ha-icon icon="mdi:format-list-bulleted"></ha-icon> Entitäten (Koordinaten per Drag & Drop)</div>
+            <div class="rp-entity-list">`;
 
-      rules.forEach((rule, i) => {
-        const ent = rule.entities ? rule.entities[0] : rule.entity || '';
-        const elem = rule.elements ? rule.elements[0] : rule.element || '';
+      entities.forEach((ent, i) => {
         const listId = 'rp-entity-list-' + i;
-        html += `<div class="rp-rule-row" data-index="${i}">
-          <input type="text" data-field="entity" list="${listId}" value="${ent}" placeholder="light.wohnzimmer" />
-          <datalist id="${listId}">${entityIds.slice(0, 150).map(eid => `<option value="${eid}">${getFriendlyName(this._hass, eid)}</option>`).join('')}</datalist>
-          <input type="text" data-field="element" value="${elem}" placeholder="area.wohnzimmer" />
-          <button type="button" class="rp-btn-remove rp-remove-rule" data-index="${i}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+        const x = Number(ent.x) || 50;
+        const y = Number(ent.y) || 50;
+        html += `<div class="rp-entity-row" data-index="${i}">
+          <input type="text" data-field="entity" list="${listId}" value="${ent.entity}" placeholder="light.wohnzimmer" />
+          <datalist id="${listId}">${entityIds.slice(0, 200).map(eid => `<option value="${eid}">${getFriendlyName(this._hass, eid)}</option>`).join('')}</datalist>
+          <span class="rp-entity-pos">${x.toFixed(1)}%, ${y.toFixed(1)}%</span>
+          <button type="button" class="rp-btn-remove rp-remove-entity" data-index="${i}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
         </div>`;
       });
 
       html += `
             </div>
-            <button type="button" class="rp-btn-add" id="rp-add-rule"><ha-icon icon="mdi:plus"></ha-icon> Rule hinzufügen</button>
+            <button type="button" class="rp-btn-add" id="rp-add-entity"><ha-icon icon="mdi:plus"></ha-icon> Entität hinzufügen</button>
           </div>
           <div class="rp-section">
-            <div class="rp-section-title"><ha-icon icon="mdi:information"></ha-icon> Vorschau</div>
+            <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
+            <div class="rp-hint">Kreise auf dem Plan per Drag & Drop verschieben</div>
             <div class="rp-preview-wrap" id="rp-preview">
-              <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
+              <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />`;
+
+      entities.forEach((ent, i) => {
+        const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
+        const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
+        const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
+        html += `<div class="rp-editor-dot editor-dot" data-index="${i}" style="left:${x}%;top:${y}%;" title="${ent.entity}"><ha-icon icon="${icon}"></ha-icon></div>`;
+      });
+
+      html += `
             </div>
           </div>
         </div>`;
@@ -360,44 +301,99 @@
         this._fireConfigChanged(this._config);
       });
 
-      this.querySelector('#rp-stylesheet-url').addEventListener('input', (e) => {
-        this._config.stylesheet = e.target.value.trim();
-        this._fireConfigChanged(this._config);
+      this.querySelectorAll('.rp-entity-row input').forEach(input => {
+        input.addEventListener('change', () => this._syncEntities());
       });
 
-      this.querySelectorAll('.rp-rule-row input').forEach(input => {
-        input.addEventListener('change', () => this._syncRules());
-      });
-
-      this.querySelectorAll('.rp-remove-rule').forEach(btn => {
+      this.querySelectorAll('.rp-remove-entity').forEach(btn => {
         btn.addEventListener('click', () => {
           const i = parseInt(btn.dataset.index, 10);
-          this._config.rules.splice(i, 1);
+          this._config.entities.splice(i, 1);
           this._fireConfigChanged(this._config);
         });
       });
 
-      this.querySelector('#rp-add-rule').addEventListener('click', () => {
-        this._config.rules.push({ entity: '', element: '', tap_action: 'toggle' });
+      this.querySelector('#rp-add-entity').addEventListener('click', () => {
+        this._config.entities.push({ entity: '', x: 50, y: 50 });
         this._fireConfigChanged(this._config);
       });
+
+      const preview = this.querySelector('#rp-preview');
+      if (preview) {
+        preview.querySelectorAll('.editor-dot').forEach(dot => {
+          dot.addEventListener('mousedown', (e) => this._startDrag(e, dot));
+          dot.addEventListener('touchstart', (e) => this._startDrag(e, dot), { passive: false });
+        });
+      }
+
+      if (!this._dragListenersAdded) {
+        this._dragListenersAdded = true;
+        document.addEventListener('mousemove', (e) => this._onDrag(e));
+        document.addEventListener('mouseup', () => this._endDrag());
+        document.addEventListener('touchmove', (e) => this._onDrag(e), { passive: false });
+        document.addEventListener('touchend', () => this._endDrag());
+      }
     }
 
-    _syncRules() {
-      const rows = this.querySelectorAll('.rp-rule-row');
-      const rules = [];
+    _syncEntities() {
+      const rows = this.querySelectorAll('.rp-entity-row');
+      const entities = [];
       rows.forEach((row, i) => {
         const entityInput = row.querySelector('input[data-field="entity"]');
-        const elementInput = row.querySelector('input[data-field="element"]');
-        const r = this._config.rules[i] || {};
-        rules.push({
-          entity: (entityInput?.value || '').trim() || r.entity || '',
-          element: (elementInput?.value || '').trim() || r.element || '',
-          tap_action: r.tap_action || 'toggle'
+        const ent = this._config.entities[i] || {};
+        entities.push({
+          entity: (entityInput?.value || '').trim() || ent.entity || '',
+          x: ent.x ?? 50,
+          y: ent.y ?? 50,
+          icon: ent.icon
         });
       });
-      this._config.rules = rules;
+      this._config.entities = entities;
       this._fireConfigChanged(this._config);
+    }
+
+    _startDrag(ev, dot) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const idx = parseInt(dot.dataset.index, 10);
+      const ent = this._config.entities[idx];
+      if (!ent) return;
+      const rect = dot.parentElement.getBoundingClientRect();
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const leftPct = (clientX - rect.left) / rect.width * 100;
+      const topPct = (clientY - rect.top) / rect.height * 100;
+      this._dragOffset = { x: leftPct - (Number(ent.x) || 50), y: topPct - (Number(ent.y) || 50) };
+      this._dragging = { index: idx, element: dot };
+    }
+
+    _onDrag(ev) {
+      if (!this._dragging) return;
+      if (!this._dragging.element.isConnected) { this._dragging = null; return; }
+      ev.preventDefault();
+      const preview = this.querySelector('#rp-preview');
+      if (!preview) return;
+      const rect = preview.getBoundingClientRect();
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      let x = (clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
+      let y = (clientY - rect.top) / rect.height * 100 - this._dragOffset.y;
+      x = Math.min(100, Math.max(0, x));
+      y = Math.min(100, Math.max(0, y));
+      const ent = this._config.entities[this._dragging.index];
+      ent.x = Math.round(x * 10) / 10;
+      ent.y = Math.round(y * 10) / 10;
+      this._dragging.element.style.left = ent.x + '%';
+      this._dragging.element.style.top = ent.y + '%';
+      const posSpan = this.querySelectorAll('.rp-entity-pos')[this._dragging.index];
+      if (posSpan) posSpan.textContent = ent.x.toFixed(1) + '%, ' + ent.y.toFixed(1) + '%';
+    }
+
+    _endDrag() {
+      if (this._dragging) {
+        this._fireConfigChanged(this._config);
+        this._dragging = null;
+      }
     }
   }
 
@@ -408,7 +404,7 @@
   window.customCards.push({
     type: 'custom:' + CARD_TAG,
     name: 'Interaktiver Raumplan',
-    description: 'SVG-Raumplan mit Entity-Element-Mapping (ha-floorplan Style).',
+    description: 'Raumplan als Bild mit Entitäten per Koordinaten (x,y). Kreise mit Icons, Drag & Drop.',
     preview: true
   });
 })();
