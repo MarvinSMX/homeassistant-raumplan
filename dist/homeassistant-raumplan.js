@@ -232,9 +232,11 @@
     }
 
     setConfig(c) {
-      this._config = c ? { ...c } : { image: '', entities: [] };
-      this._config.entities = Array.isArray(this._config.entities) ? this._config.entities : [];
-      this._config.rotation = Number(this._config.rotation) || 0;
+      const next = c ? { ...c } : { image: '', entities: [] };
+      next.entities = Array.isArray(next.entities) ? [...next.entities] : [];
+      next.rotation = Number(next.rotation) || 0;
+      if (this._config && this._config.entities && JSON.stringify(this._config) === JSON.stringify(next)) return;
+      this._config = next;
       this._render();
     }
 
@@ -348,7 +350,7 @@
 
       this.innerHTML = html;
 
-      this.querySelector('#rp-image-url').addEventListener('input', (e) => {
+      this.querySelector('#rp-image-url').addEventListener('change', (e) => {
         const v = e.target.value.trim();
         this._config.image = v;
         this._fireConfigChanged(this._config);
@@ -364,10 +366,6 @@
 
       this.querySelectorAll('.rp-entity-row input').forEach(input => {
         input.addEventListener('change', () => this._syncEntities());
-        input.addEventListener('input', (e) => {
-          const f = e.target.dataset.field;
-          if (f === 'scale' || f === 'color' || f === 'x' || f === 'y') this._syncEntities();
-        });
       });
 
       this.querySelectorAll('.rp-remove-entity').forEach(btn => {
@@ -425,6 +423,6 @@
     type: 'custom:' + CARD_TAG,
     name: 'Interaktiver Raumplan',
     description: 'Raumplan als Bild mit Entitäten per Koordinaten (x,y). Kreise mit Icons.',
-    preview: true
+    preview: false
   });
 })();
