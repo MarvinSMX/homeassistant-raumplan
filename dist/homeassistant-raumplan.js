@@ -58,6 +58,14 @@
       this._hass = null;
       this._root = null;
       this._container = null;
+      this._dragging = null;
+    }
+
+    _isInPreview() {
+      const inEl = (el) => el && (el.closest('.element-preview') || el.closest('hui-section[preview]'));
+      if (inEl(this)) return true;
+      const root = this.getRootNode?.();
+      return !!(root instanceof ShadowRoot && inEl(root.host));
     }
 
     setConfig(config) {
@@ -154,6 +162,9 @@
         room-plan-card .room-plan-entity:hover { transform: translate(-50%,-50%) scale(1.1); }
         room-plan-card .room-plan-entity ha-icon { --mdc-icon-size: 24px; }
         room-plan-card .room-plan-entity.state-on { color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)) !important; }
+        room-plan-card .room-plan-entity.rp-editable { cursor: grab; border-color: var(--primary-color, #03a9f4); }
+        room-plan-card .room-plan-entity.rp-editable:hover { border-width: 4px; }
+        room-plan-card .room-plan-entity.rp-editable:active { cursor: grabbing; }
       `;
       this.appendChild(style);
     }
@@ -184,18 +195,20 @@
       html += `<div class="room-plan-theme-tint"></div>`;
       html += `<div class="room-plan-overlay">`;
 
-      entities.forEach((ent) => {
+      const inPreview = this._isInPreview();
+      entities.forEach((ent, i) => {
         const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
         const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
         const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
         const state = this._hass?.states?.[ent.entity]?.state;
         const stateClass = state === 'on' ? ' state-on' : '';
+        const editableClass = inPreview ? ' rp-editable' : '';
         const baseSize = 44;
         const size = Math.round(baseSize * scale);
         const iconSize = Math.round(24 * scale);
         let entStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
         if (ent.color) entStyle += `background:${ent.color};color:#fff;`;
-        html += `<div class="room-plan-entity${stateClass}" data-entity="${ent.entity}" style="${entStyle}" title="${getFriendlyName(this._hass, ent.entity)}: ${getStateDisplay(this._hass, ent.entity)}">
+        html += `<div class="room-plan-entity${stateClass}${editableClass}" data-entity="${ent.entity}" data-index="${i}" style="${entStyle}" title="${inPreview ? 'Ziehen zum Positionieren' : getFriendlyName(this._hass, ent.entity) + ': ' + getStateDisplay(this._hass, ent.entity)}">
           <ha-icon icon="${ent.icon || getEntityIcon(this._hass, ent.entity)}" style="--mdc-icon-size:${iconSize}px;"></ha-icon>
         </div>`;
       });
@@ -204,12 +217,19 @@
       this._container.innerHTML = html;
 
       this._container.querySelectorAll('.room-plan-entity').forEach(el => {
-        el.addEventListener('click', () => {
-          const entityId = el.dataset.entity;
-          const ev = new Event('hass-more-info', { bubbles: true, composed: true });
-          ev.detail = { entityId };
-          this.dispatchEvent(ev);
-        });
+        if (inPreview) {
+          const startDrag = (e, dot) => { e.preventDefault(); e.stopPropagation(); this._cardStartDrag(e, dot); };
+          el.addEventListener('pointerdown', (e) => startDrag(e, el));
+          el.addEventListener('mousedown', (e) => startDrag(e, el));
+          el.addEventListener('touchstart', (e) => { e.preventDefault(); startDrag(e, el); }, { passive: false });
+        } else {
+          el.addEventListener('click', () => {
+            const entityId = el.dataset.entity;
+            const ev = new Event('hass-more-info', { bubbles: true, composed: true });
+            ev.detail = { entityId };
+            this.dispatchEvent(ev);
+          });
+        }
       });
       const imgEl = this._container.querySelector('.room-plan-img');
       if (imgEl) {
@@ -218,6 +238,72 @@
           if (w && h) imgEl.parentElement.style.aspectRatio = w + '/' + h;
         });
         if (imgEl.complete) imgEl.dispatchEvent(new Event('load'));
+      }
+    }
+
+    _cardStartDrag(ev, dot) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const idx = parseInt(dot.dataset.index, 10);
+      const ent = this._config.entities[idx];
+      if (!ent) return;
+      const rect = dot.parentElement.getBoundingClientRect();
+      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
+      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
+      const leftPct = (clientX - rect.left) / rect.width * 100;
+      const topPct = (clientY - rect.top) / rect.height * 100;
+      this._dragOffset = { x: leftPct - (Number(ent.x) || 50), y: topPct - (Number(ent.y) || 50) };
+      this._dragging = { index: idx, element: dot };
+      const pid = ev.pointerId ?? 1;
+      try { dot.setPointerCapture(pid); } catch (_) {}
+      this._dragPointerId = pid;
+      this._boundCardOnMove = (e) => this._cardOnDrag(e);
+      this._boundCardOnUp = () => this._cardEndDrag();
+      dot.addEventListener('pointermove', this._boundCardOnMove);
+      dot.addEventListener('pointerup', this._boundCardOnUp);
+      dot.addEventListener('pointercancel', this._boundCardOnUp);
+      this._boundCardTouchMove = (e) => { e.preventDefault(); this._cardOnDrag(e); };
+      this._boundCardTouchEnd = () => this._cardEndDrag();
+      dot.ownerDocument.addEventListener('touchmove', this._boundCardTouchMove, { passive: false });
+      dot.ownerDocument.addEventListener('touchend', this._boundCardTouchEnd);
+      dot.ownerDocument.addEventListener('touchcancel', this._boundCardTouchEnd);
+    }
+
+    _cardOnDrag(ev) {
+      if (!this._dragging) return;
+      if (!this._dragging.element.isConnected) { this._dragging = null; return; }
+      ev.preventDefault();
+      const overlay = this._dragging.element.parentElement;
+      const rect = overlay && overlay.classList.contains('room-plan-overlay') ? overlay.getBoundingClientRect() : null;
+      if (!rect || rect.width === 0) return;
+      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
+      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
+      let x = (clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
+      let y = (clientY - rect.top) / rect.height * 100 - this._dragOffset.y;
+      x = Math.min(100, Math.max(0, x));
+      y = Math.min(100, Math.max(0, y));
+      const ent = this._config.entities[this._dragging.index];
+      ent.x = Math.round(x * 10) / 10;
+      ent.y = Math.round(y * 10) / 10;
+      this._dragging.element.style.left = ent.x + '%';
+      this._dragging.element.style.top = ent.y + '%';
+    }
+
+    _cardEndDrag() {
+      if (this._dragging) {
+        const dot = this._dragging.element;
+        try { dot.releasePointerCapture(this._dragPointerId); } catch (_) {}
+        dot.removeEventListener('pointermove', this._boundCardOnMove);
+        dot.removeEventListener('pointerup', this._boundCardOnUp);
+        dot.removeEventListener('pointercancel', this._boundCardOnUp);
+        const doc = dot.ownerDocument;
+        if (doc) {
+          doc.removeEventListener('touchmove', this._boundCardTouchMove);
+          doc.removeEventListener('touchend', this._boundCardTouchEnd);
+          doc.removeEventListener('touchcancel', this._boundCardTouchEnd);
+        }
+        this.dispatchEvent(new CustomEvent('config-changed', { bubbles: true, composed: true, detail: { config: this._config } }));
+        this._dragging = null;
       }
     }
   }
@@ -357,10 +443,10 @@
           </div>
           <div class="rp-section">
             <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
-            <div class="rp-hint">Klicke den Button, um die Positionen in der Vorschau zu setzen. Exakt gleiche Darstellung wie die Card.</div>
+            <div class="rp-hint">Ziehe die Kreise direkt in der Vorschau rechts – keine separate Ansicht nötig. Oder nutze den Button für die Vollbild-Positionierung.</div>
             <button type="button" class="rp-btn-position" id="rp-btn-position" ${!img ? 'disabled' : ''}>
-              <ha-icon icon="mdi:cursor-default-click"></ha-icon>
-              <span>Positionierung öffnen</span>
+              <ha-icon icon="mdi:fullscreen"></ha-icon>
+              <span>Positionierung (Vollbild)</span>
             </button>
           </div>
         </div>`;
