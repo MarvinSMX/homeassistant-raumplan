@@ -90,6 +90,10 @@
     }
 
     connectedCallback() {
+      if (this.closest('.element-preview')) {
+        this.style.display = 'none';
+        return;
+      }
       if (!this._root) {
         this._injectStyles();
         this._root = document.createElement('div');
@@ -159,7 +163,7 @@
     }
 
     _render() {
-      if (!this._container) return;
+      if (!this._container || this.closest('.element-preview')) return;
 
       if (!this._config.image) {
         this._container.innerHTML = `
@@ -234,7 +238,6 @@
     setConfig(c) {
       const next = c ? { ...c } : { image: '', entities: [] };
       next.entities = Array.isArray(next.entities) ? [...next.entities] : [];
-      next.rotation = Number(next.rotation) || 0;
       if (this._config && this._config.entities && JSON.stringify(this._config) === JSON.stringify(next)) return;
       this._config = next;
       this._render();
@@ -297,7 +300,6 @@
 
     _render() {
       const img = typeof this._config.image === 'string' ? this._config.image : (this._config.image?.location || '');
-      const rotation = Number(this._config.rotation) || 0;
       const entities = this._config.entities || [];
       const entityIds = this._hass && this._hass.states ? Object.keys(this._hass.states).sort() : [];
 
@@ -309,15 +311,6 @@
               <label>Bild-URL</label>
               <input type="text" id="rp-image-url" value="${img}" placeholder="/local/raumplan.png" />
               <div class="rp-hint">Bild unter <code>config/www/</code> speichern, dann <code>/local/dateiname.png</code> angeben.</div>
-            </div>
-            <div class="rp-field rp-field-inline">
-              <label>Drehung (Grad)</label>
-              <select id="rp-rotation" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: var(--ha-card-background, #1e1e1e); color: var(--primary-text-color, #e1e1e1); font-size: 14px;">
-                <option value="0" ${rotation === 0 ? 'selected' : ''}>0°</option>
-                <option value="90" ${rotation === 90 ? 'selected' : ''}>90°</option>
-                <option value="180" ${rotation === 180 ? 'selected' : ''}>180°</option>
-                <option value="270" ${rotation === 270 ? 'selected' : ''}>270°</option>
-              </select>
             </div>
           </div>
           <div class="rp-section">
@@ -355,14 +348,6 @@
         this._config.image = v;
         this._fireConfigChanged(this._config);
       });
-
-      const rotEl = this.querySelector('#rp-rotation');
-      if (rotEl) {
-        rotEl.addEventListener('change', () => {
-          this._config.rotation = Number(rotEl.value) || 0;
-          this._fireConfigChanged(this._config);
-        });
-      }
 
       this.querySelectorAll('.rp-entity-row input').forEach(input => {
         input.addEventListener('change', () => this._syncEntities());
