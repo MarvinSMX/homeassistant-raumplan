@@ -1,6 +1,6 @@
 # Interaktiver Raumplan
 
-Lovelace-Karte für einen **Raumplan als Bild** mit per **Koordinaten (x, y)** positionierten Entitäten. Entitäten werden als **Kreise mit Icons** dargestellt und können per **Drag & Drop** im Editor platziert werden.
+Lovelace-Karte für einen **Raumplan als Bild** mit per **Koordinaten (x, y)** positionierten Entitäten. Entitäten werden als **Kreise mit Icons** dargestellt. Position per X/Y-Felder im Editor.
 
 ## Installation
 
@@ -69,14 +69,14 @@ card_mod:
 - **x** und **y** sind Prozentwerte (0–100) relativ zur Bildbreite und -höhe
 - **x: 0** = links, **x: 100** = rechts
 - **y: 0** = oben, **y: 100** = unten
-- Im Konfigurations-Editor: Kreise per **Drag & Drop** auf dem Vorschau-Bild verschieben
+- Im Konfigurations-Editor: X/Y-Werte pro Entität eintragen
 
 ## Nutzung
 
 1. Bild des Raumplans unter `config/www/` ablegen (z.B. `raumplan.png`)
 2. Karte „Interaktiver Raumplan“ zum Dashboard hinzufügen
 3. Bild-URL eintragen (z.B. `/local/raumplan.png`)
-4. Entitäten hinzufügen und in der Vorschau per Drag & Drop auf die richtigen Stellen ziehen
+4. Entitäten hinzufügen und X/Y-Koordinaten für die Position setzen
 5. Speichern – Klick auf einen Kreis öffnet die Entity-Details
 
 ## Lokale Test-UI

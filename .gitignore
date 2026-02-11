@@ -1,4 +1,4 @@
 /node_modules/
 /.rpt2_cache/
 package-lock.json
-/dist
+# dist/ wird für HACS benötigt – gebaute Datei muss im Repo sein

@@ -1,4 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Interaktiver Raumplan – Karte mit Bild und positionierten Entitäten
+ * Vollständig überarbeitetes Design
+ */
 import { LitElement, html, TemplateResult, css, CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators';
 import { HomeAssistant, hasConfigOrEntityChanged, LovelaceCardEditor } from 'custom-card-helpers';
@@ -10,8 +13,14 @@ import { localize } from './localize/localize';
 const CARD_TAG = 'room-plan-card';
 const EDITOR_TAG = 'room-plan-editor';
 
-(window as any).customCards = (window as any).customCards || [];
-(window as any).customCards.push({
+declare global {
+  interface Window {
+    customCards: Array<{ type: string; name: string; description: string; preview?: boolean }>;
+  }
+}
+
+window.customCards = window.customCards || [];
+window.customCards.push({
   type: 'custom:' + CARD_TAG,
   name: 'Interaktiver Raumplan',
   description: 'Raumplan als Bild mit Entitäten per Koordinaten (x,y). Kreise mit Icons.',
@@ -56,6 +65,8 @@ export class RoomPlanCard extends LitElement {
     entities: [],
   };
 
+  @state() private _imageLoaded = false;
+
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     await import('./editor');
     return document.createElement(EDITOR_TAG);
@@ -76,7 +87,7 @@ export class RoomPlanCard extends LitElement {
     const img =
       config?.image && typeof config.image === 'string'
         ? config.image
-        : (config?.image as any)?.location || (config?.image as string) || '';
+        : (config?.image as { location?: string })?.location || (config?.image as string) || '';
     this.config = {
       type: config?.type || 'custom:room-plan-card',
       image: img,
@@ -137,7 +148,7 @@ export class RoomPlanCard extends LitElement {
       el.style.setProperty('padding', '0', 'important');
     };
     const injectShadowStyle = (haCard: HTMLElement): void => {
-      const shadow = (haCard as any).shadowRoot;
+      const shadow = (haCard as HTMLElement & { shadowRoot?: ShadowRoot }).shadowRoot;
       if (!shadow) return;
       if (shadow.querySelector?.('style[data-room-plan-bg]')) return;
       const style = document.createElement('style');
@@ -150,44 +161,43 @@ export class RoomPlanCard extends LitElement {
     while (el && el !== document.body) {
       styleTransparent(el as HTMLElement);
       if ((el as HTMLElement).tagName === 'HA-CARD') injectShadowStyle(el as HTMLElement);
-      const shadow = (el as any).shadowRoot;
-      shadow?.querySelectorAll?.('ha-card')?.forEach?.((haCard: HTMLElement) => {
-        styleTransparent(haCard);
-        injectShadowStyle(haCard);
+      const shadow = (el as HTMLElement & { shadowRoot?: ShadowRoot }).shadowRoot;
+      shadow?.querySelectorAll?.('ha-card')?.forEach?.((el) => {
+        styleTransparent(el as HTMLElement);
+        injectShadowStyle(el as HTMLElement);
       });
       el = el.parentElement || ((el.getRootNode?.() as ShadowRoot)?.host ?? null);
     }
   }
 
   private _handleEntityClick(entityId: string): void {
-    const ev = new Event('hass-more-info', { bubbles: true, composed: true });
-    (ev as any).detail = { entityId };
-    this.dispatchEvent(ev);
+    this.dispatchEvent(
+      new CustomEvent('hass-more-info', { bubbles: true, composed: true, detail: { entityId } }),
+    );
   }
 
   private _renderEntity(ent: RoomPlanEntity): TemplateResult {
-    const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
-    const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
-    const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
+    const x = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
+    const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
+    const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
     const state = this.hass?.states?.[ent.entity]?.state;
-    const stateClass = state === 'on' ? ' state-on' : '';
-    const baseSize = 44;
-    const size = Math.round(baseSize * scale);
-    const iconSize = Math.round(24 * scale);
-    let entStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
-    if (ent.color) entStyle += `background:${ent.color};color:#fff;`;
+    const isOn = state === 'on';
+    const size = Math.round(48 * scale);
+    const iconSize = Math.round(26 * scale);
     const icon = ent.icon || getEntityIcon(this.hass, ent.entity);
     const title = `${getFriendlyName(this.hass, ent.entity)}: ${getStateDisplay(this.hass, ent.entity)}`;
 
     return html`
       <div
-        class="room-plan-entity${stateClass}"
-        data-entity="${ent.entity}"
-        style="${entStyle}"
+        class="entity-badge ${isOn ? 'entity-on' : ''}"
+        style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;--icon-size:${iconSize}px;${ent.color ? `--entity-color:${ent.color}` : ''}"
         title="${title}"
         @click=${() => this._handleEntityClick(ent.entity)}
       >
-        <ha-icon icon="${icon}" style="--mdc-icon-size:${iconSize}px;"></ha-icon>
+        <div class="entity-badge-inner">
+          <ha-icon icon="${icon}"></ha-icon>
+          ${isOn ? html`<span class="entity-pulse"></span>` : ''}
+        </div>
       </div>
     `;
   }
@@ -204,25 +214,31 @@ export class RoomPlanCard extends LitElement {
 
     if (!img) {
       return html`
-        <div class="room-plan-config-prompt">
-          <ha-icon icon="mdi:cog"></ha-icon>
-          <p><strong>Interaktiver Raumplan</strong></p>
-          <p>${localize('common.configure')}</p>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <ha-icon icon="mdi:floor-plan"></ha-icon>
+          </div>
+          <h3 class="empty-state-title">Interaktiver Raumplan</h3>
+          <p class="empty-state-text">${localize('common.configure')}</p>
         </div>
       `;
     }
 
     return html`
-      <div class="room-plan-ha-card">
-        <div class="room-plan-container">
-          ${title ? html`<div class="room-plan-title">${title}</div>` : ''}
-          <div class="room-plan-wrapper">
-            <div class="room-plan-inner" style="transform: rotate(${rotation}deg); aspect-ratio: 16/9;">
-              <img src="${img}" alt="Raumplan" class="room-plan-img" @load=${this._onImageLoad} />
-              <div class="room-plan-theme-tint"></div>
-              <div class="room-plan-overlay">
-                ${entities.map((ent) => this._renderEntity(ent))}
-              </div>
+      <div class="card-root">
+        ${title ? html`<div class="card-title">${title}</div>` : ''}
+        <div class="card-content">
+          <div class="image-wrapper" style="transform: rotate(${rotation}deg); aspect-ratio: 16/9;">
+            <img
+              src="${img}"
+              alt="Raumplan"
+              class="plan-image"
+              @load=${this._onImageLoad}
+              ?hidden=${!this._imageLoaded}
+            />
+            ${!this._imageLoaded ? html`<div class="image-skeleton"></div>` : ''}
+            <div class="entities-overlay">
+              ${entities.map((ent) => this._renderEntity(ent))}
             </div>
           </div>
         </div>
@@ -237,151 +253,170 @@ export class RoomPlanCard extends LitElement {
     if (w && h && img.parentElement) {
       img.parentElement.style.aspectRatio = `${w}/${h}`;
     }
+    this._imageLoaded = true;
   }
 
   static get styles(): CSSResultGroup {
     return css`
       :host {
-        display: flex;
-        flex-direction: column;
+        display: block;
         width: 100%;
         height: 100%;
-        max-width: 100%;
-        min-width: 0;
         min-height: 0;
         overflow: hidden;
-        box-sizing: border-box;
         background: none !important;
       }
 
-      .room-plan-ha-card {
-        padding: 0 !important;
-        overflow: hidden !important;
-        flex: 1 1 0;
-        min-height: 0;
-        width: 100%;
-        height: 100%;
+      .card-root {
         display: flex;
         flex-direction: column;
-        background: none !important;
-      }
-
-      .room-plan-container {
-        position: relative;
-        flex: 1 1 0;
-        min-height: 0;
-        width: 100%;
         height: 100%;
+        min-height: 0;
         overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        background: none !important;
       }
 
-      .room-plan-wrapper {
-        position: relative;
-        flex: 1 1 0;
+      .card-title {
+        padding: 12px 20px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--ha-card-header-color, var(--primary-text-color));
+      }
+
+      .card-content {
+        flex: 1;
         min-height: 0;
-        width: 100%;
-        height: 100%;
         overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: none !important;
       }
 
-      .room-plan-inner {
+      .image-wrapper {
         position: relative;
         max-width: 100%;
         max-height: 100%;
         width: 100%;
-        height: auto;
-        min-height: 0;
-        background: none !important;
+        overflow: hidden;
       }
 
-      .room-plan-inner > img {
+      .plan-image {
         width: 100%;
         height: 100%;
         object-fit: contain;
         object-position: center;
         display: block;
-        filter: brightness(0.92) contrast(1.05) saturate(0.9);
       }
 
-      .room-plan-theme-tint {
+      .image-skeleton {
+        position: absolute;
+        inset: 0;
+        background: var(--ha-card-background, #1e1e1e);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 0.4; }
+      }
+
+      .entities-overlay {
         position: absolute;
         inset: 0;
         pointer-events: none;
-        z-index: 0;
-        background: var(--primary-color, #03a9f4);
-        opacity: 0.06;
-        mix-blend-mode: overlay;
       }
 
-      .room-plan-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        pointer-events: none;
-      }
-
-      .room-plan-overlay > * {
+      .entities-overlay > * {
         pointer-events: auto;
       }
 
-      .room-plan-entity {
+      .entity-badge {
         position: absolute;
         transform: translate(-50%, -50%);
-        width: 44px;
-        height: 44px;
+        cursor: pointer;
+        z-index: 2;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .entity-badge:hover {
+        transform: translate(-50%, -50%) scale(1.12);
+      }
+
+      .entity-badge-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
         border-radius: 50%;
-        background: var(--card-background-color, var(--ha-card-background, #1e1e1e));
+        background: var(--entity-color, var(--card-background-color, #2d2d2d));
         color: var(--primary-text-color, #e1e1e1);
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.08);
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        z-index: 2;
-        border: 3px solid rgba(255, 255, 255, 0.15);
-        transition: transform 0.15s;
+        transition: box-shadow 0.2s;
       }
 
-      .room-plan-entity:hover {
-        transform: translate(-50%, -50%) scale(1.1);
+      .entity-badge:hover .entity-badge-inner {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(255, 255, 255, 0.15);
       }
 
-      .room-plan-entity.state-on {
-        color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)) !important;
+      .entity-badge ha-icon {
+        --mdc-icon-size: var(--icon-size, 26px);
+        position: relative;
+        z-index: 1;
       }
 
-      .room-plan-config-prompt {
-        padding: 24px;
+      .entity-badge.entity-on .entity-badge-inner {
+        color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107));
+      }
+
+      .entity-pulse {
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        border: 2px solid var(--state-icon-on-color, #ffc107);
+        opacity: 0.5;
+        animation: entity-pulse 2s ease-out infinite;
+      }
+
+      @keyframes entity-pulse {
+        0% { transform: scale(0.9); opacity: 0.6; }
+        100% { transform: scale(1.2); opacity: 0; }
+      }
+
+      .empty-state {
+        padding: 48px 24px;
         text-align: center;
-        color: var(--secondary-text-color);
       }
 
-      .room-plan-config-prompt ha-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-        display: block;
+      .empty-state-icon {
+        margin-bottom: 20px;
       }
 
-      .room-plan-title {
-        padding: 8px 16px;
+      .empty-state-icon ha-icon {
+        font-size: 64px;
+        color: var(--secondary-text-color, #9e9e9e);
+        opacity: 0.7;
+      }
+
+      .empty-state-title {
+        margin: 0 0 12px;
+        font-size: 1.25rem;
         font-weight: 600;
-        color: var(--primary-text-color, #e1e1e1);
+        color: var(--primary-text-color);
+      }
+
+      .empty-state-text {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--secondary-text-color);
+        line-height: 1.5;
       }
     `;
   }
 }
 
 console.info(
-  `%c  RAUMPLAN-CARD  %c  ${localize('common.version')} ${CARD_VERSION}  `,
-  'color: orange; font-weight: bold; background: black',
-  'color: white; font-weight: bold; background: dimgray',
+  `%c RAUMPLAN %c v${CARD_VERSION} `,
+  'color: #fff; background: #03a9f4; padding: 2px 8px; border-radius: 4px; font-weight: bold',
+  'color: #fff; background: #555; padding: 2px 8px; border-radius: 4px',
 );
