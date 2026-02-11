@@ -104,7 +104,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
                     @change=${(e: Event) => this._updateEntity(i, { y: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 50)) })} />
                 </div>
-                <input type="number" data-field="scale" min="0.3" max="2" step="0.1" .value=${String(Math.min(2, Math.max(0.3, Number(ent.scale) || 1)))} title="Skalierung"
+                <input type="number" class="entity-scale" min="0.3" max="2" step="0.1" .value=${String(Math.min(2, Math.max(0.3, Number(ent.scale) || 1)))} title="Skalierung"
                   @change=${(e: Event) => this._updateEntity(i, { scale: Math.min(2, Math.max(0.3, Number((e.target as HTMLInputElement).value) || 1)) })} />
                 <input type="color" .value=${ent.color || '#03a9f4'} title="Farbe"
                   @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value; this._updateEntity(i, { color: v === '#03a9f4' && !ent.color ? undefined : v }); }} />
@@ -124,34 +124,183 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
   static get styles(): CSSResultGroup {
     return css`
-      .editor { padding: 16px 20px; max-width: 560px; }
-      .editor * { box-sizing: border-box; }
-      .editor-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-      .editor-header ha-icon { color: var(--primary-color, #03a9f4); }
-      .editor-header h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--primary-text-color); }
-      .editor-section { margin-bottom: 28px; }
-      .section-title { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 0.95rem; font-weight: 600; color: var(--primary-text-color); }
-      .section-title ha-icon { color: var(--primary-color, #03a9f4); }
-      .section-hint { margin: 0 0 12px; font-size: 0.85rem; color: var(--secondary-text-color); line-height: 1.4; }
-      .field { margin-bottom: 16px; }
-      .field-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; }
-      .field label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--secondary-text-color); margin-bottom: 6px; }
-      .field input, .field select { width: 100%; padding: 10px 14px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); border-radius: 8px; background: var(--ha-card-background, #1e1e1e); color: var(--primary-text-color); font-size: 14px; }
-      .field input:focus, .field select:focus { outline: none; border-color: var(--primary-color, #03a9f4); }
-      .hint { display: block; font-size: 0.8rem; color: var(--secondary-text-color); margin-top: 6px; }
-      .hint code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
-      .entity-list { display: flex; flex-direction: column; gap: 10px; }
-      .entity-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; background: var(--ha-card-background, #1e1e1e); border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); border-radius: 10px; }
-      .entity-row input[list] { flex: 1; min-width: 140px; }
-      .entity-coords { display: flex; gap: 6px; }
-      .entity-coords input { width: 52px; padding: 8px 10px; }
-      .entity-row input[data-field='scale'] { width: 60px; padding: 8px 10px; }
-      .entity-row input[type='color'] { width: 36px; height: 36px; padding: 2px; cursor: pointer; border-radius: 6px; }
-      .entity-row input:focus { outline: none; border-color: var(--primary-color, #03a9f4); }
-      .btn-remove { padding: 8px 10px; border: none; border-radius: 8px; background: rgba(244,67,54,0.15); color: #f44336; cursor: pointer; }
-      .btn-remove:hover { background: rgba(244,67,54,0.3); }
-      .btn-add { padding: 12px 18px; width: 100%; margin-top: 12px; border: 2px dashed var(--divider-color, rgba(255,255,255,0.12)); border-radius: 10px; background: transparent; color: var(--primary-color, #03a9f4); font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-      .btn-add:hover { border-color: var(--primary-color, #03a9f4); background: rgba(3,169,244,0.08); }
+      :host {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+      .editor {
+        padding: clamp(12px, 3vw, 20px);
+        max-width: 560px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .editor * {
+        box-sizing: border-box;
+      }
+      .editor-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .editor-header ha-icon {
+        color: var(--primary-color, #03a9f4);
+        flex-shrink: 0;
+      }
+      .editor-header h3 {
+        margin: 0;
+        font-size: clamp(1rem, 2.5vw, 1.1rem);
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+      .editor-section {
+        margin-bottom: 28px;
+      }
+      .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 12px;
+        font-size: clamp(0.9rem, 2.2vw, 0.95rem);
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+      .section-title ha-icon {
+        color: var(--primary-color, #03a9f4);
+        flex-shrink: 0;
+      }
+      .section-hint {
+        margin: 0 0 12px;
+        font-size: clamp(0.8rem, 2vw, 0.85rem);
+        color: var(--secondary-text-color);
+        line-height: 1.4;
+      }
+      .field {
+        margin-bottom: 16px;
+      }
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+      }
+      @media (max-width: 480px) {
+        .field-row {
+          grid-template-columns: 1fr;
+        }
+      }
+      .field label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--secondary-text-color);
+        margin-bottom: 6px;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-radius: 8px;
+        background: var(--ha-card-background, #1e1e1e);
+        color: var(--primary-text-color);
+        font-size: clamp(14px, 3.5vw, 16px);
+      }
+      .field input:focus,
+      .field select:focus {
+        outline: none;
+        border-color: var(--primary-color, #03a9f4);
+      }
+      .hint {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+        margin-top: 6px;
+      }
+      .hint code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+      }
+      .entity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .entity-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: var(--ha-card-background, #1e1e1e);
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-radius: 10px;
+      }
+      .entity-row input[list] {
+        flex: 1 1 140px;
+        min-width: 0;
+      }
+      .entity-coords {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .entity-coords input {
+        width: clamp(44px, 12vw, 52px);
+        padding: 8px 10px;
+        font-size: clamp(12px, 3vw, 14px);
+      }
+      .entity-row input.entity-scale {
+        width: clamp(50px, 14vw, 60px);
+        padding: 8px 10px;
+      }
+      .entity-row input[type='color'] {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        padding: 2px;
+        cursor: pointer;
+        border-radius: 6px;
+      }
+      .entity-row input:focus {
+        outline: none;
+        border-color: var(--primary-color, #03a9f4);
+      }
+      .btn-remove {
+        padding: 8px 10px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(244, 67, 54, 0.15);
+        color: #f44336;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .btn-remove:hover {
+        background: rgba(244, 67, 54, 0.3);
+      }
+      .btn-add {
+        padding: 12px 18px;
+        width: 100%;
+        margin-top: 12px;
+        border: 2px dashed var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-radius: 10px;
+        background: transparent;
+        color: var(--primary-color, #03a9f4);
+        font-size: clamp(13px, 3.2vw, 14px);
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .btn-add:hover {
+        border-color: var(--primary-color, #03a9f4);
+        background: rgba(3, 169, 244, 0.08);
+      }
     `;
   }
 }

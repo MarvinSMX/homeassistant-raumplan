@@ -100,21 +100,18 @@ export class RoomPlanCard extends LitElement {
     const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
     const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
     const isOn = this.hass?.states?.[ent.entity]?.state === 'on';
-    const size = Math.round(48 * scale);
-    const iconSize = Math.round(26 * scale);
     const icon = ent.icon || getEntityIcon(this.hass, ent.entity);
     const title = `${getFriendlyName(this.hass, ent.entity)}: ${getStateDisplay(this.hass, ent.entity)}`;
 
     return html`
       <div
         class="entity-badge ${isOn ? 'entity-on' : ''}"
-        style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;--icon-size:${iconSize}px;${ent.color ? `--entity-color:${ent.color}` : ''}"
+        style="left:${x}%;top:${y}%;--entity-scale:${scale};${ent.color ? `--entity-color:${ent.color}` : ''}"
         title="${title}"
         @click=${() => this._handleEntityClick(ent.entity)}
       >
         <div class="entity-badge-inner">
           <ha-icon icon="${icon}"></ha-icon>
-          ${isOn ? html`<span class="entity-pulse"></span>` : ''}
         </div>
       </div>
     `;
@@ -157,7 +154,7 @@ export class RoomPlanCard extends LitElement {
               @load=${this._onImageLoad}
               ?hidden=${!this._imageLoaded}
             />
-            ${!this._imageLoaded ? html`<div class="image-skeleton"></div>` : ''}
+            ${!this._imageLoaded ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
             <div class="entities-overlay">
               ${(entities ?? []).map((ent) => this._renderEntity(ent))}
             </div>
@@ -169,43 +166,109 @@ export class RoomPlanCard extends LitElement {
 
   static get styles(): CSSResultGroup {
     return css`
-      :host { display: block; }
-      .card-content { padding: 0; overflow: hidden; }
-      .image-wrapper { position: relative; max-width: 100%; overflow: hidden; }
-      .plan-image { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
+      :host {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+      ha-card {
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+      }
+      .card-content {
+        padding: 0;
+        overflow: hidden;
+        width: 100%;
+      }
+      .image-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        min-height: 120px;
+      }
+      .plan-image {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        object-fit: contain;
+        object-position: center;
+        display: block;
+        vertical-align: middle;
+      }
       .image-skeleton {
-        position: absolute; inset: 0;
+        position: absolute;
+        inset: 0;
         background: var(--ha-card-background, #1e1e1e);
-        animation: pulse 1.5s ease-in-out infinite;
       }
-      @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 0.4; } }
-      .entities-overlay { position: absolute; inset: 0; pointer-events: none; }
-      .entities-overlay > * { pointer-events: auto; }
+      .entities-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        width: 100%;
+        height: 100%;
+      }
+      .entities-overlay > * {
+        pointer-events: auto;
+      }
       .entity-badge {
-        position: absolute; transform: translate(-50%, -50%);
-        cursor: pointer; z-index: 2; transition: transform 0.2s;
+        --size: clamp(28px, 8vw, 48px);
+        --icon-size: calc(clamp(16px, 4.5vw, 26px) * var(--entity-scale, 1));
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: calc(var(--size) * var(--entity-scale, 1));
+        height: calc(var(--size) * var(--entity-scale, 1));
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+        z-index: 2;
+        transition: transform 0.2s ease;
       }
-      .entity-badge:hover { transform: translate(-50%, -50%) scale(1.1); }
+      .entity-badge:hover {
+        transform: translate(-50%, -50%) scale(1.08);
+      }
       .entity-badge-inner {
-        width: 100%; height: 100%; border-radius: 50%;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
         background: var(--entity-color, var(--card-background-color, #2d2d2d));
         color: var(--primary-text-color, #e1e1e1);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
-      .entity-badge ha-icon { --mdc-icon-size: var(--icon-size, 26px); }
+      .entity-badge ha-icon {
+        --mdc-icon-size: var(--icon-size);
+        width: var(--icon-size);
+        height: var(--icon-size);
+      }
       .entity-badge.entity-on .entity-badge-inner {
         color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107));
       }
-      .entity-pulse {
-        position: absolute; inset: -4px; border-radius: 50%;
-        border: 2px solid var(--state-icon-on-color, #ffc107);
-        opacity: 0.5; animation: entity-pulse 2s ease-out infinite;
+      .empty-state {
+        padding: clamp(24px, 6vw, 48px) clamp(16px, 4vw, 24px);
+        text-align: center;
       }
-      @keyframes entity-pulse { 0% { transform: scale(0.9); opacity: 0.6; } 100% { transform: scale(1.2); opacity: 0; } }
-      .empty-state { padding: 48px 24px; text-align: center; }
-      .empty-state ha-icon { font-size: 64px; color: var(--secondary-text-color); display: block; margin-bottom: 16px; }
-      .empty-state p { margin: 0; color: var(--secondary-text-color); }
+      .empty-state ha-icon {
+        font-size: clamp(48px, 12vw, 64px);
+        color: var(--secondary-text-color);
+        display: block;
+        margin-bottom: 16px;
+      }
+      .empty-state p {
+        margin: 0;
+        color: var(--secondary-text-color);
+        font-size: clamp(0.9rem, 2.5vw, 1rem);
+      }
+      @media (max-width: 480px) {
+        .entity-badge {
+          --size: clamp(24px, 10vw, 40px);
+          --icon-size: clamp(14px, 5vw, 22px);
+        }
+      }
     `;
   }
 }
