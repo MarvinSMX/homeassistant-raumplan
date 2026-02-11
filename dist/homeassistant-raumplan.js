@@ -111,6 +111,51 @@
       this._render();
       this._removeCardChrome();
       requestAnimationFrame(() => this._removeCardChrome());
+      this._attachPreviewDrag();
+    }
+
+    disconnectedCallback() {
+      this._detachPreviewDrag();
+    }
+
+    _attachPreviewDrag() {
+      if (!this._isInPreview() || this._previewDragAttached) return;
+      this._previewDragAttached = true;
+      const doc = this.ownerDocument || document;
+      const attachTarget = doc.documentElement || doc.body || doc;
+      this._previewDownHandler = (e) => {
+        const dot = e.target.closest('.room-plan-entity.rp-editable');
+        if (dot && this.contains(dot)) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          this._cardStartDrag(e, dot);
+        }
+      };
+      this._previewTouchHandler = (e) => {
+        const dot = e.target.closest('.room-plan-entity.rp-editable');
+        if (dot && this.contains(dot)) {
+          e.preventDefault();
+          this._previewDownHandler(e);
+        }
+      };
+      attachTarget.addEventListener('pointerdown', this._previewDownHandler, true);
+      attachTarget.addEventListener('mousedown', this._previewDownHandler, true);
+      attachTarget.addEventListener('touchstart', this._previewTouchHandler, { passive: false, capture: true });
+      this._previewAttachTarget = attachTarget;
+    }
+
+    _detachPreviewDrag() {
+      if (!this._previewDragAttached) return;
+      this._previewDragAttached = false;
+      const target = this._previewAttachTarget || this.ownerDocument || document;
+      if (this._previewDownHandler) {
+        target.removeEventListener('pointerdown', this._previewDownHandler, true);
+        target.removeEventListener('mousedown', this._previewDownHandler, true);
+      }
+      if (this._previewTouchHandler) {
+        target.removeEventListener('touchstart', this._previewTouchHandler, { capture: true });
+      }
     }
 
     _removeCardChrome() {
@@ -217,20 +262,7 @@
       html += '</div></div></div>';
       this._container.innerHTML = html;
 
-      if (inPreview) {
-        const onDown = (e) => {
-          const dot = e.target.closest('.room-plan-entity.rp-editable');
-          if (dot) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this._cardStartDrag(e, dot);
-          }
-        };
-        this._container.addEventListener('pointerdown', onDown, true);
-        this._container.addEventListener('mousedown', onDown, true);
-        this._container.addEventListener('touchstart', (e) => { if (e.target.closest('.room-plan-entity.rp-editable')) { e.preventDefault(); onDown(e); } }, { passive: false, capture: true });
-      } else {
+      if (!inPreview) {
         this._container.querySelectorAll('.room-plan-entity').forEach(el => {
           el.addEventListener('click', () => {
             const entityId = el.dataset.entity;
@@ -239,6 +271,8 @@
             this.dispatchEvent(ev);
           });
         });
+      } else {
+        requestAnimationFrame(() => this._attachPreviewDrag());
       }
       const imgEl = this._container.querySelector('.room-plan-img');
       if (imgEl) {
