@@ -162,7 +162,8 @@
         room-plan-card .room-plan-entity:hover { transform: translate(-50%,-50%) scale(1.1); }
         room-plan-card .room-plan-entity ha-icon { --mdc-icon-size: 24px; }
         room-plan-card .room-plan-entity.state-on { color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)) !important; }
-        room-plan-card .room-plan-entity.rp-editable { cursor: grab; border-color: var(--primary-color, #03a9f4); }
+        room-plan-card .room-plan-entity.rp-editable { cursor: grab; border-color: var(--primary-color, #03a9f4); user-select: none; touch-action: none; }
+        room-plan-card .room-plan-entity.rp-editable ha-icon { pointer-events: none; }
         room-plan-card .room-plan-entity.rp-editable:hover { border-width: 4px; }
         room-plan-card .room-plan-entity.rp-editable:active { cursor: grabbing; }
       `;
@@ -216,21 +217,29 @@
       html += '</div></div></div>';
       this._container.innerHTML = html;
 
-      this._container.querySelectorAll('.room-plan-entity').forEach(el => {
-        if (inPreview) {
-          const startDrag = (e, dot) => { e.preventDefault(); e.stopPropagation(); this._cardStartDrag(e, dot); };
-          el.addEventListener('pointerdown', (e) => startDrag(e, el));
-          el.addEventListener('mousedown', (e) => startDrag(e, el));
-          el.addEventListener('touchstart', (e) => { e.preventDefault(); startDrag(e, el); }, { passive: false });
-        } else {
+      if (inPreview) {
+        const onDown = (e) => {
+          const dot = e.target.closest('.room-plan-entity.rp-editable');
+          if (dot) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this._cardStartDrag(e, dot);
+          }
+        };
+        this._container.addEventListener('pointerdown', onDown, true);
+        this._container.addEventListener('mousedown', onDown, true);
+        this._container.addEventListener('touchstart', (e) => { if (e.target.closest('.room-plan-entity.rp-editable')) { e.preventDefault(); onDown(e); } }, { passive: false, capture: true });
+      } else {
+        this._container.querySelectorAll('.room-plan-entity').forEach(el => {
           el.addEventListener('click', () => {
             const entityId = el.dataset.entity;
             const ev = new Event('hass-more-info', { bubbles: true, composed: true });
             ev.detail = { entityId };
             this.dispatchEvent(ev);
           });
-        }
-      });
+        });
+      }
       const imgEl = this._container.querySelector('.room-plan-img');
       if (imgEl) {
         imgEl.addEventListener('load', () => {
