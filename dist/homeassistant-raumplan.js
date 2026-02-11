@@ -411,13 +411,19 @@
       const topPct = (clientY - rect.top) / rect.height * 100;
       this._dragOffset = { x: leftPct - (Number(ent.x) || 50), y: topPct - (Number(ent.y) || 50) };
       this._dragging = { index: idx, element: dot };
-      try { dot.setPointerCapture(ev.pointerId ?? 1); } catch (_) {}
-      this._dragPointerId = ev.pointerId ?? 1;
+      const pid = ev.pointerId ?? 1;
+      try { dot.setPointerCapture(pid); } catch (_) {}
+      this._dragPointerId = pid;
       this._boundOnPointerMove = (e) => this._onDrag(e);
       this._boundOnPointerUp = () => this._endDrag();
       dot.addEventListener('pointermove', this._boundOnPointerMove);
       dot.addEventListener('pointerup', this._boundOnPointerUp);
       dot.addEventListener('pointercancel', this._boundOnPointerUp);
+      this._boundOnTouchMove = (e) => { e.preventDefault(); this._onDrag(e); };
+      this._boundOnTouchEnd = () => this._endDrag();
+      dot.ownerDocument.addEventListener('touchmove', this._boundOnTouchMove, { passive: false });
+      dot.ownerDocument.addEventListener('touchend', this._boundOnTouchEnd);
+      dot.ownerDocument.addEventListener('touchcancel', this._boundOnTouchEnd);
     }
 
     _onDrag(ev) {
@@ -452,6 +458,12 @@
           dot.removeEventListener('pointerup', this._boundOnPointerUp);
           dot.removeEventListener('pointercancel', this._boundOnPointerUp);
         }
+        const doc = dot.ownerDocument;
+        if (this._boundOnTouchMove && doc) {
+          doc.removeEventListener('touchmove', this._boundOnTouchMove);
+          doc.removeEventListener('touchend', this._boundOnTouchEnd);
+          doc.removeEventListener('touchcancel', this._boundOnTouchEnd);
+        }
         this._fireConfigChanged(this._config);
         const posSpan = this.querySelectorAll('.rp-entity-pos')[this._dragging.index];
         if (posSpan) {
@@ -480,7 +492,7 @@
             border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
             display: flex; align-items: center; gap: 8px; pointer-events: auto; }
           .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
-          .rp-position-fullscreen .rp-position-close ha-icon { --mdc-icon-size: 20px; }
+          .rp-position-fullscreen .rp-position-close span { font-size: 18px; line-height: 1; }
           .rp-position-fullscreen .rp-position-card { position: relative; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0;
             overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
           .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
@@ -504,7 +516,7 @@
       overlay.className = 'rp-position-fullscreen';
       overlay.innerHTML = `
         <button type="button" class="rp-position-close" id="rp-position-close" title="Schließen (Esc)">
-          <ha-icon icon="mdi:close"></ha-icon> Schließen
+          <span aria-hidden="true">✕</span> Schließen
         </button>
         <div class="rp-position-card" style="transform: rotate(${rotation}deg);">
           <img src="${img}" alt="Raumplan" />
@@ -523,12 +535,13 @@
             }).join('')}
           </div>
         </div>`;
-      const root = this.getRootNode();
-      const appendTarget = (root instanceof Document) ? (root.body || root.documentElement) : root;
-      appendTarget.appendChild(overlay);
+      this.appendChild(overlay);
 
+      const startDrag = (e, dot) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); };
       overlay.querySelectorAll('.editor-dot').forEach(dot => {
-        dot.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); });
+        dot.addEventListener('pointerdown', (e) => startDrag(e, dot));
+        dot.addEventListener('mousedown', (e) => startDrag(e, dot));
+        dot.addEventListener('touchstart', (e) => { e.preventDefault(); startDrag(e, dot); }, { passive: false });
       });
 
       const close = () => {
@@ -542,6 +555,8 @@
         const doClose = (e) => { e.preventDefault(); e.stopPropagation(); close(); };
         closeBtn.addEventListener('click', doClose, true);
         closeBtn.addEventListener('pointerdown', doClose, true);
+        closeBtn.addEventListener('mousedown', doClose, true);
+        closeBtn.addEventListener('touchend', doClose, true);
       }
     }
   }
