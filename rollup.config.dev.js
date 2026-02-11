@@ -14,7 +14,7 @@ export default {
   plugins: [
     resolve(),
     commonjs(),
-    typescript({ tsconfig: './tsconfig.json', exclude: ['**/boilerplate-card-master/**'] }),
+    typescript({ tsconfig: './tsconfig.json', exclude: ['**/boilerplate-card-master/**', '**/ha-floorplan-master/**'] }),
     json(),
     serve({
       contentBase: './dist',

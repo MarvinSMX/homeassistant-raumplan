@@ -1,8 +1,0 @@
-{
-  "common": {
-    "version": "Version",
-    "invalid_configuration": "Ungültige Konfiguration",
-    "show_warning": "Warnung anzeigen",
-    "configure": "Bitte konfigurieren: Bild-URL und Entitäten mit Koordinaten."
-  }
-}

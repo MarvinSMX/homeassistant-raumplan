@@ -20,7 +20,7 @@ Lovelace-Karte für einen **Raumplan als Bild** mit per **Koordinaten (x, y)** p
 
 ```yaml
 type: custom:room-plan-card
-image: /local/raumplan.png
+image: /local/Cafe.png
 rotation: 0
 entities:
   - entity: light.wohnzimmer
@@ -52,16 +52,16 @@ entities:
 | `color`     | Optional: Farbe pro Entität (Hex, z.B. `#ffc107`)    |
 | `title`     | Optional: Überschrift über der Karte                  |
 
-### Anzeige in Home Assistant
+### Transparenz / Styling (optional)
 
-Die Karte enthält Anpassungen für HA (kein Padding, Theme-Variablen). Wenn Layout-Probleme auftreten, kannst du mit **card-mod** nachhelfen:
+Die Karte nutzt die Standard-`ha-card`-Komponente. Für transparenten Hintergrund oder angepasstes Styling kannst du **card-mod** verwenden:
 
 ```yaml
 type: custom:room-plan-card
 # ... deine config ...
 card_mod:
   style: |
-    ha-card { padding: 0 !important; }
+    ha-card { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
 ```
 
 ## Koordinaten

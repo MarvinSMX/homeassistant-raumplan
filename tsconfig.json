@@ -1,19 +1,21 @@
 {
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "boilerplate-card-master", "dist"],
   "compilerOptions": {
-    "target": "es2017",
-    "module": "esnext",
-    "moduleResolution": "node",
-    "lib": ["es2017", "dom", "dom.iterable"],
-    "noEmit": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
+    "outDir": "./dist/",
+    "sourceMap": true,
     "strict": true,
-    "noImplicitAny": false,
-    "skipLibCheck": true,
+    "noImplicitReturns": true,
+    "noImplicitAny": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "target": "ES2020",
+    "allowJs": true,
+    "experimentalDecorators": true,
     "resolveJsonModule": true,
-    "experimentalDecorators": true
-  }
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  "include": ["./src/**/*"],
+  "exclude": ["node_modules", "boilerplate-card-master", "ha-floorplan-master", "dist"]
 }

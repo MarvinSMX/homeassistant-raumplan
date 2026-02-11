@@ -1,9 +1,15 @@
 module.exports = {
+  root: true,
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: 'module',
   },
   extends: ['plugin:@typescript-eslint/recommended'],
-  rules: {},
+  rules: {
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      { argsIgnorePattern: '^_', varsIgnorePattern: '^(customElement|property|state|RoomPlanCard|RoomPlanEditor)$' },
+    ],
+  },
 };

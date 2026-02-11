@@ -1,0 +1,13 @@
+name: PR Test
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build and Test
+    uses: ./.github/workflows/common-build-test.yaml
+    with:
+      upload-artifacts: false
