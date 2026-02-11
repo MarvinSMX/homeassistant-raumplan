@@ -80,6 +80,10 @@
       return 3;
     }
 
+    getGridOptions() {
+      return { rows: 3, columns: 2, min_rows: 2, min_columns: 1 };
+    }
+
     connectedCallback() {
       if (!this._root) {
         this._injectStyles();
@@ -210,6 +214,14 @@
     }
 
     _fireConfigChanged(cfg) {
+      const cardPreview = this.querySelector('#rp-card-preview');
+      if (cardPreview) {
+        const cardEl = cardPreview.querySelector('room-plan-card');
+        if (cardEl) {
+          cardEl.setConfig({ ...cfg });
+          cardEl.hass = this._hass;
+        }
+      }
       this.dispatchEvent(new CustomEvent('config-changed', { bubbles: true, composed: true, detail: { config: cfg } }));
     }
 
@@ -247,10 +259,21 @@
           background: transparent; color: var(--primary-color, #03a9f4); font-size: 14px; font-weight: 500;
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
         room-plan-editor .rp-btn-add:hover { border-color: var(--primary-color, #03a9f4); background: rgba(3, 169, 244, 0.08); }
-        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 200px; height: 280px; border-radius: 12px;
+        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 200px; border-radius: 12px;
           overflow: hidden; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: #1a1a1a;
-          width: 100%; display: flex; }
-        room-plan-editor .rp-preview-inner { position: relative; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+          width: 100%; aspect-ratio: 2/3; }
+        room-plan-editor .rp-preview-wrap.rp-fullsize { aspect-ratio: auto; max-height: 70vh; overflow: auto; }
+        room-plan-editor .rp-preview-inner { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+        room-plan-editor .rp-preview-wrap.rp-fullsize .rp-preview-inner { width: 100%; height: auto; display: block; position: relative; }
+        room-plan-editor .rp-preview-wrap.rp-fullsize .rp-preview-inner > img { object-fit: contain; width: 100%; height: auto; display: block; }
+        room-plan-editor .rp-btn-toggle { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
+          background: var(--ha-card-background, #1e1e1e); color: var(--primary-color, #03a9f4); font-size: 13px; cursor: pointer;
+          display: flex; align-items: center; gap: 6px; }
+        room-plan-editor .rp-btn-toggle:hover { background: rgba(3, 169, 244, 0.1); }
+        room-plan-editor .rp-btn-toggle ha-icon { --mdc-icon-size: 18px; }
+        room-plan-editor .rp-card-preview { aspect-ratio: 2/3; min-height: 240px; border-radius: 12px; overflow: hidden;
+          border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); margin-top: 12px; }
+        room-plan-editor .rp-card-preview room-plan-card { display: block; width: 100%; height: 100%; min-height: 240px; }
         room-plan-editor .rp-preview-inner > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; pointer-events: none;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-editor .rp-preview-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
@@ -320,7 +343,13 @@
           </div>
           <div class="rp-section">
             <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
-            <div class="rp-hint">Kreise auf dem Plan per Drag & Drop verschieben</div>
+            <div class="rp-hint">Kreise auf dem Plan per Drag & Drop verschieben. Proportionen wie die Card (2:3).</div>
+            <div class="rp-preview-actions" style="margin-bottom: 8px;">
+              <button type="button" class="rp-btn-toggle" id="rp-btn-fullsize" title="Bild in voller Größe anzeigen">
+                <ha-icon icon="mdi:fullscreen"></ha-icon>
+                <span id="rp-fullsize-label">Vollbild (volle Größe)</span>
+              </button>
+            </div>
             <div class="rp-preview-wrap" id="rp-preview">
               <div class="rp-preview-inner" id="rp-preview-inner" style="transform: rotate(${rotation}deg);">
                 <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
@@ -343,16 +372,71 @@
               </div>
             </div>
           </div>
+          <div class="rp-section">
+            <div class="rp-section-title"><ha-icon icon="mdi:view-dashboard"></ha-icon> Vorschau (wie in Home Assistant)</div>
+            <div class="rp-hint">So wird die Card in Home Assistant angezeigt. Gleiche Proportionen (2:3).</div>
+            <div class="rp-card-preview" id="rp-card-preview"></div>
+          </div>
         </div>`;
 
       this.innerHTML = html;
 
+      const cardPreview = this.querySelector('#rp-card-preview');
+      if (cardPreview && img) {
+        let cardEl = cardPreview.querySelector('room-plan-card');
+        if (!cardEl) {
+          cardEl = document.createElement('room-plan-card');
+          cardPreview.appendChild(cardEl);
+        }
+        cardEl.setConfig({ ...this._config });
+        cardEl.hass = this._hass;
+      }
+
+      const fullsizeBtn = this.querySelector('#rp-btn-fullsize');
+      const previewWrap = this.querySelector('#rp-preview');
+      if (fullsizeBtn && previewWrap) {
+        fullsizeBtn.addEventListener('click', () => {
+          const isFull = previewWrap.classList.toggle('rp-fullsize');
+          const label = this.querySelector('#rp-fullsize-label');
+          const icon = fullsizeBtn.querySelector('ha-icon');
+          if (label) label.textContent = isFull ? 'Normal (Card-Proportionen)' : 'Vollbild (volle Größe)';
+          if (icon) icon.setAttribute('icon', isFull ? 'mdi:fullscreen-exit' : 'mdi:fullscreen');
+          if (isFull) {
+            const previewImg = this.querySelector('#rp-preview-img');
+            const previewInner = this.querySelector('#rp-preview-inner');
+            if (previewImg && previewInner) {
+              const setAr = () => {
+                const nw = previewImg.naturalWidth || 0, nh = previewImg.naturalHeight || 0;
+                if (nw > 0 && nh > 0) previewInner.style.aspectRatio = `${nw} / ${nh}`;
+              };
+              if (previewImg.complete && previewImg.naturalWidth) setAr();
+              else previewImg.addEventListener('load', setAr);
+            }
+          } else {
+            const previewInner = this.querySelector('#rp-preview-inner');
+            if (previewInner) previewInner.style.aspectRatio = '';
+          }
+        });
+      }
+
       this.querySelector('#rp-image-url').addEventListener('input', (e) => {
         const v = e.target.value.trim();
         this._config.image = v;
-        const img = this.querySelector('#rp-preview-img');
-        if (img) img.src = v || '';
+        const previewImg = this.querySelector('#rp-preview-img');
+        if (previewImg) previewImg.src = v || '';
         this._fireConfigChanged(this._config);
+        if (v) {
+          const cardPreview = this.querySelector('#rp-card-preview');
+          if (cardPreview) {
+            let cardEl = cardPreview.querySelector('room-plan-card');
+            if (!cardEl) {
+              cardEl = document.createElement('room-plan-card');
+              cardPreview.appendChild(cardEl);
+            }
+            cardEl.setConfig({ ...this._config });
+            cardEl.hass = this._hass;
+          }
+        }
       });
 
       const rotEl = this.querySelector('#rp-rotation');
