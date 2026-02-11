@@ -103,8 +103,8 @@
         room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; }
         room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
         room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        room-plan-card .room-plan-inner { position: relative; max-width: 100%; max-height: 100%; }
-        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
+        room-plan-card .room-plan-inner { position: relative; width: 100%; height: 100%; max-width: 100%; max-height: 100%; }
+        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-card .room-plan-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
           background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
@@ -168,20 +168,6 @@
 
       html += '</div></div></div>';
       this._container.innerHTML = html;
-
-      const cardImg = this._container.querySelector('.room-plan-inner img');
-      const cardInner = this._container.querySelector('.room-plan-inner');
-      if (cardImg && cardInner) {
-        const setAspectRatio = () => {
-          const nw = cardImg.naturalWidth || cardImg.width || 0;
-          const nh = cardImg.naturalHeight || cardImg.height || 0;
-          if (nw > 0 && nh > 0) {
-            cardInner.style.aspectRatio = `${nw} / ${nh}`;
-          }
-        };
-        if (cardImg.complete && cardImg.naturalWidth) setAspectRatio();
-        else cardImg.addEventListener('load', setAspectRatio);
-      }
 
       this._container.querySelectorAll('.room-plan-entity').forEach(el => {
         el.addEventListener('click', () => {
@@ -261,11 +247,11 @@
           background: transparent; color: var(--primary-color, #03a9f4); font-size: 14px; font-weight: 500;
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
         room-plan-editor .rp-btn-add:hover { border-color: var(--primary-color, #03a9f4); background: rgba(3, 169, 244, 0.08); }
-        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 200px; border-radius: 12px;
+        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 200px; height: 280px; border-radius: 12px;
           overflow: hidden; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: #1a1a1a;
-          width: 100%; }
-        room-plan-editor .rp-preview-inner { position: relative; max-width: 100%; width: 100%; margin: 0 auto; }
-        room-plan-editor .rp-preview-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; pointer-events: none;
+          width: 100%; display: flex; }
+        room-plan-editor .rp-preview-inner { position: relative; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+        room-plan-editor .rp-preview-inner > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; pointer-events: none;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-editor .rp-preview-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
           background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
@@ -361,27 +347,11 @@
 
       this.innerHTML = html;
 
-      const previewImg = this.querySelector('#rp-preview-img');
-      const previewInner = this.querySelector('#rp-preview-inner');
-      if (previewImg && previewInner) {
-        const setAspectRatio = () => {
-          const nw = previewImg.naturalWidth || previewImg.width || 0;
-          const nh = previewImg.naturalHeight || previewImg.height || 0;
-          if (nw > 0 && nh > 0) {
-            previewInner.style.aspectRatio = `${nw} / ${nh}`;
-          }
-        };
-        if (previewImg.complete && previewImg.naturalWidth) setAspectRatio();
-        else previewImg.addEventListener('load', setAspectRatio);
-      }
-
       this.querySelector('#rp-image-url').addEventListener('input', (e) => {
         const v = e.target.value.trim();
         this._config.image = v;
         const img = this.querySelector('#rp-preview-img');
-        const inner = this.querySelector('#rp-preview-inner');
         if (img) img.src = v || '';
-        if (inner && !v) inner.style.aspectRatio = '';
         this._fireConfigChanged(this._config);
       });
 
