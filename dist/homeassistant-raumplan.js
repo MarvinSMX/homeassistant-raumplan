@@ -77,7 +77,7 @@
     }
 
     getCardSize() {
-      return 4;
+      return 3;
     }
 
     connectedCallback() {
@@ -99,11 +99,11 @@
       const style = document.createElement('style');
       style.setAttribute('data-room-plan', '1');
       style.textContent = `
-        room-plan-card { display: block; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; box-sizing: border-box; }
-        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; width: 100%; max-width: 100%; }
-        room-plan-card .room-plan-container { position: relative; width: 100%; max-width: 100%; min-height: 200px; overflow: hidden; }
-        room-plan-card .room-plan-wrapper { display: grid; width: 100%; position: relative; }
-        room-plan-card .room-plan-inner { grid-area: 1/1; position: relative; max-width: 100%; width: 100%; margin: 0 auto; }
+        room-plan-card { display: flex; flex-direction: column; width: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; align-self: stretch; }
+        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1; min-height: 0; width: 100%; max-width: 100%; display: flex; flex-direction: column; }
+        room-plan-card .room-plan-container { position: relative; flex: 1; min-height: 0; width: 100%; max-width: 100%; overflow: hidden; display: flex; flex-direction: column; }
+        room-plan-card .room-plan-wrapper { display: flex; flex: 1; min-height: 0; width: 100%; position: relative; align-items: center; justify-content: center; overflow: hidden; }
+        room-plan-card .room-plan-inner { position: relative; max-width: 100%; max-height: 100%; flex-shrink: 0; }
         room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
         room-plan-card .room-plan-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         room-plan-card .room-plan-overlay > * { pointer-events: auto; }
