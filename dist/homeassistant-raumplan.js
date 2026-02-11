@@ -112,16 +112,32 @@
 
     _removeCardChrome() {
       const styleTransparent = (el) => {
-        el.style.setProperty('background', 'transparent', 'important');
+        el.style.setProperty('background', 'none', 'important');
         el.style.setProperty('background-color', 'transparent', 'important');
+        el.style.setProperty('--ha-card-background', 'transparent', 'important');
+        el.style.setProperty('--card-background-color', 'transparent', 'important');
         el.style.setProperty('border', 'none', 'important');
         el.style.setProperty('box-shadow', 'none', 'important');
         el.style.setProperty('padding', '0', 'important');
       };
+      const injectShadowStyle = (haCard) => {
+        if (!haCard?.shadowRoot) return;
+        if (haCard.shadowRoot.querySelector?.('style[data-room-plan-bg]')) return;
+        const style = document.createElement('style');
+        style.setAttribute('data-room-plan-bg', '1');
+        style.textContent = ':host{background:none!important;background-color:transparent!important;border:none!important;box-shadow:none!important;padding:0!important}';
+        haCard.shadowRoot.appendChild(style);
+      };
       let el = this.parentElement || (this.getRootNode?.()?.host ?? null);
       while (el && el !== document.body) {
-        if (el.tagName === 'HA-CARD' || el.tagName === 'HUI-CARD') styleTransparent(el);
-        el.shadowRoot?.querySelectorAll?.('ha-card')?.forEach?.(styleTransparent);
+        if (el.tagName === 'HA-CARD' || el.tagName?.startsWith?.('HUI-CARD')) {
+          styleTransparent(el);
+          if (el.tagName === 'HA-CARD') injectShadowStyle(el);
+        }
+        el.shadowRoot?.querySelectorAll?.('ha-card')?.forEach?.(haCard => {
+          styleTransparent(haCard);
+          injectShadowStyle(haCard);
+        });
         el = el.parentElement || (el.getRootNode?.()?.host ?? null);
       }
     }
