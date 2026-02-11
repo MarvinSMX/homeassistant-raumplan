@@ -131,8 +131,8 @@
         room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; background: transparent !important; }
         room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent !important; border: none !important; box-shadow: none !important; }
         room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: transparent !important; }
-        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
-        room-plan-card .room-plan-inner { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent !important; }
+        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: transparent !important; }
+        room-plan-card .room-plan-inner { position: relative; max-width: 100%; max-height: 100%; width: 100%; height: auto; min-height: 0; background: transparent !important; }
         room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-card .room-plan-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
@@ -174,8 +174,8 @@
       let html = '';
       if (title) html += `<div style="padding: 8px 16px; font-weight: 600; color: var(--primary-text-color, #e1e1e1);">${title}</div>`;
       html += `<div class="room-plan-wrapper">`;
-      html += `<div class="room-plan-inner" style="transform: rotate(${rotation}deg);">`;
-      html += `<img src="${img}" alt="Raumplan" />`;
+      html += `<div class="room-plan-inner" style="transform: rotate(${rotation}deg); aspect-ratio: 16/9;">`;
+      html += `<img src="${img}" alt="Raumplan" class="room-plan-img" />`;
       html += `<div class="room-plan-theme-tint"></div>`;
       html += `<div class="room-plan-overlay">`;
 
@@ -206,6 +206,14 @@
           this.dispatchEvent(ev);
         });
       });
+      const imgEl = this._container.querySelector('.room-plan-img');
+      if (imgEl) {
+        imgEl.addEventListener('load', () => {
+          const w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+          if (w && h) imgEl.parentElement.style.aspectRatio = w + '/' + h;
+        });
+        if (imgEl.complete) imgEl.dispatchEvent(new Event('load'));
+      }
     }
   }
 
@@ -344,9 +352,9 @@
           </div>
           <div class="rp-section">
             <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
-            <div class="rp-hint">Klicke den Button, um die Positionen im Vollbild zu setzen. Exakt gleiche Darstellung wie die Card.</div>
+            <div class="rp-hint">Klicke den Button, um die Positionen in der Vorschau zu setzen. Exakt gleiche Darstellung wie die Card.</div>
             <button type="button" class="rp-btn-position" id="rp-btn-position" ${!img ? 'disabled' : ''}>
-              <ha-icon icon="mdi:fullscreen"></ha-icon>
+              <ha-icon icon="mdi:cursor-default-click"></ha-icon>
               <span>Positionierung öffnen</span>
             </button>
           </div>
@@ -507,8 +515,8 @@
       const entities = this._config.entities || [];
 
       const doc = this.ownerDocument || document;
-      const topDoc = (typeof window !== 'undefined' && window.top?.document) || doc;
-      const targetDoc = topDoc;
+      const targetDoc = doc;
+      const previewEl = doc.querySelector('.element-preview');
       if (!targetDoc.getElementById('rp-position-fullscreen-styles')) {
         const style = targetDoc.createElement('style');
         style.id = 'rp-position-fullscreen-styles';
@@ -516,16 +524,20 @@
           .rp-position-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
             width: 100vw !important; height: 100vh !important; z-index: 2147483647; background: rgba(0,0,0,0.95); display: flex;
             flex-direction: column; padding: 16px; box-sizing: border-box; pointer-events: auto; touch-action: none; margin: 0 !important; }
+          .rp-position-fullscreen.rp-position-inline { position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+            width: 100% !important; height: 100% !important; margin: 0 !important; }
           .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 100; padding: 12px 20px;
             border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
             display: flex; align-items: center; gap: 8px; pointer-events: auto; }
           .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
           .rp-position-fullscreen .rp-position-close span { font-size: 18px; line-height: 1; }
           .rp-position-fullscreen .rp-position-card { position: relative; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0;
-            overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
-          .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
+            overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); display: flex; align-items: center; justify-content: center; }
+          .rp-position-fullscreen .rp-position-card-inner { position: relative; max-width: 100%; max-height: 100%; width: 100%; height: auto; min-height: 0; aspect-ratio: 16/9; }
+          .rp-position-fullscreen .rp-position-card > img,
+          .rp-position-fullscreen .rp-position-card-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
             filter: brightness(0.92) contrast(1.05) saturate(0.9); }
-          .rp-position-fullscreen .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+          .rp-position-fullscreen .rp-position-card-inner .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
             background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
           .rp-position-fullscreen .rp-position-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
           .rp-position-fullscreen .rp-position-overlay > * { pointer-events: auto !important; }
@@ -541,15 +553,15 @@
       }
 
       const overlay = targetDoc.createElement('div');
-      overlay.className = 'rp-position-fullscreen';
       overlay.innerHTML = `
         <button type="button" class="rp-position-close" id="rp-position-close" title="Schließen (Esc)">
           <span aria-hidden="true">✕</span> Schließen
         </button>
         <div class="rp-position-card" style="transform: rotate(${rotation}deg);">
-          <img src="${img}" alt="Raumplan" />
-          <div class="rp-position-theme-tint"></div>
-          <div class="rp-position-overlay">
+          <div class="rp-position-card-inner" style="aspect-ratio: 16/9;">
+            <img src="${img}" alt="Raumplan" class="rp-position-img" />
+            <div class="rp-position-theme-tint"></div>
+            <div class="rp-position-overlay">
             ${entities.map((ent, i) => {
               const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
               const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
@@ -561,11 +573,29 @@
               if (ent.color) dotStyle += `background:${ent.color};`;
               return `<div class="rp-editor-dot editor-dot" data-index="${i}" style="${dotStyle}" title="${ent.entity}"><ha-icon icon="${icon}" style="--mdc-icon-size:${iconSize}px;"></ha-icon></div>`;
             }).join('')}
+            </div>
           </div>
         </div>`;
-      const appendTarget = targetDoc.body || targetDoc.documentElement;
+      let appendTarget = previewEl;
+      if (!appendTarget) {
+        const root = this.getRootNode();
+        const searchDoc = root instanceof Document ? root : (root.ownerDocument || doc);
+        appendTarget = searchDoc.querySelector('.element-preview');
+      }
+      if (!appendTarget) appendTarget = this;
+      if (appendTarget === previewEl) appendTarget.style.position = 'relative';
+      const isInline = appendTarget !== (targetDoc.body || targetDoc.documentElement);
+      overlay.className = 'rp-position-fullscreen' + (isInline ? ' rp-position-inline' : '');
       appendTarget.appendChild(overlay);
 
+      const posImg = overlay.querySelector('.rp-position-img');
+      if (posImg) {
+        posImg.addEventListener('load', () => {
+          const w = posImg.naturalWidth, h = posImg.naturalHeight;
+          if (w && h) posImg.parentElement.style.aspectRatio = w + '/' + h;
+        });
+        if (posImg.complete) posImg.dispatchEvent(new Event('load'));
+      }
       const startDrag = (e, dot) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); };
       overlay.querySelectorAll('.editor-dot').forEach(dot => {
         dot.addEventListener('pointerdown', (e) => startDrag(e, dot));
