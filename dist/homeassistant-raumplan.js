@@ -58,14 +58,6 @@
       this._hass = null;
       this._root = null;
       this._container = null;
-      this._dragging = null;
-    }
-
-    _isInPreview() {
-      const inEl = (el) => el && (el.closest('.element-preview') || el.closest('hui-section[preview]'));
-      if (inEl(this)) return true;
-      const root = this.getRootNode?.();
-      return !!(root instanceof ShadowRoot && inEl(root.host));
     }
 
     setConfig(config) {
@@ -111,51 +103,6 @@
       this._render();
       this._removeCardChrome();
       requestAnimationFrame(() => this._removeCardChrome());
-      this._attachPreviewDrag();
-    }
-
-    disconnectedCallback() {
-      this._detachPreviewDrag();
-    }
-
-    _attachPreviewDrag() {
-      if (!this._isInPreview() || this._previewDragAttached) return;
-      this._previewDragAttached = true;
-      const doc = this.ownerDocument || document;
-      const attachTarget = doc.documentElement || doc.body || doc;
-      this._previewDownHandler = (e) => {
-        const dot = e.target.closest('.room-plan-entity.rp-editable');
-        if (dot && this.contains(dot)) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          this._cardStartDrag(e, dot);
-        }
-      };
-      this._previewTouchHandler = (e) => {
-        const dot = e.target.closest('.room-plan-entity.rp-editable');
-        if (dot && this.contains(dot)) {
-          e.preventDefault();
-          this._previewDownHandler(e);
-        }
-      };
-      attachTarget.addEventListener('pointerdown', this._previewDownHandler, true);
-      attachTarget.addEventListener('mousedown', this._previewDownHandler, true);
-      attachTarget.addEventListener('touchstart', this._previewTouchHandler, { passive: false, capture: true });
-      this._previewAttachTarget = attachTarget;
-    }
-
-    _detachPreviewDrag() {
-      if (!this._previewDragAttached) return;
-      this._previewDragAttached = false;
-      const target = this._previewAttachTarget || this.ownerDocument || document;
-      if (this._previewDownHandler) {
-        target.removeEventListener('pointerdown', this._previewDownHandler, true);
-        target.removeEventListener('mousedown', this._previewDownHandler, true);
-      }
-      if (this._previewTouchHandler) {
-        target.removeEventListener('touchstart', this._previewTouchHandler, { capture: true });
-      }
     }
 
     _removeCardChrome() {
@@ -207,10 +154,6 @@
         room-plan-card .room-plan-entity:hover { transform: translate(-50%,-50%) scale(1.1); }
         room-plan-card .room-plan-entity ha-icon { --mdc-icon-size: 24px; }
         room-plan-card .room-plan-entity.state-on { color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)) !important; }
-        room-plan-card .room-plan-entity.rp-editable { cursor: grab; border-color: var(--primary-color, #03a9f4); user-select: none; touch-action: none; }
-        room-plan-card .room-plan-entity.rp-editable ha-icon { pointer-events: none; }
-        room-plan-card .room-plan-entity.rp-editable:hover { border-width: 4px; }
-        room-plan-card .room-plan-entity.rp-editable:active { cursor: grabbing; }
       `;
       this.appendChild(style);
     }
@@ -241,20 +184,18 @@
       html += `<div class="room-plan-theme-tint"></div>`;
       html += `<div class="room-plan-overlay">`;
 
-      const inPreview = this._isInPreview();
       entities.forEach((ent, i) => {
         const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
         const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
         const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
         const state = this._hass?.states?.[ent.entity]?.state;
         const stateClass = state === 'on' ? ' state-on' : '';
-        const editableClass = inPreview ? ' rp-editable' : '';
         const baseSize = 44;
         const size = Math.round(baseSize * scale);
         const iconSize = Math.round(24 * scale);
         let entStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
         if (ent.color) entStyle += `background:${ent.color};color:#fff;`;
-        html += `<div class="room-plan-entity${stateClass}${editableClass}" data-entity="${ent.entity}" data-index="${i}" style="${entStyle}" title="${inPreview ? 'Ziehen zum Positionieren' : getFriendlyName(this._hass, ent.entity) + ': ' + getStateDisplay(this._hass, ent.entity)}">
+        html += `<div class="room-plan-entity${stateClass}" data-entity="${ent.entity}" style="${entStyle}" title="${getFriendlyName(this._hass, ent.entity)}: ${getStateDisplay(this._hass, ent.entity)}">
           <ha-icon icon="${ent.icon || getEntityIcon(this._hass, ent.entity)}" style="--mdc-icon-size:${iconSize}px;"></ha-icon>
         </div>`;
       });
@@ -262,18 +203,14 @@
       html += '</div></div></div>';
       this._container.innerHTML = html;
 
-      if (!inPreview) {
-        this._container.querySelectorAll('.room-plan-entity').forEach(el => {
-          el.addEventListener('click', () => {
-            const entityId = el.dataset.entity;
-            const ev = new Event('hass-more-info', { bubbles: true, composed: true });
-            ev.detail = { entityId };
-            this.dispatchEvent(ev);
-          });
+      this._container.querySelectorAll('.room-plan-entity').forEach(el => {
+        el.addEventListener('click', () => {
+          const entityId = el.dataset.entity;
+          const ev = new Event('hass-more-info', { bubbles: true, composed: true });
+          ev.detail = { entityId };
+          this.dispatchEvent(ev);
         });
-      } else {
-        requestAnimationFrame(() => this._attachPreviewDrag());
-      }
+      });
       const imgEl = this._container.querySelector('.room-plan-img');
       if (imgEl) {
         imgEl.addEventListener('load', () => {
@@ -284,71 +221,6 @@
       }
     }
 
-    _cardStartDrag(ev, dot) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const idx = parseInt(dot.dataset.index, 10);
-      const ent = this._config.entities[idx];
-      if (!ent) return;
-      const rect = dot.parentElement.getBoundingClientRect();
-      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
-      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
-      const leftPct = (clientX - rect.left) / rect.width * 100;
-      const topPct = (clientY - rect.top) / rect.height * 100;
-      this._dragOffset = { x: leftPct - (Number(ent.x) || 50), y: topPct - (Number(ent.y) || 50) };
-      this._dragging = { index: idx, element: dot };
-      const pid = ev.pointerId ?? 1;
-      try { dot.setPointerCapture(pid); } catch (_) {}
-      this._dragPointerId = pid;
-      this._boundCardOnMove = (e) => this._cardOnDrag(e);
-      this._boundCardOnUp = () => this._cardEndDrag();
-      dot.addEventListener('pointermove', this._boundCardOnMove);
-      dot.addEventListener('pointerup', this._boundCardOnUp);
-      dot.addEventListener('pointercancel', this._boundCardOnUp);
-      this._boundCardTouchMove = (e) => { e.preventDefault(); this._cardOnDrag(e); };
-      this._boundCardTouchEnd = () => this._cardEndDrag();
-      dot.ownerDocument.addEventListener('touchmove', this._boundCardTouchMove, { passive: false });
-      dot.ownerDocument.addEventListener('touchend', this._boundCardTouchEnd);
-      dot.ownerDocument.addEventListener('touchcancel', this._boundCardTouchEnd);
-    }
-
-    _cardOnDrag(ev) {
-      if (!this._dragging) return;
-      if (!this._dragging.element.isConnected) { this._dragging = null; return; }
-      ev.preventDefault();
-      const overlay = this._dragging.element.parentElement;
-      const rect = overlay && overlay.classList.contains('room-plan-overlay') ? overlay.getBoundingClientRect() : null;
-      if (!rect || rect.width === 0) return;
-      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
-      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
-      let x = (clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
-      let y = (clientY - rect.top) / rect.height * 100 - this._dragOffset.y;
-      x = Math.min(100, Math.max(0, x));
-      y = Math.min(100, Math.max(0, y));
-      const ent = this._config.entities[this._dragging.index];
-      ent.x = Math.round(x * 10) / 10;
-      ent.y = Math.round(y * 10) / 10;
-      this._dragging.element.style.left = ent.x + '%';
-      this._dragging.element.style.top = ent.y + '%';
-    }
-
-    _cardEndDrag() {
-      if (this._dragging) {
-        const dot = this._dragging.element;
-        try { dot.releasePointerCapture(this._dragPointerId); } catch (_) {}
-        dot.removeEventListener('pointermove', this._boundCardOnMove);
-        dot.removeEventListener('pointerup', this._boundCardOnUp);
-        dot.removeEventListener('pointercancel', this._boundCardOnUp);
-        const doc = dot.ownerDocument;
-        if (doc) {
-          doc.removeEventListener('touchmove', this._boundCardTouchMove);
-          doc.removeEventListener('touchend', this._boundCardTouchEnd);
-          doc.removeEventListener('touchcancel', this._boundCardTouchEnd);
-        }
-        this.dispatchEvent(new CustomEvent('config-changed', { bubbles: true, composed: true, detail: { config: this._config } }));
-        this._dragging = null;
-      }
-    }
   }
 
   // ---------- Konfigurations-Editor (Drag & Drop) ----------
@@ -357,8 +229,6 @@
       super();
       this._config = { image: '', entities: [] };
       this._hass = null;
-      this._dragging = null;
-      this._dragOffset = { x: 0, y: 0 };
     }
 
     setConfig(c) {
@@ -410,6 +280,8 @@
         room-plan-editor .rp-entity-row input[type="color"] { width: 36px; height: 36px; padding: 2px; flex: none; cursor: pointer; border-radius: 6px; }
         room-plan-editor .rp-entity-row input:focus { outline: none; border-color: var(--primary-color, #03a9f4); }
         room-plan-editor .rp-entity-pos { font-size: 11px; color: var(--secondary-text-color, #9e9e9e); min-width: 70px; text-align: right; }
+        room-plan-editor .rp-entity-row input[data-field="x"],
+        room-plan-editor .rp-entity-row input[data-field="y"] { width: 56px; flex: none; }
         room-plan-editor .rp-btn-remove { padding: 8px 12px; border-radius: 8px; border: none; background: rgba(244, 67, 54, 0.2);
           color: #f44336; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
         room-plan-editor .rp-btn-remove:hover { background: rgba(244, 67, 54, 0.3); }
@@ -417,20 +289,6 @@
           background: transparent; color: var(--primary-color, #03a9f4); font-size: 14px; font-weight: 500;
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
         room-plan-editor .rp-btn-add:hover { border-color: var(--primary-color, #03a9f4); background: rgba(3, 169, 244, 0.08); }
-        room-plan-editor .rp-btn-position { padding: 12px 20px; border-radius: 10px; border: none;
-          background: var(--primary-color, #03a9f4); color: white; font-size: 14px; font-weight: 500; cursor: pointer;
-          display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
-        room-plan-editor .rp-btn-position:hover:not(:disabled) { opacity: 0.9; }
-        room-plan-editor .rp-btn-position:disabled { opacity: 0.5; cursor: not-allowed; }
-        room-plan-editor .rp-btn-position ha-icon { --mdc-icon-size: 22px; }
-        room-plan-editor .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
-          transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color, #03a9f4); color: white;
-          display: flex; align-items: center; justify-content: center; cursor: grab;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.25); z-index: 10; user-select: none; touch-action: none;
-          border: 3px solid rgba(255,255,255,0.9); }
-        room-plan-editor .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
-        room-plan-editor .rp-editor-dot:active { cursor: grabbing; }
-        room-plan-editor .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
       `;
       this.appendChild(style);
     }
@@ -461,7 +319,8 @@
             </div>
           </div>
           <div class="rp-section">
-            <div class="rp-section-title"><ha-icon icon="mdi:format-list-bulleted"></ha-icon> Entitäten (Koordinaten per Drag & Drop)</div>
+            <div class="rp-section-title"><ha-icon icon="mdi:format-list-bulleted"></ha-icon> Entitäten mit Koordinaten</div>
+            <div class="rp-hint" style="margin-bottom: 12px;">X und Y = Position in Prozent (0–100), Skalierung = Größe des Kreises.</div>
             <div class="rp-entity-list">`;
 
       entities.forEach((ent, i) => {
@@ -473,9 +332,10 @@
         html += `<div class="rp-entity-row" data-index="${i}">
           <input type="text" data-field="entity" list="${listId}" value="${ent.entity}" placeholder="light.wohnzimmer" />
           <datalist id="${listId}">${entityIds.slice(0, 200).map(eid => `<option value="${eid}">${getFriendlyName(this._hass, eid)}</option>`).join('')}</datalist>
+          <input type="number" data-field="x" min="0" max="100" step="0.1" value="${x}" placeholder="X" title="X (%)" />
+          <input type="number" data-field="y" min="0" max="100" step="0.1" value="${y}" placeholder="Y" title="Y (%)" />
           <input type="number" data-field="scale" min="0.3" max="2" step="0.1" value="${scale}" placeholder="1" title="Skalierung" />
           <input type="color" data-field="color" value="${color || '#03a9f4'}" title="Farbe" />
-          <span class="rp-entity-pos">${x.toFixed(1)}%, ${y.toFixed(1)}%</span>
           <button type="button" class="rp-btn-remove rp-remove-entity" data-index="${i}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
         </div>`;
       });
@@ -484,29 +344,14 @@
             </div>
             <button type="button" class="rp-btn-add" id="rp-add-entity"><ha-icon icon="mdi:plus"></ha-icon> Entität hinzufügen</button>
           </div>
-          <div class="rp-section">
-            <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
-            <div class="rp-hint">Ziehe die Kreise direkt in der Vorschau rechts – keine separate Ansicht nötig. Oder nutze den Button für die Vollbild-Positionierung.</div>
-            <button type="button" class="rp-btn-position" id="rp-btn-position" ${!img ? 'disabled' : ''}>
-              <ha-icon icon="mdi:fullscreen"></ha-icon>
-              <span>Positionierung (Vollbild)</span>
-            </button>
-          </div>
         </div>`;
 
       this.innerHTML = html;
-
-      const positionBtn = this.querySelector('#rp-btn-position');
-      if (positionBtn && img) {
-        positionBtn.addEventListener('click', () => this._openPositionFullscreen());
-      }
 
       this.querySelector('#rp-image-url').addEventListener('input', (e) => {
         const v = e.target.value.trim();
         this._config.image = v;
         this._fireConfigChanged(this._config);
-        const positionBtn = this.querySelector('#rp-btn-position');
-        if (positionBtn) positionBtn.disabled = !v;
       });
 
       const rotEl = this.querySelector('#rp-rotation');
@@ -520,7 +365,8 @@
       this.querySelectorAll('.rp-entity-row input').forEach(input => {
         input.addEventListener('change', () => this._syncEntities());
         input.addEventListener('input', (e) => {
-          if (e.target.dataset.field === 'scale' || e.target.dataset.field === 'color') this._syncEntities();
+          const f = e.target.dataset.field;
+          if (f === 'scale' || f === 'color' || f === 'x' || f === 'y') this._syncEntities();
         });
       });
 
@@ -545,17 +391,21 @@
       const entities = [];
       rows.forEach((row, i) => {
         const entityInput = row.querySelector('input[data-field="entity"]');
+        const xInput = row.querySelector('input[data-field="x"]');
+        const yInput = row.querySelector('input[data-field="y"]');
         const scaleInput = row.querySelector('input[data-field="scale"]');
         const colorInput = row.querySelector('input[data-field="color"]');
         const ent = this._config.entities[i] || {};
+        const x = xInput ? Math.min(100, Math.max(0, Number(xInput.value) || 50)) : (ent.x ?? 50);
+        const y = yInput ? Math.min(100, Math.max(0, Number(yInput.value) || 50)) : (ent.y ?? 50);
         const scale = scaleInput ? Math.min(2, Math.max(0.3, Number(scaleInput.value) || 1)) : (ent.scale ?? 1);
         const colorVal = colorInput?.value?.trim() || '';
         const hadColor = !!ent.color;
         const color = (colorVal && (colorVal !== '#03a9f4' || hadColor)) ? colorVal : undefined;
         entities.push({
           entity: (entityInput?.value || '').trim() || ent.entity || '',
-          x: ent.x ?? 50,
-          y: ent.y ?? 50,
+          x: Math.round(x * 10) / 10,
+          y: Math.round(y * 10) / 10,
           icon: ent.icon,
           scale: scale,
           color: color
@@ -565,193 +415,6 @@
       this._fireConfigChanged(this._config);
     }
 
-    _startDrag(ev, dot) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const idx = parseInt(dot.dataset.index, 10);
-      const ent = this._config.entities[idx];
-      if (!ent) return;
-      const rect = dot.parentElement.getBoundingClientRect();
-      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
-      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
-      const leftPct = (clientX - rect.left) / rect.width * 100;
-      const topPct = (clientY - rect.top) / rect.height * 100;
-      this._dragOffset = { x: leftPct - (Number(ent.x) || 50), y: topPct - (Number(ent.y) || 50) };
-      this._dragging = { index: idx, element: dot };
-      const pid = ev.pointerId ?? 1;
-      try { dot.setPointerCapture(pid); } catch (_) {}
-      this._dragPointerId = pid;
-      this._boundOnPointerMove = (e) => this._onDrag(e);
-      this._boundOnPointerUp = () => this._endDrag();
-      dot.addEventListener('pointermove', this._boundOnPointerMove);
-      dot.addEventListener('pointerup', this._boundOnPointerUp);
-      dot.addEventListener('pointercancel', this._boundOnPointerUp);
-      this._boundOnTouchMove = (e) => { e.preventDefault(); this._onDrag(e); };
-      this._boundOnTouchEnd = () => this._endDrag();
-      dot.ownerDocument.addEventListener('touchmove', this._boundOnTouchMove, { passive: false });
-      dot.ownerDocument.addEventListener('touchend', this._boundOnTouchEnd);
-      dot.ownerDocument.addEventListener('touchcancel', this._boundOnTouchEnd);
-    }
-
-    _onDrag(ev) {
-      if (!this._dragging) return;
-      if (!this._dragging.element.isConnected) { this._dragging = null; return; }
-      ev.preventDefault();
-      const overlay = this._dragging.element.parentElement;
-      const rect = overlay && (overlay.classList.contains('rp-preview-overlay') || overlay.classList.contains('rp-position-overlay'))
-        ? overlay.getBoundingClientRect() : null;
-      if (!rect || rect.width === 0) return;
-      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
-      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
-      let x = (clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
-      let y = (clientY - rect.top) / rect.height * 100 - this._dragOffset.y;
-      x = Math.min(100, Math.max(0, x));
-      y = Math.min(100, Math.max(0, y));
-      const ent = this._config.entities[this._dragging.index];
-      ent.x = Math.round(x * 10) / 10;
-      ent.y = Math.round(y * 10) / 10;
-      this._dragging.element.style.left = ent.x + '%';
-      this._dragging.element.style.top = ent.y + '%';
-      const posSpan = this.querySelectorAll('.rp-entity-pos')[this._dragging.index];
-      if (posSpan) posSpan.textContent = ent.x.toFixed(1) + '%, ' + ent.y.toFixed(1) + '%';
-    }
-
-    _endDrag() {
-      if (this._dragging) {
-        const dot = this._dragging.element;
-        try { dot.releasePointerCapture(this._dragPointerId); } catch (_) {}
-        if (this._boundOnPointerMove) {
-          dot.removeEventListener('pointermove', this._boundOnPointerMove);
-          dot.removeEventListener('pointerup', this._boundOnPointerUp);
-          dot.removeEventListener('pointercancel', this._boundOnPointerUp);
-        }
-        const doc = dot.ownerDocument;
-        if (this._boundOnTouchMove && doc) {
-          doc.removeEventListener('touchmove', this._boundOnTouchMove);
-          doc.removeEventListener('touchend', this._boundOnTouchEnd);
-          doc.removeEventListener('touchcancel', this._boundOnTouchEnd);
-        }
-        this._fireConfigChanged(this._config);
-        const posSpan = this.querySelectorAll('.rp-entity-pos')[this._dragging.index];
-        if (posSpan) {
-          const ent = this._config.entities[this._dragging.index];
-          if (ent) posSpan.textContent = ent.x.toFixed(1) + '%, ' + ent.y.toFixed(1) + '%';
-        }
-        this._dragging = null;
-      }
-    }
-
-    _openPositionFullscreen() {
-      this._syncEntities();
-      const img = typeof this._config.image === 'string' ? this._config.image : (this._config.image?.location || '');
-      if (!img) return;
-      const rotation = Number(this._config.rotation) || 0;
-      const entities = this._config.entities || [];
-
-      const doc = this.ownerDocument || document;
-      const targetDoc = doc;
-      const previewEl = doc.querySelector('.element-preview');
-      if (!targetDoc.getElementById('rp-position-fullscreen-styles')) {
-        const style = targetDoc.createElement('style');
-        style.id = 'rp-position-fullscreen-styles';
-        style.textContent = `
-          .rp-position-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-            width: 100vw !important; height: 100vh !important; z-index: 2147483647; background: rgba(0,0,0,0.95); display: flex;
-            flex-direction: column; padding: 16px; box-sizing: border-box; pointer-events: auto; touch-action: none; margin: 0 !important; }
-          .rp-position-fullscreen.rp-position-inline { position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-            width: 100% !important; height: 100% !important; margin: 0 !important; }
-          .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 100; padding: 12px 20px;
-            border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
-            display: flex; align-items: center; gap: 8px; pointer-events: auto; }
-          .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
-          .rp-position-fullscreen .rp-position-close span { font-size: 18px; line-height: 1; }
-          .rp-position-fullscreen .rp-position-card { position: relative; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0;
-            overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); display: flex; align-items: center; justify-content: center; }
-          .rp-position-fullscreen .rp-position-card-inner { position: relative; max-width: 100%; max-height: 100%; width: 100%; height: auto; min-height: 0; aspect-ratio: 16/9; }
-          .rp-position-fullscreen .rp-position-card > img,
-          .rp-position-fullscreen .rp-position-card-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
-            filter: brightness(0.92) contrast(1.05) saturate(0.9); }
-          .rp-position-fullscreen .rp-position-card-inner .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
-            background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
-          .rp-position-fullscreen .rp-position-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
-          .rp-position-fullscreen .rp-position-overlay > * { pointer-events: auto !important; }
-          .rp-position-fullscreen .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
-            transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color, #03a9f4); color: white;
-            display: flex; align-items: center; justify-content: center; cursor: grab; box-shadow: 0 2px 12px rgba(0,0,0,0.25);
-            z-index: 10; user-select: none; touch-action: none; border: 3px solid rgba(255,255,255,0.9); }
-          .rp-position-fullscreen .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
-          .rp-position-fullscreen .rp-editor-dot:active { cursor: grabbing; }
-          .rp-position-fullscreen .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
-        `;
-        (targetDoc.head || targetDoc.documentElement).appendChild(style);
-      }
-
-      const overlay = targetDoc.createElement('div');
-      overlay.innerHTML = `
-        <button type="button" class="rp-position-close" id="rp-position-close" title="Schließen (Esc)">
-          <span aria-hidden="true">✕</span> Schließen
-        </button>
-        <div class="rp-position-card" style="transform: rotate(${rotation}deg);">
-          <div class="rp-position-card-inner" style="aspect-ratio: 16/9;">
-            <img src="${img}" alt="Raumplan" class="rp-position-img" />
-            <div class="rp-position-theme-tint"></div>
-            <div class="rp-position-overlay">
-            ${entities.map((ent, i) => {
-              const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
-              const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
-              const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
-              const size = Math.round(44 * scale);
-              const iconSize = Math.round(22 * scale);
-              const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
-              let dotStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
-              if (ent.color) dotStyle += `background:${ent.color};`;
-              return `<div class="rp-editor-dot editor-dot" data-index="${i}" style="${dotStyle}" title="${ent.entity}"><ha-icon icon="${icon}" style="--mdc-icon-size:${iconSize}px;"></ha-icon></div>`;
-            }).join('')}
-            </div>
-          </div>
-        </div>`;
-      let appendTarget = previewEl;
-      if (!appendTarget) {
-        const root = this.getRootNode();
-        const searchDoc = root instanceof Document ? root : (root.ownerDocument || doc);
-        appendTarget = searchDoc.querySelector('.element-preview');
-      }
-      if (!appendTarget) appendTarget = this;
-      if (appendTarget === previewEl) appendTarget.style.position = 'relative';
-      const isInline = appendTarget !== (targetDoc.body || targetDoc.documentElement);
-      overlay.className = 'rp-position-fullscreen' + (isInline ? ' rp-position-inline' : '');
-      appendTarget.appendChild(overlay);
-
-      const posImg = overlay.querySelector('.rp-position-img');
-      if (posImg) {
-        posImg.addEventListener('load', () => {
-          const w = posImg.naturalWidth, h = posImg.naturalHeight;
-          if (w && h) posImg.parentElement.style.aspectRatio = w + '/' + h;
-        });
-        if (posImg.complete) posImg.dispatchEvent(new Event('load'));
-      }
-      const startDrag = (e, dot) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); };
-      overlay.querySelectorAll('.editor-dot').forEach(dot => {
-        dot.addEventListener('pointerdown', (e) => startDrag(e, dot));
-        dot.addEventListener('mousedown', (e) => startDrag(e, dot));
-        dot.addEventListener('touchstart', (e) => { e.preventDefault(); startDrag(e, dot); }, { passive: false });
-      });
-
-      const close = () => {
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        targetDoc.removeEventListener('keydown', escHandler);
-      };
-      const escHandler = (e) => { if (e.key === 'Escape') close(); };
-      targetDoc.addEventListener('keydown', escHandler);
-      const closeBtn = overlay.querySelector('#rp-position-close');
-      if (closeBtn) {
-        const doClose = (e) => { e.preventDefault(); e.stopPropagation(); close(); };
-        closeBtn.addEventListener('click', doClose, true);
-        closeBtn.addEventListener('pointerdown', doClose, true);
-        closeBtn.addEventListener('mousedown', doClose, true);
-        closeBtn.addEventListener('touchend', doClose, true);
-      }
-    }
   }
 
   customElements.define(CARD_TAG, RoomPlanCard);
@@ -761,7 +424,7 @@
   window.customCards.push({
     type: 'custom:' + CARD_TAG,
     name: 'Interaktiver Raumplan',
-    description: 'Raumplan als Bild mit Entitäten per Koordinaten (x,y). Kreise mit Icons, Drag & Drop.',
+    description: 'Raumplan als Bild mit Entitäten per Koordinaten (x,y). Kreise mit Icons.',
     preview: true
   });
 })();
