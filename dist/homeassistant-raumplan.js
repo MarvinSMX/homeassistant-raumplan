@@ -87,9 +87,9 @@
     connectedCallback() {
       if (!this._root) {
         this._injectStyles();
-        this._root = document.createElement('ha-card');
+        this._root = document.createElement('div');
         this._root.className = 'room-plan-ha-card';
-        this._root.style.cssText = 'overflow: hidden; padding: 0 !important;';
+        this._root.style.cssText = 'overflow: hidden; padding: 0; background: transparent; border: none; box-shadow: none;';
         this._container = document.createElement('div');
         this._container.className = 'room-plan-container';
         this._root.appendChild(this._container);
@@ -103,11 +103,11 @@
       const style = document.createElement('style');
       style.setAttribute('data-room-plan', '1');
       style.textContent = `
-        room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; }
-        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; }
-        room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
-        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; }
-        room-plan-card .room-plan-inner { position: absolute; inset: 0; width: 100%; height: 100%; }
+        room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; background: transparent !important; }
+        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent !important; border: none !important; box-shadow: none !important; }
+        room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: transparent !important; }
+        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
+        room-plan-card .room-plan-inner { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent !important; }
         room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-card .room-plan-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
@@ -192,7 +192,6 @@
       this._hass = null;
       this._dragging = null;
       this._dragOffset = { x: 0, y: 0 };
-      this._dragListenersAdded = false;
     }
 
     setConfig(c) {
@@ -371,15 +370,6 @@
         this._fireConfigChanged(this._config);
       });
 
-      if (!this._dragListenersAdded) {
-        this._dragListenersAdded = true;
-        const doc = this.ownerDocument || document;
-        doc.addEventListener('mousemove', (e) => this._onDrag(e));
-        doc.addEventListener('mouseup', () => this._endDrag());
-        doc.addEventListener('touchmove', (e) => this._onDrag(e), { passive: false });
-        doc.addEventListener('touchend', () => this._endDrag());
-      }
-
       this._injectEditorStyles();
     }
 
@@ -415,12 +405,19 @@
       const ent = this._config.entities[idx];
       if (!ent) return;
       const rect = dot.parentElement.getBoundingClientRect();
-      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
-      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
+      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
       const leftPct = (clientX - rect.left) / rect.width * 100;
       const topPct = (clientY - rect.top) / rect.height * 100;
       this._dragOffset = { x: leftPct - (Number(ent.x) || 50), y: topPct - (Number(ent.y) || 50) };
       this._dragging = { index: idx, element: dot };
+      try { dot.setPointerCapture(ev.pointerId ?? 1); } catch (_) {}
+      this._dragPointerId = ev.pointerId ?? 1;
+      this._boundOnPointerMove = (e) => this._onDrag(e);
+      this._boundOnPointerUp = () => this._endDrag();
+      dot.addEventListener('pointermove', this._boundOnPointerMove);
+      dot.addEventListener('pointerup', this._boundOnPointerUp);
+      dot.addEventListener('pointercancel', this._boundOnPointerUp);
     }
 
     _onDrag(ev) {
@@ -431,8 +428,8 @@
       const rect = overlay && (overlay.classList.contains('rp-preview-overlay') || overlay.classList.contains('rp-position-overlay'))
         ? overlay.getBoundingClientRect() : null;
       if (!rect || rect.width === 0) return;
-      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
-      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const clientX = ev.touches ? ev.touches[0].clientX : (ev.clientX ?? ev.pageX);
+      const clientY = ev.touches ? ev.touches[0].clientY : (ev.clientY ?? ev.pageY);
       let x = (clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
       let y = (clientY - rect.top) / rect.height * 100 - this._dragOffset.y;
       x = Math.min(100, Math.max(0, x));
@@ -448,6 +445,13 @@
 
     _endDrag() {
       if (this._dragging) {
+        const dot = this._dragging.element;
+        try { dot.releasePointerCapture(this._dragPointerId); } catch (_) {}
+        if (this._boundOnPointerMove) {
+          dot.removeEventListener('pointermove', this._boundOnPointerMove);
+          dot.removeEventListener('pointerup', this._boundOnPointerUp);
+          dot.removeEventListener('pointercancel', this._boundOnPointerUp);
+        }
         this._fireConfigChanged(this._config);
         const posSpan = this.querySelectorAll('.rp-entity-pos')[this._dragging.index];
         if (posSpan) {
@@ -471,7 +475,7 @@
         style.id = 'rp-position-fullscreen-styles';
         style.textContent = `
           .rp-position-fullscreen { position: fixed; inset: 0; z-index: 2147483647; background: rgba(0,0,0,0.95); display: flex;
-            flex-direction: column; padding: 16px; box-sizing: border-box; pointer-events: auto; }
+            flex-direction: column; padding: 16px; box-sizing: border-box; pointer-events: auto; touch-action: none; }
           .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 100; padding: 12px 20px;
             border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
             display: flex; align-items: center; gap: 8px; pointer-events: auto; }
@@ -519,22 +523,26 @@
             }).join('')}
           </div>
         </div>`;
-      const appendTarget = doc.body || doc.documentElement;
+      const root = this.getRootNode();
+      const appendTarget = (root instanceof Document) ? (root.body || root.documentElement) : root;
       appendTarget.appendChild(overlay);
 
       overlay.querySelectorAll('.editor-dot').forEach(dot => {
-        dot.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); });
-        dot.addEventListener('touchstart', (e) => { e.preventDefault(); this._startDrag(e, dot); }, { passive: false });
+        dot.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); });
       });
 
       const close = () => {
-        if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         doc.removeEventListener('keydown', escHandler);
       };
       const escHandler = (e) => { if (e.key === 'Escape') close(); };
       doc.addEventListener('keydown', escHandler);
       const closeBtn = overlay.querySelector('#rp-position-close');
-      if (closeBtn) closeBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); close(); }, true);
+      if (closeBtn) {
+        const doClose = (e) => { e.preventDefault(); e.stopPropagation(); close(); };
+        closeBtn.addEventListener('click', doClose, true);
+        closeBtn.addEventListener('pointerdown', doClose, true);
+      }
     }
   }
 
