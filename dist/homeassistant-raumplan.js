@@ -259,27 +259,15 @@
           background: transparent; color: var(--primary-color, #03a9f4); font-size: 14px; font-weight: 500;
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
         room-plan-editor .rp-btn-add:hover { border-color: var(--primary-color, #03a9f4); background: rgba(3, 169, 244, 0.08); }
-        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 200px; border-radius: 12px;
-          overflow: hidden; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: #1a1a1a;
-          width: 100%; aspect-ratio: 2/3; }
-        room-plan-editor .rp-preview-wrap.rp-fullsize { aspect-ratio: auto; max-height: 70vh; overflow: auto; }
-        room-plan-editor .rp-preview-inner { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; }
-        room-plan-editor .rp-preview-wrap.rp-fullsize .rp-preview-inner { width: 100%; height: auto; display: block; position: relative; }
-        room-plan-editor .rp-preview-wrap.rp-fullsize .rp-preview-inner > img { object-fit: contain; width: 100%; height: auto; display: block; }
-        room-plan-editor .rp-btn-toggle { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
-          background: var(--ha-card-background, #1e1e1e); color: var(--primary-color, #03a9f4); font-size: 13px; cursor: pointer;
-          display: flex; align-items: center; gap: 6px; }
-        room-plan-editor .rp-btn-toggle:hover { background: rgba(3, 169, 244, 0.1); }
-        room-plan-editor .rp-btn-toggle ha-icon { --mdc-icon-size: 18px; }
+        room-plan-editor .rp-btn-position { padding: 12px 20px; border-radius: 10px; border: none;
+          background: var(--primary-color, #03a9f4); color: white; font-size: 14px; font-weight: 500; cursor: pointer;
+          display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
+        room-plan-editor .rp-btn-position:hover:not(:disabled) { opacity: 0.9; }
+        room-plan-editor .rp-btn-position:disabled { opacity: 0.5; cursor: not-allowed; }
+        room-plan-editor .rp-btn-position ha-icon { --mdc-icon-size: 22px; }
         room-plan-editor .rp-card-preview { aspect-ratio: 2/3; min-height: 240px; border-radius: 12px; overflow: hidden;
           border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); margin-top: 12px; }
         room-plan-editor .rp-card-preview room-plan-card { display: block; width: 100%; height: 100%; min-height: 240px; }
-        room-plan-editor .rp-preview-inner > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; pointer-events: none;
-          filter: brightness(0.92) contrast(1.05) saturate(0.9); }
-        room-plan-editor .rp-preview-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
-          background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
-        room-plan-editor .rp-preview-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
-        room-plan-editor .rp-preview-overlay > * { pointer-events: auto; }
         room-plan-editor .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
           transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color, #03a9f4); color: white;
           display: flex; align-items: center; justify-content: center; cursor: grab;
@@ -288,6 +276,21 @@
         room-plan-editor .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
         room-plan-editor .rp-editor-dot:active { cursor: grabbing; }
         room-plan-editor .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
+        .rp-position-fullscreen { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.95); display: flex;
+          align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+        .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 10; padding: 10px 16px;
+          border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
+          display: flex; align-items: center; gap: 8px; }
+        .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
+        .rp-position-fullscreen .rp-position-close ha-icon { --mdc-icon-size: 20px; }
+        .rp-position-fullscreen .rp-position-card { position: relative; width: 100%; height: 100%; max-width: 100%; max-height: 100%;
+          aspect-ratio: 2/3; overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
+        .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;
+          filter: brightness(0.92) contrast(1.05) saturate(0.9); }
+        .rp-position-fullscreen .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+          background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
+        .rp-position-fullscreen .rp-position-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        .rp-position-fullscreen .rp-position-overlay > * { pointer-events: auto; }
       `;
       this.appendChild(style);
     }
@@ -343,34 +346,11 @@
           </div>
           <div class="rp-section">
             <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
-            <div class="rp-hint">Kreise auf dem Plan per Drag & Drop verschieben. Proportionen wie die Card (2:3).</div>
-            <div class="rp-preview-actions" style="margin-bottom: 8px;">
-              <button type="button" class="rp-btn-toggle" id="rp-btn-fullsize" title="Bild in voller Größe anzeigen">
-                <ha-icon icon="mdi:fullscreen"></ha-icon>
-                <span id="rp-fullsize-label">Vollbild (volle Größe)</span>
-              </button>
-            </div>
-            <div class="rp-preview-wrap" id="rp-preview">
-              <div class="rp-preview-inner" id="rp-preview-inner" style="transform: rotate(${rotation}deg);">
-                <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
-                <div class="rp-preview-theme-tint"></div>
-                <div class="rp-preview-overlay">`;
-
-      entities.forEach((ent, i) => {
-        const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
-        const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
-        const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
-        const size = Math.round(44 * scale);
-        const iconSize = Math.round(22 * scale);
-        const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
-        let dotStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
-        if (ent.color) dotStyle += `background:${ent.color};`;
-        html += `<div class="rp-editor-dot editor-dot" data-index="${i}" style="${dotStyle}" title="${ent.entity}"><ha-icon icon="${icon}" style="--mdc-icon-size:${iconSize}px;"></ha-icon></div>`;
-      });
-
-      html += `
-              </div>
-            </div>
+            <div class="rp-hint">Klicke den Button, um die Positionen im Vollbild zu setzen. Exakt gleiche Darstellung wie die Card.</div>
+            <button type="button" class="rp-btn-position" id="rp-btn-position" ${!img ? 'disabled' : ''}>
+              <ha-icon icon="mdi:fullscreen"></ha-icon>
+              <span>Positionierung öffnen</span>
+            </button>
           </div>
           <div class="rp-section">
             <div class="rp-section-title"><ha-icon icon="mdi:view-dashboard"></ha-icon> Vorschau (wie in Home Assistant)</div>
@@ -392,59 +372,23 @@
         cardEl.hass = this._hass;
       }
 
-      const fullsizeBtn = this.querySelector('#rp-btn-fullsize');
-      const previewWrap = this.querySelector('#rp-preview');
-      if (fullsizeBtn && previewWrap) {
-        fullsizeBtn.addEventListener('click', () => {
-          const isFull = previewWrap.classList.toggle('rp-fullsize');
-          const label = this.querySelector('#rp-fullsize-label');
-          const icon = fullsizeBtn.querySelector('ha-icon');
-          if (label) label.textContent = isFull ? 'Normal (Card-Proportionen)' : 'Vollbild (volle Größe)';
-          if (icon) icon.setAttribute('icon', isFull ? 'mdi:fullscreen-exit' : 'mdi:fullscreen');
-          if (isFull) {
-            const previewImg = this.querySelector('#rp-preview-img');
-            const previewInner = this.querySelector('#rp-preview-inner');
-            if (previewImg && previewInner) {
-              const setAr = () => {
-                const nw = previewImg.naturalWidth || 0, nh = previewImg.naturalHeight || 0;
-                if (nw > 0 && nh > 0) previewInner.style.aspectRatio = `${nw} / ${nh}`;
-              };
-              if (previewImg.complete && previewImg.naturalWidth) setAr();
-              else previewImg.addEventListener('load', setAr);
-            }
-          } else {
-            const previewInner = this.querySelector('#rp-preview-inner');
-            if (previewInner) previewInner.style.aspectRatio = '';
-          }
-        });
+      const positionBtn = this.querySelector('#rp-btn-position');
+      if (positionBtn && img) {
+        positionBtn.addEventListener('click', () => this._openPositionFullscreen());
       }
 
       this.querySelector('#rp-image-url').addEventListener('input', (e) => {
         const v = e.target.value.trim();
         this._config.image = v;
-        const previewImg = this.querySelector('#rp-preview-img');
-        if (previewImg) previewImg.src = v || '';
         this._fireConfigChanged(this._config);
-        if (v) {
-          const cardPreview = this.querySelector('#rp-card-preview');
-          if (cardPreview) {
-            let cardEl = cardPreview.querySelector('room-plan-card');
-            if (!cardEl) {
-              cardEl = document.createElement('room-plan-card');
-              cardPreview.appendChild(cardEl);
-            }
-            cardEl.setConfig({ ...this._config });
-            cardEl.hass = this._hass;
-          }
-        }
+        const positionBtn = this.querySelector('#rp-btn-position');
+        if (positionBtn) positionBtn.disabled = !v;
       });
 
       const rotEl = this.querySelector('#rp-rotation');
       if (rotEl) {
         rotEl.addEventListener('change', () => {
           this._config.rotation = Number(rotEl.value) || 0;
-          const wrap = this.querySelector('.rp-preview-inner');
-          if (wrap) wrap.style.transform = `rotate(${this._config.rotation}deg)`;
           this._fireConfigChanged(this._config);
         });
       }
@@ -468,14 +412,6 @@
         this._config.entities.push({ entity: '', x: 50, y: 50 });
         this._fireConfigChanged(this._config);
       });
-
-      const preview = this.querySelector('#rp-preview');
-      if (preview) {
-        preview.querySelectorAll('.editor-dot').forEach(dot => {
-          dot.addEventListener('mousedown', (e) => this._startDrag(e, dot));
-          dot.addEventListener('touchstart', (e) => this._startDrag(e, dot), { passive: false });
-        });
-      }
 
       if (!this._dragListenersAdded) {
         this._dragListenersAdded = true;
@@ -533,9 +469,8 @@
       if (!this._dragging.element.isConnected) { this._dragging = null; return; }
       ev.preventDefault();
       const overlay = this._dragging.element.parentElement;
-      const preview = this.querySelector('#rp-preview');
-      const rect = (overlay && overlay.classList.contains('rp-preview-overlay'))
-        ? overlay.getBoundingClientRect() : (preview ? preview.getBoundingClientRect() : null);
+      const rect = overlay && (overlay.classList.contains('rp-preview-overlay') || overlay.classList.contains('rp-position-overlay'))
+        ? overlay.getBoundingClientRect() : null;
       if (!rect || rect.width === 0) return;
       const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
       const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
@@ -555,8 +490,58 @@
     _endDrag() {
       if (this._dragging) {
         this._fireConfigChanged(this._config);
+        const posSpan = this.querySelectorAll('.rp-entity-pos')[this._dragging.index];
+        if (posSpan) {
+          const ent = this._config.entities[this._dragging.index];
+          if (ent) posSpan.textContent = ent.x.toFixed(1) + '%, ' + ent.y.toFixed(1) + '%';
+        }
         this._dragging = null;
       }
+    }
+
+    _openPositionFullscreen() {
+      const img = typeof this._config.image === 'string' ? this._config.image : (this._config.image?.location || '');
+      if (!img) return;
+      const rotation = Number(this._config.rotation) || 0;
+      const entities = this._config.entities || [];
+
+      const overlay = document.createElement('div');
+      overlay.className = 'rp-position-fullscreen';
+      overlay.innerHTML = `
+        <button type="button" class="rp-position-close" id="rp-position-close" title="Schließen">
+          <ha-icon icon="mdi:close"></ha-icon> Schließen
+        </button>
+        <div class="rp-position-card" style="transform: rotate(${rotation}deg);">
+          <img src="${img}" alt="Raumplan" />
+          <div class="rp-position-theme-tint"></div>
+          <div class="rp-position-overlay">
+            ${entities.map((ent, i) => {
+              const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
+              const y = Math.min(100, Math.max(0, Number(ent.y) || 50));
+              const scale = Math.min(2, Math.max(0.3, Number(ent.scale) || 1));
+              const size = Math.round(44 * scale);
+              const iconSize = Math.round(22 * scale);
+              const icon = ent.icon || getEntityIcon(this._hass, ent.entity);
+              let dotStyle = `left:${x}%;top:${y}%;width:${size}px;height:${size}px;`;
+              if (ent.color) dotStyle += `background:${ent.color};`;
+              return `<div class="rp-editor-dot editor-dot" data-index="${i}" style="${dotStyle}" title="${ent.entity}"><ha-icon icon="${icon}" style="--mdc-icon-size:${iconSize}px;"></ha-icon></div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      overlay.querySelectorAll('.editor-dot').forEach(dot => {
+        dot.addEventListener('mousedown', (e) => this._startDrag(e, dot));
+        dot.addEventListener('touchstart', (e) => this._startDrag(e, dot), { passive: false });
+      });
+
+      const close = () => {
+        document.body.removeChild(overlay);
+        document.removeEventListener('keydown', escHandler);
+      };
+      const escHandler = (e) => { if (e.key === 'Escape') close(); };
+      document.addEventListener('keydown', escHandler);
+      overlay.querySelector('#rp-position-close').addEventListener('click', close);
     }
   }
 
