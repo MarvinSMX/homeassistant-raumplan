@@ -11,22 +11,24 @@ Lovelace-Karte für einen **interaktiven Raumplan**: Du legst ein Bild (Grundris
 
 ## Installation
 
-### Option 1: Manuell (ohne HACS)
+### Option 1: Über HACS (empfohlen)
 
-1. Kopiere `room-plan-card.js` in deinen Home-Assistant-Ordner, z. B.:
-   - `config/www/room-plan-card.js`
+1. HACS → **Frontend** (Dashboard) → **⋮** → **Custom repositories**
+2. Repository-URL eintragen: `https://github.com/MarvinSMX/homeassistant-raumplan`
+3. **Repository** hinzufügen
+4. Unter **Frontend** die Karte **„Interaktiver Raumplan“** suchen und installieren
+5. Dashboard-Ressource wird automatisch angelegt (z. B. `/hacsfiles/homeassistant-raumplan/homeassistant-raumplan.js`)
+
+### Option 2: Manuell (ohne HACS)
+
+1. Kopiere `dist/homeassistant-raumplan.js` in deinen Home-Assistant-Ordner, z. B.:
+   - `config/www/homeassistant-raumplan.js`
 2. Falls du keinen `www`-Ordner hast: Unter `config/` einen Ordner `www` anlegen und die Datei dort ablegen.
 3. Dashboard-Ressource eintragen:
    - **Einstellungen** → **Dashboards** → **Ressourcen** → **Ressource hinzufügen**
-   - **URL:** `/local/room-plan-card.js`
+   - **URL:** `/local/homeassistant-raumplan.js`
    - **Typ:** JavaScript-Modul
 4. Optional: Home Assistant einmal neu starten, wenn `www` neu angelegt wurde.
-
-### Option 2: Über HACS (Custom Repository)
-
-1. HACS → **Frontend** → **⋮** → **Custom repositories**
-2. Repository-URL eintragen (z. B. dein GitHub-Repo mit diesem Projekt)
-3. **Repository** hinzufügen und danach die Karte unter **Frontend** installieren.
 
 ## Bild für den Raumplan
 
