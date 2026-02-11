@@ -52,7 +52,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       const yInput = row.querySelector('input[data-field="y"]') as HTMLInputElement;
       const scaleInput = row.querySelector('input[data-field="scale"]') as HTMLInputElement;
       const colorInput = row.querySelector('input[data-field="color"]') as HTMLInputElement;
-      const ent = this._config.entities?.[i] || {};
+      const ent: RoomPlanEntity = this._config.entities?.[i] ?? { entity: '' };
       const x = xInput ? Math.min(100, Math.max(0, Number(xInput.value) || 50)) : ent.x ?? 50;
       const y = yInput ? Math.min(100, Math.max(0, Number(yInput.value) || 50)) : ent.y ?? 50;
       const scale = scaleInput ? Math.min(2, Math.max(0.3, Number(scaleInput.value) || 1)) : ent.scale ?? 1;

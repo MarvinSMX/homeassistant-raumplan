@@ -1,11 +1,12 @@
 import resolve from 'rollup-plugin-node-resolve';
-import typescript from 'rollup-plugin-typescript2';
+import typescript from '@rollup/plugin-typescript';
 import commonjs from 'rollup-plugin-commonjs';
 import serve from 'rollup-plugin-serve';
 import json from '@rollup/plugin-json';
 
 export default {
   input: 'src/room-plan-card.ts',
+  inlineDynamicImports: true,
   output: {
     file: 'dist/homeassistant-raumplan.js',
     format: 'es',
@@ -13,7 +14,7 @@ export default {
   plugins: [
     resolve(),
     commonjs(),
-    typescript(),
+    typescript({ tsconfig: './tsconfig.json', exclude: ['**/boilerplate-card-master/**'] }),
     json(),
     serve({
       contentBase: './dist',

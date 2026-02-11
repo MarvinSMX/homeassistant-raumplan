@@ -78,6 +78,7 @@ export class RoomPlanCard extends LitElement {
         ? config.image
         : (config?.image as any)?.location || (config?.image as string) || '';
     this.config = {
+      type: config?.type || 'custom:room-plan-card',
       image: img,
       entities: Array.isArray(config?.entities) ? config.entities : [],
       title: config?.title || '',
@@ -145,7 +146,7 @@ export class RoomPlanCard extends LitElement {
         ':host{background:none!important;background-color:transparent!important;border:none!important;box-shadow:none!important;padding:0!important}';
       shadow.appendChild(style);
     };
-    let el: Element | null = this.parentElement || (this.getRootNode?.() as ShadowRoot)?.host ?? null;
+    let el: Element | null = this.parentElement ?? ((this.getRootNode?.() as ShadowRoot)?.host ?? null);
     while (el && el !== document.body) {
       styleTransparent(el as HTMLElement);
       if ((el as HTMLElement).tagName === 'HA-CARD') injectShadowStyle(el as HTMLElement);
