@@ -1,102 +1,88 @@
-# Interaktiver Raumplan – Lovelace-Karte für Home Assistant
+# Interaktiver Raumplan – ha-floorplan Style
 
-Lovelace-Karte für einen **interaktiven Raumplan**: Du legst ein Bild (Grundriss/Skizze) als Hintergrund fest und platzierst **Entitäten per Drag & Drop** an die passenden Stellen. Ideal für Dashboards mit Raumübersicht.
+Lovelace-Karte für einen **SVG-basierten Raumplan** im Stil von [ha-floorplan](https://github.com/ExperienceLovelace/ha-floorplan): Entities werden auf SVG-Elemente gemappt, Zustände steuern das Styling, Klicks lösen Aktionen aus.
 
-## Funktionen
+## Konzept (wie ha-floorplan)
 
-- **Raumplan als Bild** – Beliebiges Bild (z. B. Grundriss) als Hintergrund
-- **Entitäten per Drag & Drop** – Positionierung im Konfigurations-Editor durch Ziehen der Punkte auf dem Vorschau-Bild
-- **Dashboard-Integration** – Karte wie jede andere Lovelace-Karte hinzufügen
-- **Live-Anzeige** – Zustand und Namen der Entitäten werden auf der Karte angezeigt
+1. **SVG-Datei** mit Element-IDs erstellen (z.B. in Inkscape)
+2. **CSS-Stylesheet** für Zustandsdarstellung (optional)
+3. **Rules** definieren: Entity → SVG-Element-Mapping
 
 ## Installation
 
-### Option 1: Über HACS (empfohlen)
+### Über HACS
 
-1. HACS → **Frontend** (Dashboard) → **⋮** → **Custom repositories**
-2. Repository-URL eintragen: `https://github.com/MarvinSMX/homeassistant-raumplan`
-3. **Repository** hinzufügen
-4. Unter **Frontend** die Karte **„Interaktiver Raumplan“** suchen und installieren
-5. Dashboard-Ressource wird automatisch angelegt (z. B. `/hacsfiles/homeassistant-raumplan/homeassistant-raumplan.js`)
+1. HACS → **Frontend** → **Custom repositories** → `https://github.com/MarvinSMX/homeassistant-raumplan`
+2. Karte „Interaktiver Raumplan“ installieren
 
-### Option 2: Manuell (ohne HACS)
+### Manuell
 
-1. Kopiere `dist/homeassistant-raumplan.js` in deinen Home-Assistant-Ordner, z. B.:
-   - `config/www/homeassistant-raumplan.js`
-2. Falls du keinen `www`-Ordner hast: Unter `config/` einen Ordner `www` anlegen und die Datei dort ablegen.
-3. Dashboard-Ressource eintragen:
-   - **Einstellungen** → **Dashboards** → **Ressourcen** → **Ressource hinzufügen**
-   - **URL:** `/local/homeassistant-raumplan.js`
-   - **Typ:** JavaScript-Modul
-4. Optional: Home Assistant einmal neu starten, wenn `www` neu angelegt wurde.
+1. `dist/homeassistant-raumplan.js` nach `config/www/` kopieren
+2. Dashboard-Ressource: URL `/local/homeassistant-raumplan.js`, Typ **JavaScript-Modul**
 
-## Bild für den Raumplan
+## SVG erstellen
 
-- Bild z. B. unter `config/www/` speichern, z. B. `config/www/grundriss.png`.
-- In der Karte als **Bild-URL** angeben: `/local/grundriss.png`
-- Externe URLs (z. B. `https://...`) funktionieren ebenfalls, wenn dein HA darauf zugreifen kann.
+1. Grundriss in [Floorplanner](https://floorplanner.com/) oder ähnlich erstellen und als Bild exportieren
+2. In [Inkscape](https://inkscape.org/) öffnen und Bereiche als Formen zeichnen (Rechteck, Polygon)
+3. **Wichtig:** Jeder interaktive Bereich braucht eine **ID** (z.B. `area.wohnzimmer`, `area.kueche`)
+4. Als SVG speichern und unter `config/www/floorplan/` ablegen
 
-## Karte ins Dashboard einfügen
+## Konfiguration
 
-1. Dashboard bearbeiten (Stift-Symbol).
-2. **Karte hinzufügen** → in der Liste **„Interaktiver Raumplan“** wählen (oder manuell **„Manuell“** und dann unten die Konfiguration).
-3. Im Konfigurations-Dialog:
-   - **Bild-URL des Raumplans** eintragen (z. B. `/local/raumplan.png`).
-   - **Entität hinzufügen** klicken und die gewünschten Entitäten eintragen (z. B. `light.wohnzimmer`, `sensor.temperatur_bad`). Du kannst aus der Liste wählen oder die Entity-ID eintippen.
-   - **Position setzen:** In der Vorschau die farbigen Punkte auf dem Bild per **Drag & Drop** an die richtigen Stellen ziehen.
-4. **Speichern** – die Karte zeigt den Raumplan mit den Entitäten an den gesetzten Positionen.
-
-## Konfiguration (YAML)
-
-Falls du die Karte per YAML konfigurierst:
+### YAML
 
 ```yaml
 type: custom:room-plan-card
-title: "EG"
-image: /local/grundriss.png
-entities:
+image: /local/floorplan/grundriss.svg
+stylesheet: /local/floorplan/grundriss.css
+rules:
   - entity: light.wohnzimmer
-    x: 25
-    y: 30
-  - entity: sensor.temperatur_bad
-    x: 75
-    y: 40
+    element: area.wohnzimmer
+    tap_action: toggle
   - entity: light.kueche
-    x: 50
-    y: 70
-    icon: mdi:ceiling-light   # optional, sonst wird ein Standard-Icon genutzt
+    element: area.kueche
+    tap_action: toggle
+  - entity: sensor.temperatur_bad
+    element: text.temp_bad
 ```
 
-- **image** (Pflicht): URL des Raumplan-Bildes.
-- **title** (optional): Überschrift über der Karte.
-- **entities**: Liste von Objekten mit:
-  - **entity**: Entity-ID (z. B. `light.wohnzimmer`).
-  - **x**, **y**: Position in Prozent (0–100) auf dem Bild.
-  - **icon** (optional): MDI-Icon, z. B. `mdi:sofa`, `mdi:thermometer`.
+### Parameter
 
-## Fehlerbehebung
+| Parameter    | Beschreibung                                           |
+|-------------|--------------------------------------------------------|
+| `image`     | URL der SVG-Datei (z.B. `/local/floorplan.svg`)        |
+| `stylesheet`| URL der CSS-Datei (optional)                           |
+| `rules`     | Liste von Rules mit `entity` und `element`             |
+| `tap_action`| `toggle`, `more-info`, oder Service wie `light.toggle` |
 
-**Karte erscheint nicht im Karten-Picker / „Kann nicht hinzugefügt werden“:**
+## CSS-Styling
 
-1. **Ressource prüfen:** Einstellungen → Dashboards → ⋮ → Ressourcen – die Karte muss mit URL und Typ „JavaScript-Modul“ eingetragen sein.
-2. **Cache leeren:** Browser-Cache leeren oder Strg+F5 (Hard-Refresh).
-3. **Seite neu laden:** Nach dem Hinzufügen der Ressource die Dashboard-Seite neu laden.
-4. **YAML-Modus:** Bei Dashboards im YAML-Modus die Karte manuell einfügen (siehe Konfiguration oben).
-5. **Konsole prüfen:** Browser-Entwicklertools (F12) → Konsole – bei Fehlern erscheinen dort Hinweise.
+Das SVG erhält automatisch Klassen:
 
-**HACS-Installation:** Nach der Installation muss die Ressource unter „Dashboards → Ressourcen“ vorhanden sein. Falls nicht, sie manuell mit URL `/hacsfiles/homeassistant-raumplan/homeassistant-raumplan.js` und Typ „JavaScript-Modul“ hinzufügen.
+- `ha-entity` – alle gemappten Elemente
+- `ha-entity-{entity-id}` – z.B. `ha-entity-light-wohnzimmer`
+- `state-{state}` – z.B. `state-on`, `state-off`, `state-22.5`
 
-## Hinweise
+Beispiel-CSS:
 
-- Die Positionen (x, y) sind **Prozentwerte** (0–100) und bleiben bei verschiedenen Bildschirmgrößen proportional.
-- Im Konfigurations-Editor kannst du Entitäten hinzufügen/entfernen und ihre Position nur durch Ziehen in der Vorschau anpassen – kein manuelles Eintippen von x/y nötig.
-- Wenn eine Entität nicht gefunden wird, erscheint ein Platzhalter-Icon; die Entity-ID solltest du in den Einstellungen der Karte prüfen.
+```css
+/* Lampen: Ein = hell, Aus = dunkel */
+.ha-entity-light-wohnzimmer.state-on { fill: #ffeb3b !important; }
+.ha-entity-light-wohnzimmer.state-off { fill: #37474f !important; }
 
-## Dateien
+/* Hover */
+.ha-entity:hover { stroke: #03A9F4 !important; stroke-width: 2px !important; }
+```
 
-- `room-plan-card.js` – Karte und Konfigurations-Editor (eine Datei)
-- `manifest.json` – Metadaten für die Karte
-- `README.md` – diese Anleitung
+## Unterschied zu ha-floorplan
+
+Diese Karte orientiert sich an ha-floorplan, ist aber deutlich schlanker:
+
+- **ha-floorplan**: Umfangreiche Features (state_action, floorplan-Dienste, JS-Templates, etc.)
+- **Diese Karte**: Einfaches Entity-Element-Mapping, Toggle/More-Info, automatische State-Klassen
+
+Für maximale Flexibilität → [ha-floorplan](https://github.com/ExperienceLovelace/ha-floorplan) nutzen.  
+Für einen schnellen SVG-Raumplan mit Basis-Features → diese Karte.
 
 ## Lizenz
 
