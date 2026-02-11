@@ -107,7 +107,7 @@
       this._render();
       this._removeCardChrome();
       requestAnimationFrame(() => this._removeCardChrome());
-      setTimeout(() => this._removeCardChrome(), 100);
+      [100, 300, 500].forEach(t => setTimeout(() => this._removeCardChrome(), t));
     }
 
     _removeCardChrome() {
@@ -130,10 +130,8 @@
       };
       let el = this.parentElement || (this.getRootNode?.()?.host ?? null);
       while (el && el !== document.body) {
-        if (el.tagName === 'HA-CARD' || el.tagName?.startsWith?.('HUI-CARD')) {
-          styleTransparent(el);
-          if (el.tagName === 'HA-CARD') injectShadowStyle(el);
-        }
+        styleTransparent(el);
+        if (el.tagName === 'HA-CARD') injectShadowStyle(el);
         el.shadowRoot?.querySelectorAll?.('ha-card')?.forEach?.(haCard => {
           styleTransparent(haCard);
           injectShadowStyle(haCard);
