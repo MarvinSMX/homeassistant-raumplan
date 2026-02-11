@@ -80,6 +80,7 @@
 
     connectedCallback() {
       if (!this._root) {
+        this._injectStyles();
         this._root = document.createElement('ha-card');
         this._root.className = 'room-plan-ha-card';
         this._root.style.cssText = 'overflow: hidden; padding: 0 !important;';
@@ -87,35 +88,33 @@
         this._container.className = 'room-plan-container';
         this._root.appendChild(this._container);
         this.appendChild(this._root);
-        this._injectStyles();
       }
       this._render();
     }
 
     _injectStyles() {
-      if (document.getElementById('room-plan-card-styles')) return;
+      if (this.querySelector('style[data-room-plan]')) return;
       const style = document.createElement('style');
-      style.id = 'room-plan-card-styles';
+      style.setAttribute('data-room-plan', '1');
       style.textContent = `
-        .room-plan-ha-card { padding: 0 !important; }
-        room-plan-card .room-plan-ha-card { padding: 0 !important; }
-        .room-plan-container { position: relative; width: 100%; min-height: 320px; min-width: 0; }
-        .room-plan-wrapper { display: grid; width: 100%; position: relative; min-width: 0; }
-        .room-plan-wrapper > img { grid-area: 1/1; width: 100%; height: auto; display: block; max-width: 100%; }
-        .room-plan-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
-        .room-plan-overlay > * { pointer-events: auto; }
-        .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
+        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; }
+        room-plan-card .room-plan-container { position: relative; width: 100%; min-height: 320px; min-width: 0; }
+        room-plan-card .room-plan-wrapper { display: grid; width: 100%; position: relative; min-width: 0; }
+        room-plan-card .room-plan-wrapper > img { grid-area: 1/1; width: 100%; height: auto; display: block; max-width: 100%; }
+        room-plan-card .room-plan-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        room-plan-card .room-plan-overlay > * { pointer-events: auto; }
+        room-plan-card .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
           width: 44px; height: 44px; border-radius: 50%;
           background: var(--card-background-color, var(--ha-card-background, #1e1e1e));
           color: var(--primary-text-color, #e1e1e1);
           box-shadow: 0 2px 12px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;
           cursor: pointer; z-index: 2; border: 3px solid rgba(255,255,255,0.15);
           transition: transform 0.15s; }
-        .room-plan-entity:hover { transform: translate(-50%,-50%) scale(1.1); }
-        .room-plan-entity ha-icon { --mdc-icon-size: 24px; }
-        .room-plan-entity.state-on { color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)) !important; }
+        room-plan-card .room-plan-entity:hover { transform: translate(-50%,-50%) scale(1.1); }
+        room-plan-card .room-plan-entity ha-icon { --mdc-icon-size: 24px; }
+        room-plan-card .room-plan-entity.state-on { color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)) !important; }
       `;
-      document.head.appendChild(style);
+      this.appendChild(style);
     }
 
     _render() {
@@ -199,57 +198,56 @@
     }
 
     _injectEditorStyles() {
-      if (document.getElementById('room-plan-editor-styles')) return;
+      if (this.querySelector('style[data-room-plan-editor]')) return;
       const style = document.createElement('style');
-      style.id = 'room-plan-editor-styles';
+      style.setAttribute('data-room-plan-editor', '1');
       style.textContent = `
-        .rp-editor { padding: 20px; max-width: 560px; }
-        .rp-editor * { box-sizing: border-box; }
-        .rp-section { margin-bottom: 24px; }
-        .rp-section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--primary-text-color); }
-        .rp-section-title ha-icon { color: var(--primary-color); }
-        .rp-field { margin-bottom: 16px; }
-        .rp-field label { display: block; font-size: 12px; font-weight: 500; color: var(--secondary-text-color); margin-bottom: 6px; }
-        .rp-field input { width: 100%; padding: 12px 14px; border: 1px solid var(--divider-color); border-radius: 8px;
-          background: var(--ha-card-background, #fff); color: var(--primary-text-color); font-size: 14px; }
-        .rp-field input:focus { outline: none; border-color: var(--primary-color); }
-        .rp-hint { font-size: 12px; color: var(--secondary-text-color); margin-top: 6px; line-height: 1.4; }
-        .rp-hint code { background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-        .rp-entity-list { display: flex; flex-direction: column; gap: 10px; }
-        .rp-entity-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
-          background: var(--ha-card-background, #fff); border: 1px solid var(--divider-color);
+        room-plan-editor .rp-editor { padding: 20px; max-width: 560px; }
+        room-plan-editor .rp-editor * { box-sizing: border-box; }
+        room-plan-editor .rp-section { margin-bottom: 24px; }
+        room-plan-editor .rp-section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--primary-text-color, #e1e1e1); }
+        room-plan-editor .rp-section-title ha-icon { color: var(--primary-color, #03a9f4); }
+        room-plan-editor .rp-field { margin-bottom: 16px; }
+        room-plan-editor .rp-field label { display: block; font-size: 12px; font-weight: 500; color: var(--secondary-text-color, #9e9e9e); margin-bottom: 6px; }
+        room-plan-editor .rp-field input { width: 100%; padding: 12px 14px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); border-radius: 8px;
+          background: var(--ha-card-background, #1e1e1e); color: var(--primary-text-color, #e1e1e1); font-size: 14px; }
+        room-plan-editor .rp-field input:focus { outline: none; border-color: var(--primary-color, #03a9f4); }
+        room-plan-editor .rp-hint { font-size: 12px; color: var(--secondary-text-color, #9e9e9e); margin-top: 6px; line-height: 1.4; }
+        room-plan-editor .rp-hint code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+        room-plan-editor .rp-entity-list { display: flex; flex-direction: column; gap: 10px; }
+        room-plan-editor .rp-entity-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+          background: var(--ha-card-background, #1e1e1e); border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
           border-radius: 10px; }
-        .rp-entity-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--divider-color);
-          border-radius: 8px; font-size: 14px; }
-        .rp-entity-row input:focus { outline: none; border-color: var(--primary-color); }
-        .rp-entity-pos { font-size: 11px; color: var(--secondary-text-color); min-width: 70px; text-align: right; }
-        .rp-btn-remove { padding: 8px 12px; border-radius: 8px; border: none; background: rgba(244, 67, 54, 0.12);
+        room-plan-editor .rp-entity-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
+          border-radius: 8px; font-size: 14px; background: var(--ha-card-background, #1e1e1e); color: var(--primary-text-color, #e1e1e1); }
+        room-plan-editor .rp-entity-row input:focus { outline: none; border-color: var(--primary-color, #03a9f4); }
+        room-plan-editor .rp-entity-pos { font-size: 11px; color: var(--secondary-text-color, #9e9e9e); min-width: 70px; text-align: right; }
+        room-plan-editor .rp-btn-remove { padding: 8px 12px; border-radius: 8px; border: none; background: rgba(244, 67, 54, 0.2);
           color: #f44336; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-        .rp-btn-remove:hover { background: rgba(244, 67, 54, 0.2); }
-        .rp-btn-add { padding: 12px 18px; border-radius: 10px; border: 2px dashed var(--divider-color);
-          background: transparent; color: var(--primary-color); font-size: 14px; font-weight: 500;
+        room-plan-editor .rp-btn-remove:hover { background: rgba(244, 67, 54, 0.3); }
+        room-plan-editor .rp-btn-add { padding: 12px 18px; border-radius: 10px; border: 2px dashed var(--divider-color, rgba(255,255,255,0.12));
+          background: transparent; color: var(--primary-color, #03a9f4); font-size: 14px; font-weight: 500;
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
-        .rp-btn-add:hover { border-color: var(--primary-color); background: rgba(3, 169, 244, 0.08); }
-        .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 260px; border-radius: 12px;
-          overflow: hidden; border: 1px solid var(--divider-color); background: #f5f5f5;
+        room-plan-editor .rp-btn-add:hover { border-color: var(--primary-color, #03a9f4); background: rgba(3, 169, 244, 0.08); }
+        room-plan-editor .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 260px; border-radius: 12px;
+          overflow: hidden; border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); background: #1a1a1a;
           display: grid; }
-        .rp-preview-wrap > img { grid-area: 1/1; width: 100%; height: auto; display: block; pointer-events: none; }
-        .rp-preview-overlay { grid-area: 1/1; position: relative; pointer-events: none; min-height: 100%; }
-        .rp-preview-overlay > * { pointer-events: auto; }
-        .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
-          transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color); color: white;
+        room-plan-editor .rp-preview-wrap > img { grid-area: 1/1; width: 100%; height: auto; display: block; pointer-events: none; }
+        room-plan-editor .rp-preview-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        room-plan-editor .rp-preview-overlay > * { pointer-events: auto; }
+        room-plan-editor .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
+          transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color, #03a9f4); color: white;
           display: flex; align-items: center; justify-content: center; cursor: grab;
           box-shadow: 0 2px 12px rgba(0,0,0,0.25); z-index: 10; user-select: none; touch-action: none;
           border: 3px solid rgba(255,255,255,0.9); }
-        .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
-        .rp-editor-dot:active { cursor: grabbing; }
-        .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
+        room-plan-editor .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
+        room-plan-editor .rp-editor-dot:active { cursor: grabbing; }
+        room-plan-editor .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
       `;
-      document.head.appendChild(style);
+      this.appendChild(style);
     }
 
     _render() {
-      this._injectEditorStyles();
       const img = typeof this._config.image === 'string' ? this._config.image : (this._config.image?.location || '');
       const entities = this._config.entities || [];
       const entityIds = this._hass && this._hass.states ? Object.keys(this._hass.states).sort() : [];
@@ -345,6 +343,8 @@
         document.addEventListener('touchmove', (e) => this._onDrag(e), { passive: false });
         document.addEventListener('touchend', () => this._endDrag());
       }
+
+      this._injectEditorStyles();
     }
 
     _syncEntities() {
