@@ -108,7 +108,7 @@
         room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
         room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; }
         room-plan-card .room-plan-inner { position: absolute; inset: 0; width: 100%; height: 100%; }
-        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: fill; object-position: center; display: block;
+        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-card .room-plan-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
           background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
@@ -373,10 +373,11 @@
 
       if (!this._dragListenersAdded) {
         this._dragListenersAdded = true;
-        document.addEventListener('mousemove', (e) => this._onDrag(e));
-        document.addEventListener('mouseup', () => this._endDrag());
-        document.addEventListener('touchmove', (e) => this._onDrag(e), { passive: false });
-        document.addEventListener('touchend', () => this._endDrag());
+        const doc = this.ownerDocument || document;
+        doc.addEventListener('mousemove', (e) => this._onDrag(e));
+        doc.addEventListener('mouseup', () => this._endDrag());
+        doc.addEventListener('touchmove', (e) => this._onDrag(e), { passive: false });
+        doc.addEventListener('touchend', () => this._endDrag());
       }
 
       this._injectEditorStyles();
@@ -464,25 +465,26 @@
       const rotation = Number(this._config.rotation) || 0;
       const entities = this._config.entities || [];
 
-      if (!document.getElementById('rp-position-fullscreen-styles')) {
-        const style = document.createElement('style');
+      const doc = this.ownerDocument || document;
+      if (!doc.getElementById('rp-position-fullscreen-styles')) {
+        const style = doc.createElement('style');
         style.id = 'rp-position-fullscreen-styles';
         style.textContent = `
-          .rp-position-fullscreen { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.95); display: flex;
-            flex-direction: column; padding: 16px; box-sizing: border-box; }
-          .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 10; padding: 10px 16px;
+          .rp-position-fullscreen { position: fixed; inset: 0; z-index: 2147483647; background: rgba(0,0,0,0.95); display: flex;
+            flex-direction: column; padding: 16px; box-sizing: border-box; pointer-events: auto; }
+          .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 100; padding: 12px 20px;
             border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
-            display: flex; align-items: center; gap: 8px; }
+            display: flex; align-items: center; gap: 8px; pointer-events: auto; }
           .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
           .rp-position-fullscreen .rp-position-close ha-icon { --mdc-icon-size: 20px; }
           .rp-position-fullscreen .rp-position-card { position: relative; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0;
             overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
-          .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: fill; object-position: center; display: block;
+          .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
             filter: brightness(0.92) contrast(1.05) saturate(0.9); }
           .rp-position-fullscreen .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
             background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
           .rp-position-fullscreen .rp-position-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
-          .rp-position-fullscreen .rp-position-overlay > * { pointer-events: auto; }
+          .rp-position-fullscreen .rp-position-overlay > * { pointer-events: auto !important; }
           .rp-position-fullscreen .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
             transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color, #03a9f4); color: white;
             display: flex; align-items: center; justify-content: center; cursor: grab; box-shadow: 0 2px 12px rgba(0,0,0,0.25);
@@ -491,13 +493,13 @@
           .rp-position-fullscreen .rp-editor-dot:active { cursor: grabbing; }
           .rp-position-fullscreen .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
         `;
-        document.head.appendChild(style);
+        (doc.head || doc.documentElement).appendChild(style);
       }
 
-      const overlay = document.createElement('div');
+      const overlay = doc.createElement('div');
       overlay.className = 'rp-position-fullscreen';
       overlay.innerHTML = `
-        <button type="button" class="rp-position-close" id="rp-position-close" title="Schließen">
+        <button type="button" class="rp-position-close" id="rp-position-close" title="Schließen (Esc)">
           <ha-icon icon="mdi:close"></ha-icon> Schließen
         </button>
         <div class="rp-position-card" style="transform: rotate(${rotation}deg);">
@@ -517,20 +519,22 @@
             }).join('')}
           </div>
         </div>`;
-      document.body.appendChild(overlay);
+      const appendTarget = doc.body || doc.documentElement;
+      appendTarget.appendChild(overlay);
 
       overlay.querySelectorAll('.editor-dot').forEach(dot => {
-        dot.addEventListener('mousedown', (e) => this._startDrag(e, dot));
-        dot.addEventListener('touchstart', (e) => this._startDrag(e, dot), { passive: false });
+        dot.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); this._startDrag(e, dot); });
+        dot.addEventListener('touchstart', (e) => { e.preventDefault(); this._startDrag(e, dot); }, { passive: false });
       });
 
       const close = () => {
         if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
-        document.removeEventListener('keydown', escHandler);
+        doc.removeEventListener('keydown', escHandler);
       };
       const escHandler = (e) => { if (e.key === 'Escape') close(); };
-      document.addEventListener('keydown', escHandler);
-      overlay.querySelector('#rp-position-close').addEventListener('click', close);
+      doc.addEventListener('keydown', escHandler);
+      const closeBtn = overlay.querySelector('#rp-position-close');
+      if (closeBtn) closeBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); close(); }, true);
     }
   }
 
