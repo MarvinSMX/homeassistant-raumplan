@@ -77,11 +77,16 @@
     }
 
     getCardSize() {
-      return 3;
+      return 4;
     }
 
     getGridOptions() {
-      return { rows: 3, columns: 2, min_rows: 2, min_columns: 1 };
+      return {
+        rows: 4,
+        columns: 6,
+        min_rows: 3,
+        min_columns: 3
+      };
     }
 
     connectedCallback() {
