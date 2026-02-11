@@ -98,7 +98,7 @@
         this._injectStyles();
         this._root = document.createElement('div');
         this._root.className = 'room-plan-ha-card';
-        this._root.style.cssText = 'overflow: hidden; padding: 0; background: transparent; border: none; box-shadow: none;';
+        this._root.style.cssText = 'overflow: hidden; padding: 0; background: none; background-color: transparent; border: none; box-shadow: none;';
         this._container = document.createElement('div');
         this._container.className = 'room-plan-container';
         this._root.appendChild(this._container);
@@ -107,26 +107,21 @@
       this._render();
       this._removeCardChrome();
       requestAnimationFrame(() => this._removeCardChrome());
+      setTimeout(() => this._removeCardChrome(), 100);
     }
 
     _removeCardChrome() {
-      let el = this.parentElement || (this.getRootNode?.()?.host ?? null);
-      const styleCard = (card) => {
-        card.style.setProperty('background', 'transparent', 'important');
-        card.style.setProperty('border', 'none', 'important');
-        card.style.setProperty('box-shadow', 'none', 'important');
-        card.style.setProperty('padding', '0', 'important');
+      const styleTransparent = (el) => {
+        el.style.setProperty('background', 'transparent', 'important');
+        el.style.setProperty('background-color', 'transparent', 'important');
+        el.style.setProperty('border', 'none', 'important');
+        el.style.setProperty('box-shadow', 'none', 'important');
+        el.style.setProperty('padding', '0', 'important');
       };
+      let el = this.parentElement || (this.getRootNode?.()?.host ?? null);
       while (el && el !== document.body) {
-        if (el.tagName === 'HA-CARD') {
-          styleCard(el);
-          break;
-        }
-        const haCard = el.shadowRoot?.querySelector?.('ha-card');
-        if (haCard) {
-          styleCard(haCard);
-          break;
-        }
+        if (el.tagName === 'HA-CARD' || el.tagName === 'HUI-CARD') styleTransparent(el);
+        el.shadowRoot?.querySelectorAll?.('ha-card')?.forEach?.(styleTransparent);
         el = el.parentElement || (el.getRootNode?.()?.host ?? null);
       }
     }
@@ -136,12 +131,13 @@
       const style = document.createElement('style');
       style.setAttribute('data-room-plan', '1');
       style.textContent = `
-        ha-card:has(room-plan-card) { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; overflow: hidden !important; }
-        room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; background: transparent !important; }
-        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: transparent !important; border: none !important; box-shadow: none !important; }
-        room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: transparent !important; }
-        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: transparent !important; }
-        room-plan-card .room-plan-inner { position: relative; max-width: 100%; max-height: 100%; width: 100%; height: auto; min-height: 0; background: transparent !important; }
+        ha-card:has(room-plan-card), ha-card:has(room-plan-card)::before, ha-card:has(room-plan-card)::after { background: none !important; background-color: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; overflow: hidden !important; }
+        hui-card:has(room-plan-card), hui-card:has(room-plan-card)::before, hui-card:has(room-plan-card)::after { background: none !important; background-color: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
+        room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; background: none !important; background-color: transparent !important; }
+        room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: none !important; background-color: transparent !important; border: none !important; box-shadow: none !important; }
+        room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: none !important; background-color: transparent !important; }
+        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: none !important; background-color: transparent !important; }
+        room-plan-card .room-plan-inner { position: relative; max-width: 100%; max-height: 100%; width: 100%; height: auto; min-height: 0; background: none !important; background-color: transparent !important; }
         room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-card .room-plan-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
