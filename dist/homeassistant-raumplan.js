@@ -214,14 +214,6 @@
     }
 
     _fireConfigChanged(cfg) {
-      const cardPreview = this.querySelector('#rp-card-preview');
-      if (cardPreview) {
-        const cardEl = cardPreview.querySelector('room-plan-card');
-        if (cardEl) {
-          cardEl.setConfig({ ...cfg });
-          cardEl.hass = this._hass;
-        }
-      }
       this.dispatchEvent(new CustomEvent('config-changed', { bubbles: true, composed: true, detail: { config: cfg } }));
     }
 
@@ -265,9 +257,6 @@
         room-plan-editor .rp-btn-position:hover:not(:disabled) { opacity: 0.9; }
         room-plan-editor .rp-btn-position:disabled { opacity: 0.5; cursor: not-allowed; }
         room-plan-editor .rp-btn-position ha-icon { --mdc-icon-size: 22px; }
-        room-plan-editor .rp-card-preview { aspect-ratio: 2/3; min-height: 240px; border-radius: 12px; overflow: hidden;
-          border: 1px solid var(--divider-color, rgba(255,255,255,0.12)); margin-top: 12px; }
-        room-plan-editor .rp-card-preview room-plan-card { display: block; width: 100%; height: 100%; min-height: 240px; }
         room-plan-editor .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
           transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color, #03a9f4); color: white;
           display: flex; align-items: center; justify-content: center; cursor: grab;
@@ -276,21 +265,6 @@
         room-plan-editor .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
         room-plan-editor .rp-editor-dot:active { cursor: grabbing; }
         room-plan-editor .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
-        .rp-position-fullscreen { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.95); display: flex;
-          align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
-        .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 10; padding: 10px 16px;
-          border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
-          display: flex; align-items: center; gap: 8px; }
-        .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
-        .rp-position-fullscreen .rp-position-close ha-icon { --mdc-icon-size: 20px; }
-        .rp-position-fullscreen .rp-position-card { position: relative; width: 100%; height: 100%; max-width: 100%; max-height: 100%;
-          aspect-ratio: 2/3; overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
-        .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;
-          filter: brightness(0.92) contrast(1.05) saturate(0.9); }
-        .rp-position-fullscreen .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
-          background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
-        .rp-position-fullscreen .rp-position-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
-        .rp-position-fullscreen .rp-position-overlay > * { pointer-events: auto; }
       `;
       this.appendChild(style);
     }
@@ -352,25 +326,9 @@
               <span>Positionierung öffnen</span>
             </button>
           </div>
-          <div class="rp-section">
-            <div class="rp-section-title"><ha-icon icon="mdi:view-dashboard"></ha-icon> Vorschau (wie in Home Assistant)</div>
-            <div class="rp-hint">So wird die Card in Home Assistant angezeigt. Gleiche Proportionen (2:3).</div>
-            <div class="rp-card-preview" id="rp-card-preview"></div>
-          </div>
         </div>`;
 
       this.innerHTML = html;
-
-      const cardPreview = this.querySelector('#rp-card-preview');
-      if (cardPreview && img) {
-        let cardEl = cardPreview.querySelector('room-plan-card');
-        if (!cardEl) {
-          cardEl = document.createElement('room-plan-card');
-          cardPreview.appendChild(cardEl);
-        }
-        cardEl.setConfig({ ...this._config });
-        cardEl.hass = this._hass;
-      }
 
       const positionBtn = this.querySelector('#rp-btn-position');
       if (positionBtn && img) {
@@ -500,10 +458,41 @@
     }
 
     _openPositionFullscreen() {
+      this._syncEntities();
       const img = typeof this._config.image === 'string' ? this._config.image : (this._config.image?.location || '');
       if (!img) return;
       const rotation = Number(this._config.rotation) || 0;
       const entities = this._config.entities || [];
+
+      if (!document.getElementById('rp-position-fullscreen-styles')) {
+        const style = document.createElement('style');
+        style.id = 'rp-position-fullscreen-styles';
+        style.textContent = `
+          .rp-position-fullscreen { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.95); display: flex;
+            align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+          .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 10; padding: 10px 16px;
+            border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; gap: 8px; }
+          .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
+          .rp-position-fullscreen .rp-position-close ha-icon { --mdc-icon-size: 20px; }
+          .rp-position-fullscreen .rp-position-card { position: relative; width: 100%; height: 100%; max-width: 100%; max-height: 100%;
+            aspect-ratio: 2/3; overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
+          .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;
+            filter: brightness(0.92) contrast(1.05) saturate(0.9); }
+          .rp-position-fullscreen .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+            background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
+          .rp-position-fullscreen .rp-position-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+          .rp-position-fullscreen .rp-position-overlay > * { pointer-events: auto; }
+          .rp-position-fullscreen .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
+            transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color, #03a9f4); color: white;
+            display: flex; align-items: center; justify-content: center; cursor: grab; box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+            z-index: 10; user-select: none; touch-action: none; border: 3px solid rgba(255,255,255,0.9); }
+          .rp-position-fullscreen .rp-editor-dot:hover { transform: translate(-50%,-50%) scale(1.08); }
+          .rp-position-fullscreen .rp-editor-dot:active { cursor: grabbing; }
+          .rp-position-fullscreen .rp-editor-dot ha-icon { --mdc-icon-size: 22px; }
+        `;
+        document.head.appendChild(style);
+      }
 
       const overlay = document.createElement('div');
       overlay.className = 'rp-position-fullscreen';
@@ -536,7 +525,7 @@
       });
 
       const close = () => {
-        document.body.removeChild(overlay);
+        if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
         document.removeEventListener('keydown', escHandler);
       };
       const escHandler = (e) => { if (e.key === 'Escape') close(); };
