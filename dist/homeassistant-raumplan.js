@@ -97,8 +97,10 @@
       style.id = 'room-plan-card-styles';
       style.textContent = `
         .room-plan-container { position: relative; width: 100%; min-height: 320px; }
-        .room-plan-wrapper { position: relative; display: block; width: 100%; line-height: 0; }
-        .room-plan-wrapper img { display: block; width: 100%; height: auto; vertical-align: top; }
+        .room-plan-wrapper { display: grid; width: 100%; position: relative; }
+        .room-plan-wrapper > img { grid-area: 1/1; width: 100%; height: auto; display: block; }
+        .room-plan-overlay { grid-area: 1/1; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        .room-plan-overlay > * { pointer-events: auto; }
         .room-plan-entity { position: absolute; transform: translate(-50%,-50%);
           width: 44px; height: 44px; border-radius: 50%;
           background: var(--ha-card-background, #fff); color: var(--primary-text-color);
@@ -133,6 +135,7 @@
       if (title) html += `<div style="padding: 8px 16px 0; font-weight: 600;">${title}</div>`;
       html += `<div class="room-plan-wrapper">`;
       html += `<img src="${img}" alt="Raumplan" />`;
+      html += `<div class="room-plan-overlay">`;
 
       entities.forEach((ent) => {
         const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
@@ -145,7 +148,7 @@
         </div>`;
       });
 
-      html += '</div>';
+      html += '</div></div>';
       this._container.innerHTML = html;
 
       this._container.querySelectorAll('.room-plan-entity').forEach(el => {
@@ -224,8 +227,11 @@
           cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 12px; }
         .rp-btn-add:hover { border-color: var(--primary-color); background: rgba(3, 169, 244, 0.08); }
         .rp-preview-wrap { position: relative; margin-top: 12px; min-height: 260px; border-radius: 12px;
-          overflow: hidden; border: 1px solid var(--divider-color); background: #f5f5f5; line-height: 0; }
-        .rp-preview-wrap img { display: block; width: 100%; height: auto; pointer-events: none; vertical-align: top; }
+          overflow: hidden; border: 1px solid var(--divider-color); background: #f5f5f5;
+          display: grid; }
+        .rp-preview-wrap > img { grid-area: 1/1; width: 100%; height: auto; display: block; pointer-events: none; }
+        .rp-preview-overlay { grid-area: 1/1; position: relative; pointer-events: none; min-height: 100%; }
+        .rp-preview-overlay > * { pointer-events: auto; }
         .rp-editor-dot { position: absolute; width: 44px; height: 44px; left: 0; top: 0;
           transform: translate(-50%,-50%); border-radius: 50%; background: var(--primary-color); color: white;
           display: flex; align-items: center; justify-content: center; cursor: grab;
@@ -278,7 +284,8 @@
             <div class="rp-section-title"><ha-icon icon="mdi:gesture"></ha-icon> Position setzen</div>
             <div class="rp-hint">Kreise auf dem Plan per Drag & Drop verschieben</div>
             <div class="rp-preview-wrap" id="rp-preview">
-              <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />`;
+              <img id="rp-preview-img" src="${img || ''}" alt="Vorschau" onerror="this.style.display='none'" />
+              <div class="rp-preview-overlay">`;
 
       entities.forEach((ent, i) => {
         const x = Math.min(100, Math.max(0, Number(ent.x) || 50));
@@ -288,6 +295,7 @@
       });
 
       html += `
+              </div>
             </div>
           </div>
         </div>`;
@@ -371,9 +379,11 @@
       if (!this._dragging) return;
       if (!this._dragging.element.isConnected) { this._dragging = null; return; }
       ev.preventDefault();
+      const overlay = this._dragging.element.parentElement;
       const preview = this.querySelector('#rp-preview');
-      if (!preview) return;
-      const rect = preview.getBoundingClientRect();
+      const rect = (overlay && overlay.classList.contains('rp-preview-overlay'))
+        ? overlay.getBoundingClientRect() : (preview ? preview.getBoundingClientRect() : null);
+      if (!rect || rect.width === 0) return;
       const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
       const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
       let x = (clientX - rect.left) / rect.width * 100 - this._dragOffset.x;
