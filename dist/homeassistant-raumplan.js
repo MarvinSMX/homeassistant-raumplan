@@ -106,9 +106,9 @@
         room-plan-card { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box; }
         room-plan-card .room-plan-ha-card { padding: 0 !important; overflow: hidden !important; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; display: flex; flex-direction: column; }
         room-plan-card .room-plan-container { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
-        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        room-plan-card .room-plan-inner { position: relative; width: 100%; height: 100%; max-width: 100%; max-height: 100%; }
-        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;
+        room-plan-card .room-plan-wrapper { position: relative; flex: 1 1 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; }
+        room-plan-card .room-plan-inner { position: absolute; inset: 0; width: 100%; height: 100%; }
+        room-plan-card .room-plan-inner > img { width: 100%; height: 100%; object-fit: fill; object-position: center; display: block;
           filter: brightness(0.92) contrast(1.05) saturate(0.9); }
         room-plan-card .room-plan-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
           background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
@@ -469,15 +469,15 @@
         style.id = 'rp-position-fullscreen-styles';
         style.textContent = `
           .rp-position-fullscreen { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.95); display: flex;
-            align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+            flex-direction: column; padding: 16px; box-sizing: border-box; }
           .rp-position-fullscreen .rp-position-close { position: absolute; top: 16px; right: 16px; z-index: 10; padding: 10px 16px;
             border-radius: 8px; border: none; background: var(--primary-color, #03a9f4); color: white; font-size: 14px; cursor: pointer;
             display: flex; align-items: center; gap: 8px; }
           .rp-position-fullscreen .rp-position-close:hover { opacity: 0.9; }
           .rp-position-fullscreen .rp-position-close ha-icon { --mdc-icon-size: 20px; }
-          .rp-position-fullscreen .rp-position-card { position: relative; width: 100%; height: 100%; max-width: 100%; max-height: 100%;
-            aspect-ratio: 2/3; overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
-          .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;
+          .rp-position-fullscreen .rp-position-card { position: relative; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0;
+            overflow: hidden; border-radius: 12px; border: 2px solid var(--primary-color, #03a9f4); }
+          .rp-position-fullscreen .rp-position-card > img { width: 100%; height: 100%; object-fit: fill; object-position: center; display: block;
             filter: brightness(0.92) contrast(1.05) saturate(0.9); }
           .rp-position-fullscreen .rp-position-theme-tint { position: absolute; inset: 0; pointer-events: none; z-index: 0;
             background: var(--primary-color, #03a9f4); opacity: 0.06; mix-blend-mode: overlay; }
