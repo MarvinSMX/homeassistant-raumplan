@@ -62,5 +62,9 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   entity_filter?: string[];
   /** Temperatur-Heatmap: Flächen aus 2 Punkten, Farbe nach Sensor-Wert */
   temperature_zones?: HeatmapZone[];
+  /** Entitäten für Meldungs-Badge (z. B. Rauchmelder) – Badge zeigt Anzahl aktiver Meldungen, rechts in der Tab-Leiste */
+  alert_entities?: string[];
+  /** Aktion beim Klick auf das Meldungs-Badge (optional) */
+  alert_badge_action?: ActionConfig;
   entities?: RoomPlanEntity[];
 }

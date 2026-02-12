@@ -94,6 +94,8 @@ export class RoomPlanCard extends LitElement {
       double_tap_action: config?.double_tap_action,
       entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
       temperature_zones: Array.isArray(config?.temperature_zones) ? config.temperature_zones : undefined,
+      alert_entities: Array.isArray(config?.alert_entities) ? config.alert_entities : undefined,
+      alert_badge_action: config?.alert_badge_action,
       image_dark: config?.image_dark,
       dark_mode_filter: config?.dark_mode_filter,
       dark_mode: config?.dark_mode,
@@ -138,7 +140,30 @@ export class RoomPlanCard extends LitElement {
   }
 
   private _showFilterBar(): boolean {
-    return this._availableDomains().length > 0 || (this.config?.temperature_zones ?? []).length > 0;
+    return (
+      this._availableDomains().length > 0 ||
+      (this.config?.temperature_zones ?? []).length > 0 ||
+      (this.config?.alert_entities ?? []).length > 0
+    );
+  }
+
+  /** Anzahl Entitäten in alert_entities mit aktivem Alarm (z. B. state on/triggered) */
+  private _alertCount(): number {
+    const ids = this.config?.alert_entities ?? [];
+    if (!this.hass?.states || ids.length === 0) return 0;
+    return ids.filter((eid) => {
+      const state = this.hass!.states[eid]?.state;
+      return state === 'on' || state === 'triggered' || state === 'active';
+    }).length;
+  }
+
+  private _handleAlertBadgeAction(ev: ActionHandlerEvent): void {
+    const action = this.config?.alert_badge_action ?? { action: 'more-info' as const };
+    const entity = (this.config?.alert_entities ?? [])[0] ?? '';
+    if (this.hass && ev.detail?.action) {
+      handleAction(this, this.hass, { entity, tap_action: action }, ev.detail.action);
+      forwardHaptic('light');
+    }
   }
 
   private _selectFilter(domain: string | null): void {
@@ -346,17 +371,33 @@ export class RoomPlanCard extends LitElement {
           ${showFilterBar
             ? html`
                 <div class="filter-tabs">
-                  ${tabIds.map(
-                    (id) => html`
-                      <button
-                        type="button"
-                        class="filter-tab ${activeTab === id ? 'active' : ''}"
-                        @click=${() => this._selectFilter(id)}
-                      >
-                        ${id === null ? 'Alle' : id === HEATMAP_TAB ? 'Heatmap' : id}
-                      </button>
-                    `,
-                  )}
+                  <div class="filter-tabs-left">
+                    ${tabIds.map(
+                      (id) => html`
+                        <button
+                          type="button"
+                          class="filter-tab ${activeTab === id ? 'active' : ''}"
+                          @click=${() => this._selectFilter(id)}
+                        >
+                          ${id === null ? 'Alle' : id === HEATMAP_TAB ? 'Heatmap' : id}
+                        </button>
+                      `,
+                    )}
+                  </div>
+                  ${(this.config?.alert_entities ?? []).length > 0
+                    ? html`
+                        <button
+                          type="button"
+                          class="alert-badge ${this._alertCount() > 0 ? 'alert-badge-active' : ''}"
+                          title="Meldungen"
+                          .actionHandler=${actionHandler({ hasHold: false, hasDoubleClick: false })}
+                          @action=${(e: ActionHandlerEvent) => this._handleAlertBadgeAction(e)}
+                        >
+                          <ha-icon icon="mdi:bell-badge-outline"></ha-icon>
+                          <span class="alert-badge-count">${this._alertCount()}</span>
+                        </button>
+                      `
+                    : ''}
                 </div>
               `
             : ''}
@@ -435,10 +476,53 @@ export class RoomPlanCard extends LitElement {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
+        justify-content: space-between;
         gap: 8px;
         padding: 10px 16px 12px;
         background: var(--ha-card-background, var(--card-background-color, #1e1e1e));
         border-bottom: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+      }
+      .filter-tabs-left {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .alert-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 16px;
+        background: var(--secondary-background-color, rgba(255, 255, 255, 0.05));
+        color: var(--secondary-text-color, rgba(255, 255, 255, 0.7));
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+        font-family: inherit;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .alert-badge:hover {
+        background: var(--secondary-background-color, rgba(255, 255, 255, 0.08));
+        color: var(--primary-text-color, rgba(255, 255, 255, 0.9));
+      }
+      .alert-badge.alert-badge-active {
+        background: var(--error-color, #db4437);
+        color: #fff;
+      }
+      .alert-badge.alert-badge-active:hover {
+        opacity: 0.9;
+      }
+      .alert-badge ha-icon {
+        width: 20px;
+        height: 20px;
+      }
+      .alert-badge-count {
+        min-width: 1.2em;
+        text-align: center;
+        font-weight: 600;
       }
       .filter-tab {
         padding: 6px 14px;

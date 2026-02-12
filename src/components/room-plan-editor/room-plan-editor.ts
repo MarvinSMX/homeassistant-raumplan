@@ -30,6 +30,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       entities: Array.isArray(base.entities) ? [...base.entities] : [],
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
       temperature_zones: Array.isArray(base.temperature_zones) ? [...base.temperature_zones] : undefined,
+      alert_entities: Array.isArray(base.alert_entities) ? base.alert_entities : undefined,
+      alert_badge_action: base.alert_badge_action,
       image_dark: base.image_dark,
       dark_mode_filter: base.dark_mode_filter,
       dark_mode: base.dark_mode,
@@ -77,6 +79,23 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _addHeatmapZone(): void {
     const zones = [...(this._config.temperature_zones ?? []), { entity: '', x1: 10, y1: 10, x2: 40, y2: 40 }];
     this._updateConfig({ temperature_zones: zones });
+  }
+
+  private _updateAlertEntity(index: number, entityId: string): void {
+    const list = [...(this._config.alert_entities ?? [])];
+    list[index] = entityId.trim();
+    this._updateConfig({ alert_entities: list });
+  }
+
+  private _removeAlertEntity(index: number): void {
+    const list = [...(this._config.alert_entities ?? [])];
+    list.splice(index, 1);
+    this._updateConfig({ alert_entities: list.length ? list : undefined });
+  }
+
+  private _addAlertEntity(): void {
+    const list = [...(this._config.alert_entities ?? []), ''];
+    this._updateConfig({ alert_entities: list });
   }
 
   protected render(): TemplateResult {
@@ -214,6 +233,27 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           </div>
           <button type="button" class="btn-add" @click=${this._addHeatmapZone}>
             <ha-icon icon="mdi:plus"></ha-icon> Heatmap-Zone hinzufügen
+          </button>
+        </section>
+        <section class="editor-section">
+          <h4 class="section-title"><ha-icon icon="mdi:bell-badge-outline"></ha-icon> Meldungen (Badge)</h4>
+          <p class="section-hint">Entitäten für das Meldungs-Badge (z. B. Rauchmelder). Badge erscheint rechts in der Tab-Leiste, zeigt die Anzahl aktiver Meldungen (state on/triggered).</p>
+          <div class="entity-list">
+            ${(this._config.alert_entities ?? []).map((eid, i) => html`
+              <div class="entity-row">
+                <input type="text" list="rp-alert-${i}" .value=${eid} placeholder="binary_sensor.smoke_wohnzimmer"
+                  @change=${(e: Event) => this._updateAlertEntity(i, (e.target as HTMLInputElement).value)} />
+                <datalist id="rp-alert-${i}">
+                  ${entityIds.slice(0, 200).map((id) => html`<option value="${id}">${getFriendlyName(this.hass!, id)}</option>`)}
+                </datalist>
+                <button type="button" class="btn-remove" @click=${() => this._removeAlertEntity(i)} title="Entfernen">
+                  <ha-icon icon="mdi:delete-outline"></ha-icon>
+                </button>
+              </div>
+            `)}
+          </div>
+          <button type="button" class="btn-add" @click=${this._addAlertEntity}>
+            <ha-icon icon="mdi:plus"></ha-icon> Meldungs-Entität hinzufügen
           </button>
         </section>
       </div>
