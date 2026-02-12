@@ -59,7 +59,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Container: volle Kartenfläche, zentriert die Fit-Box, overflow versteckt */
+  /* Container: volle Kartenfläche, zentriert die Fit-Box, overflow versteckt. Flex damit die Box Platz hat. */
   const containerStyle: Record<string, string | number> = {
     position: 'absolute',
     top: 0,
@@ -69,20 +69,20 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     width: '100%',
     height: '100%',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     boxSizing: 'border-box',
   };
 
-  /* Fit-Box: Bild-Seitenverhältnis, passt immer in die Karte. Breite UND Höhe begrenzt → Bild + Overlay immer gleich, immer in der Card. */
+  /* Fit-Box: Höhe über paddingBottom % (Prozent der eigenen Breite) → immer sichtbare Box, gleiches Aspect Ratio wie Bild. Bild + Overlay in einer Box. */
   const fitBoxStyle: Record<string, string | number> = {
     position: 'relative',
     width: '100%',
-    height: 'auto',
     maxWidth: '100%',
-    maxHeight: '100%',
-    aspectRatio: imageAspect,
+    height: 0,
+    paddingBottom: `${100 / imageAspect}%`,
     flexShrink: 0,
     overflow: 'hidden',
     background: 'var(--ha-card-background)',
