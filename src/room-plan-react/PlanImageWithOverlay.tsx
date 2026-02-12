@@ -59,21 +59,22 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Bild-Container: aspect-ratio legt Höhe aus Breite fest; Hintergrund macht Box auch ohne Bild sichtbar */
-  const aspectBoxStyle: Record<string, string | number> = {
-    position: 'relative',
+  /* Bild-Container füllt den gesamten verfügbaren Bereich; Bild + Overlays teilen sich exakt dieselbe Box */
+  const fillBoxStyle: Record<string, string | number> = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: '100%',
-    maxWidth: '100%',
-    minHeight: 180,
-    aspectRatio: imageAspect,
-    flexShrink: 0,
+    height: '100%',
     overflow: 'hidden',
     background: 'var(--ha-card-background)',
   };
 
   return (
     <div
-      className="flex-1 flex items-center justify-center min-h-0 overflow-hidden w-full min-w-0"
+      className="flex-1 min-h-0 overflow-hidden w-full min-w-0"
       style={{
         transform: `rotate(${rotation}deg)`,
         minHeight: 120,
@@ -82,8 +83,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
         position: 'relative',
       }}
     >
-      <div style={aspectBoxStyle}>
-        {/* 1. Bild: füllt die Box exakt; Position absolute bezieht sich auf den aspect-Box-Container */}
+      <div style={fillBoxStyle}>
+        {/* 1. Bild: füllt die Box mit object-fit cover (skaliert auf Kartenfläche, ggf. beschnitten) */}
         <img
           src={imgSrc}
           alt="Raumplan"
@@ -98,7 +99,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             margin: 0,
             padding: 0,
             boxSizing: 'border-box',
-            objectFit: 'fill',
+            objectFit: 'cover',
             objectPosition: 'center',
             filter: darkFilter,
             zIndex: 0,
