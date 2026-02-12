@@ -1,14 +1,24 @@
 /**
  * Interaktiver Raumplan – Lovelace-Karte
+ * Funktional orientiert an ha-floorplan (tap_action, hold_action, double_tap_action)
  */
 import { LitElement, html, css, type TemplateResult, type CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { HomeAssistant, hasConfigOrEntityChanged, type LovelaceCardEditor } from 'custom-card-helpers';
+import {
+  HomeAssistant,
+  hasConfigOrEntityChanged,
+  handleAction,
+  hasAction,
+  type LovelaceCardEditor,
+  type ActionHandlerEvent,
+  forwardHaptic,
+} from 'custom-card-helpers';
 
 import type { RoomPlanCardConfig, RoomPlanEntity } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
 import { getEntityIcon, getFriendlyName, getStateDisplay } from '../../lib/utils';
+import { actionHandler } from '../../lib/action-handler';
 
 import '../room-plan-editor/room-plan-editor';
 
@@ -67,15 +77,34 @@ export class RoomPlanCard extends LitElement {
       entities: Array.isArray(config?.entities) ? config.entities : [],
       title: config?.title ?? '',
       rotation: Number(config?.rotation) ?? 0,
+      full_height: config?.full_height ?? false,
+      tap_action: config?.tap_action,
+      hold_action: config?.hold_action,
+      double_tap_action: config?.double_tap_action,
+      entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
     };
   }
 
+  private _getEntityDomain(entityId: string): string {
+    const idx = entityId.indexOf('.');
+    return idx > 0 ? entityId.slice(0, idx) : '';
+  }
+
+  private _filteredEntities(): RoomPlanEntity[] {
+    const entities = this.config?.entities ?? [];
+    const filter = this.config?.entity_filter;
+    if (!filter || filter.length === 0) return entities;
+    return entities.filter((ent) => filter.includes(this._getEntityDomain(ent.entity)));
+  }
+
   public getCardSize(): number {
-    return 4;
+    return this.config?.full_height ? 1 : 4;
   }
 
   public getGridOptions(): Record<string, number> {
-    return { rows: 4, columns: 6, min_rows: 3, min_columns: 3 };
+    return this.config?.full_height
+      ? { rows: 1, columns: 1, min_rows: 1, min_columns: 1 }
+      : { rows: 4, columns: 6, min_rows: 3, min_columns: 3 };
   }
 
   protected shouldUpdate(changedProps: Map<string, unknown>): boolean {
@@ -89,10 +118,27 @@ export class RoomPlanCard extends LitElement {
     }
   }
 
-  private _handleEntityClick(entityId: string): void {
-    this.dispatchEvent(
-      new CustomEvent('hass-more-info', { bubbles: true, composed: true, detail: { entityId } }),
-    );
+  private _getEntityActionConfig(ent: RoomPlanEntity): {
+    entity: string;
+    tap_action?: import('custom-card-helpers').ActionConfig;
+    hold_action?: import('custom-card-helpers').ActionConfig;
+    double_tap_action?: import('custom-card-helpers').ActionConfig;
+  } {
+    const def = this.config?.tap_action ?? { action: 'more-info' as const };
+    return {
+      entity: ent.entity,
+      tap_action: ent.tap_action ?? this.config?.tap_action ?? def,
+      hold_action: ent.hold_action ?? this.config?.hold_action,
+      double_tap_action: ent.double_tap_action ?? this.config?.double_tap_action,
+    };
+  }
+
+  private _handleEntityAction(ev: ActionHandlerEvent, ent: RoomPlanEntity): void {
+    const config = this._getEntityActionConfig(ent);
+    if (this.hass && ev.detail?.action) {
+      handleAction(this, this.hass, config, ev.detail.action);
+      forwardHaptic('light');
+    }
   }
 
   private _renderEntity(ent: RoomPlanEntity): TemplateResult {
@@ -103,12 +149,19 @@ export class RoomPlanCard extends LitElement {
     const icon = ent.icon || getEntityIcon(this.hass, ent.entity);
     const title = `${getFriendlyName(this.hass, ent.entity)}: ${getStateDisplay(this.hass, ent.entity)}`;
 
+    const actionConfig = this._getEntityActionConfig(ent);
+    const hasHold = hasAction(actionConfig.hold_action);
+    const hasDbl = hasAction(actionConfig.double_tap_action);
+
     return html`
       <div
         class="entity-badge ${isOn ? 'entity-on' : ''}"
         style="left:${x}%;top:${y}%;--entity-scale:${scale};${ent.color ? `--entity-color:${ent.color}` : ''}"
         title="${title}"
-        @click=${() => this._handleEntityClick(ent.entity)}
+        tabindex="0"
+        role="button"
+        .actionHandler=${actionHandler({ hasHold, hasDoubleClick: hasDbl })}
+        @action=${(e: ActionHandlerEvent) => this._handleEntityAction(e, ent)}
       >
         <div class="entity-badge-inner">
           <ha-icon icon="${icon}"></ha-icon>
@@ -144,7 +197,7 @@ export class RoomPlanCard extends LitElement {
     }
 
     return html`
-      <ha-card .header=${title || undefined}>
+      <ha-card .header=${title || undefined} class=${this.config?.full_height ? 'full-height' : ''}>
         <div class="card-content">
           <div class="image-wrapper" style="transform: rotate(${rotation}deg); aspect-ratio: 16/9;">
             <img
@@ -156,7 +209,7 @@ export class RoomPlanCard extends LitElement {
             />
             ${!this._imageLoaded ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
             <div class="entities-overlay">
-              ${(entities ?? []).map((ent) => this._renderEntity(ent))}
+              ${this._filteredEntities().map((ent) => this._renderEntity(ent))}
             </div>
           </div>
         </div>
@@ -176,6 +229,11 @@ export class RoomPlanCard extends LitElement {
         overflow: hidden;
         width: 100%;
         height: 100%;
+      }
+      ha-card.full-height {
+        height: 100%;
+        flex: 1;
+        min-height: 0;
       }
       .card-content {
         padding: 0;
@@ -247,6 +305,12 @@ export class RoomPlanCard extends LitElement {
       }
       .entity-badge.entity-on .entity-badge-inner {
         color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107));
+      }
+      .entity-badge,
+      .entity-badge *,
+      .entity-badge-inner,
+      .entity-badge ha-icon {
+        animation: none !important;
       }
       .empty-state {
         padding: clamp(24px, 6vw, 48px) clamp(16px, 4vw, 24px);

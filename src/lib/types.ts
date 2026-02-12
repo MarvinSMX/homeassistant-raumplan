@@ -1,4 +1,5 @@
 import type { LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
+import type { ActionConfig } from 'custom-card-helpers';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -13,6 +14,12 @@ export interface RoomPlanEntity {
   scale?: number;
   color?: string;
   icon?: string;
+  /** Tap-Aktion (Klick) – default: more-info */
+  tap_action?: ActionConfig;
+  /** Hold-Aktion (langes Drücken) */
+  hold_action?: ActionConfig;
+  /** Doppelklick-Aktion */
+  double_tap_action?: ActionConfig;
 }
 
 export interface RoomPlanCardConfig extends LovelaceCardConfig {
@@ -20,5 +27,15 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   image?: string;
   title?: string;
   rotation?: number;
+  /** Standard tap_action für alle Entitäten */
+  tap_action?: ActionConfig;
+  /** Standard hold_action für alle Entitäten */
+  hold_action?: ActionConfig;
+  /** Standard double_tap_action für alle Entitäten */
+  double_tap_action?: ActionConfig;
+  /** Volle Höhe wie ha-floorplan */
+  full_height?: boolean;
+  /** Filter: nur Entitäten dieser Domains anzeigen (z.B. light, sensor). Leer = alle */
+  entity_filter?: string[];
   entities?: RoomPlanEntity[];
 }

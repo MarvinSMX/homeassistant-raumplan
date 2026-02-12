@@ -24,7 +24,35 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       typeof base.image === 'string'
         ? base.image
         : ((base.image as { location?: string } | undefined)?.location ?? '');
-    this._config = { ...base, image: img, entities: Array.isArray(base.entities) ? [...base.entities] : [] };
+    this._config = {
+      ...base,
+      image: img,
+      entities: Array.isArray(base.entities) ? [...base.entities] : [],
+      entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
+    };
+  }
+
+  private _getEntityDomain(entityId: string): string {
+    const idx = entityId.indexOf('.');
+    return idx > 0 ? entityId.slice(0, idx) : '';
+  }
+
+  private _availableDomains(): string[] {
+    const entities = this._config.entities ?? [];
+    const doms = new Set<string>();
+    entities.forEach((e) => {
+      const d = this._getEntityDomain(e.entity);
+      if (d) doms.add(d);
+    });
+    return Array.from(doms).sort();
+  }
+
+  private _toggleFilter(domain: string): void {
+    const current = this._config.entity_filter ?? [];
+    const next = current.includes(domain)
+      ? current.filter((d) => d !== domain)
+      : [...current, domain].sort();
+    this._updateConfig({ entity_filter: next.length > 0 ? next : undefined });
   }
 
   private _emitConfig(): void {
@@ -88,8 +116,26 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           </div>
         </section>
         <section class="editor-section">
+          <h4 class="section-title"><ha-icon icon="mdi:filter-variant"></ha-icon> Filter</h4>
+          <p class="section-hint">Nach Typ filtern – nur angeklickte Typen werden in der Karte gezeigt.</p>
+          <div class="filter-chips">
+            ${this._availableDomains().map(
+              (d) => html`
+                <button
+                  type="button"
+                  class="filter-chip ${(this._config.entity_filter ?? []).includes(d) ? 'active' : ''}"
+                  @click=${() => this._toggleFilter(d)}
+                >
+                  ${d}
+                </button>
+              `,
+            )}
+            ${this._availableDomains().length === 0 ? html`<span class="filter-empty">Entitäten hinzufügen</span>` : ''}
+          </div>
+        </section>
+        <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:map-marker"></ha-icon> Entitäten</h4>
-          <p class="section-hint">X/Y = Position in Prozent (0–100), Skalierung = Größe des Kreises.</p>
+          <p class="section-hint">X/Y = Position (0–100), Skalierung, Icon optional (z.B. mdi:lightbulb).</p>
           <div class="entity-list">
             ${entities.map((ent, i) => html`
               <div class="entity-row">
@@ -98,6 +144,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 <datalist id="rp-entities-${i}">
                   ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass, eid)}</option>`)}
                 </datalist>
+                <input type="text" class="entity-icon" .value=${ent.icon ?? ''} placeholder="Icon (mdi:...)"
+                  title="Icon (optional)"
+                  @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateEntity(i, { icon: v || undefined }); }} />
                 <div class="entity-coords">
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
                     @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 50)) })} />
@@ -242,6 +291,38 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       .entity-row input[list] {
         flex: 1 1 140px;
         min-width: 0;
+      }
+      .entity-row input.entity-icon {
+        width: clamp(90px, 22vw, 120px);
+        padding: 8px 10px;
+        font-size: clamp(12px, 3vw, 14px);
+      }
+      .filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .filter-chip {
+        padding: 6px 14px;
+        border-radius: 20px;
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        background: var(--ha-card-background, #1e1e1e);
+        color: var(--primary-text-color);
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+      .filter-chip:hover {
+        border-color: var(--primary-color, #03a9f4);
+      }
+      .filter-chip.active {
+        background: var(--primary-color, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
+        color: var(--primary-text-color);
+      }
+      .filter-empty {
+        font-size: 0.85rem;
+        color: var(--secondary-text-color);
       }
       .entity-coords {
         display: flex;
