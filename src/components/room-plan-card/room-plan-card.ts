@@ -24,6 +24,8 @@ import '../room-plan-editor/room-plan-editor';
 
 const CARD_TAG = 'room-plan-card';
 const EDITOR_TAG = 'room-plan-editor';
+/** Sentinel für den Heatmap-Tab (kein Domain-Filter) */
+const HEATMAP_TAB = '__heatmap__';
 
 declare global {
   interface Window {
@@ -110,6 +112,7 @@ export class RoomPlanCard extends LitElement {
 
   private _filteredEntities(): RoomPlanEntity[] {
     const entities = this.config?.entities ?? [];
+    if (this._activeFilter === HEATMAP_TAB) return []; // Nur Heatmap anzeigen
     if (this._activeFilter === null || this._activeFilter === '') return entities;
     return entities.filter((ent) => this._getEntityDomain(ent.entity) === this._activeFilter);
   }
@@ -122,6 +125,20 @@ export class RoomPlanCard extends LitElement {
       if (d) doms.add(d);
     });
     return Array.from(doms).sort();
+  }
+
+  /** Zeile der Tab-Optionen: null = Alle, HEATMAP_TAB = Heatmap (wenn Zonen), dann Domains */
+  private _filterTabIds(): (string | null)[] {
+    const domains = this._availableDomains();
+    const hasHeatmap = (this.config?.temperature_zones ?? []).length > 0;
+    const ids: (string | null)[] = [null];
+    if (hasHeatmap) ids.push(HEATMAP_TAB);
+    ids.push(...domains);
+    return ids;
+  }
+
+  private _showFilterBar(): boolean {
+    return this._availableDomains().length > 0 || (this.config?.temperature_zones ?? []).length > 0;
   }
 
   private _selectFilter(domain: string | null): void {
@@ -318,11 +335,10 @@ export class RoomPlanCard extends LitElement {
       `;
     }
 
-    const domains = this._availableDomains();
-    const showFilterBar = domains.length > 0;
-    const activeTab = this._activeFilter === null || (this._activeFilter && !domains.includes(this._activeFilter))
-      ? null
-      : this._activeFilter;
+    const tabIds = this._filterTabIds();
+    const showFilterBar = this._showFilterBar();
+    const activeTab =
+      this._activeFilter !== null && tabIds.includes(this._activeFilter) ? this._activeFilter : null;
 
     return html`
       <ha-card class=${this.config?.full_height ? 'full-height' : ''}>
@@ -330,21 +346,14 @@ export class RoomPlanCard extends LitElement {
           ${showFilterBar
             ? html`
                 <div class="filter-tabs">
-                  <button
-                    type="button"
-                    class="filter-tab ${activeTab === null ? 'active' : ''}"
-                    @click=${() => this._selectFilter(null)}
-                  >
-                    Alle
-                  </button>
-                  ${domains.map(
-                    (d) => html`
+                  ${tabIds.map(
+                    (id) => html`
                       <button
                         type="button"
-                        class="filter-tab ${activeTab === d ? 'active' : ''}"
-                        @click=${() => this._selectFilter(d)}
+                        class="filter-tab ${activeTab === id ? 'active' : ''}"
+                        @click=${() => this._selectFilter(id)}
                       >
-                        ${d}
+                        ${id === null ? 'Alle' : id === HEATMAP_TAB ? 'Heatmap' : id}
                       </button>
                     `,
                   )}
@@ -516,7 +525,7 @@ export class RoomPlanCard extends LitElement {
       .heatmap-zone {
         position: absolute;
         pointer-events: none;
-        border-radius: 4px;
+        border-radius: 0;
         z-index: 0;
       }
       .entity-badge {
