@@ -59,15 +59,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Bild-Container: nutzt Breite und Höhe des Karten-Layouts, Aspect-Ratio mit max-width/max-height */
+  /* Bild-Container: Höhe aus Breite + Aspect-Ratio (paddingBottom % = Prozent der eigenen Breite), damit Box immer sichtbar */
   const aspectBoxStyle: Record<string, string | number> = {
     position: 'relative',
     width: '100%',
     maxWidth: '100%',
-    maxHeight: '100%',
-    aspectRatio: imageAspect,
     flexShrink: 0,
     overflow: 'hidden',
+    height: 0,
+    paddingBottom: `${100 / imageAspect}%`,
   };
 
   return (

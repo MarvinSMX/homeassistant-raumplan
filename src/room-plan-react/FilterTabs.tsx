@@ -41,16 +41,48 @@ export function FilterTabs(props: FilterTabsProps) {
   if (!showBar) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 py-3 px-4 border-b border-[var(--divider-color)] bg-[var(--ha-card-background)]">
+    <div
+      className="flex flex-wrap items-center justify-between gap-2 flex-shrink-0"
+      style={{
+        padding: '10px 16px 12px',
+        background: 'var(--ha-card-background, var(--card-background-color, #1e1e1e))',
+        borderBottom: '1px solid var(--divider-color, rgba(0, 0, 0, 0.12))',
+      }}
+    >
       <div className="flex flex-wrap items-center gap-2">
         {tabIds.map((id) => (
           <button
             key={id ?? 'all'}
             type="button"
             onClick={() => onSelectTab(id)}
-            className={activeTab === id
-              ? 'px-3.5 py-1.5 rounded-2xl text-sm font-medium bg-[var(--primary-color)] text-white border-none cursor-pointer'
-              : 'px-3.5 py-1.5 rounded-2xl text-sm font-medium bg-[var(--secondary-background-color)] text-[var(--secondary-text-color)] border-none cursor-pointer hover:opacity-80'}
+            style={{
+              padding: '6px 14px',
+              border: 'none',
+              borderRadius: 16,
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background-color 0.2s, color 0.2s',
+              fontFamily: 'inherit',
+              ...(activeTab === id
+                ? { background: 'var(--primary-color, #03a9f4)', color: '#fff' }
+                : {
+                    background: 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))',
+                    color: 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))',
+                  }),
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== id) {
+                e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.08))';
+                e.currentTarget.style.color = 'var(--primary-text-color, rgba(255, 255, 255, 0.9))';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== id) {
+                e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))';
+                e.currentTarget.style.color = 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))';
+              }
+            }}
           >
             {id === null ? 'Alle' : id === HEATMAP_TAB ? 'Heatmap' : id}
           </button>
@@ -60,13 +92,45 @@ export function FilterTabs(props: FilterTabsProps) {
         <button
           type="button"
           onClick={onAlertClick}
-          className={alertCount > 0
-            ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm font-medium bg-[var(--error-color)] text-white border-none cursor-pointer'
-            : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm font-medium bg-[var(--secondary-background-color)] text-[var(--secondary-text-color)] border-none cursor-pointer'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 12px',
+            border: 'none',
+            borderRadius: 16,
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'opacity 0.2s',
+            fontFamily: 'inherit',
+            ...(alertCount > 0
+              ? { background: 'var(--error-color, #db4437)', color: '#fff' }
+              : {
+                  background: 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))',
+                  color: 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))',
+                }),
+          }}
           title="Meldungen"
+          onMouseEnter={(e) => {
+            if (alertCount === 0) {
+              e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.08))';
+              e.currentTarget.style.color = 'var(--primary-text-color, rgba(255, 255, 255, 0.9))';
+            } else {
+              e.currentTarget.style.opacity = '0.9';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (alertCount === 0) {
+              e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))';
+              e.currentTarget.style.color = 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))';
+            } else {
+              e.currentTarget.style.opacity = '1';
+            }
+          }}
         >
           <ha-icon icon="mdi:bell-badge-outline" style={{ width: 20, height: 20 }} />
-          <span className="min-w-[1.2em] text-center font-semibold">{alertCount}</span>
+          <span style={{ minWidth: '1.2em', textAlign: 'center', fontWeight: 600 }}>{alertCount}</span>
         </button>
       )}
     </div>
