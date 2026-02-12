@@ -84,7 +84,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       }}
     >
       <div style={fillBoxStyle}>
-        {/* 1. Bild: füllt die Box mit object-fit cover (skaliert auf Kartenfläche, ggf. beschnitten) */}
+        {/* 1. Bild: object-fit contain = skaliert runter, nichts wird abgeschnitten (bei kleiner Karte) */}
         <img
           src={imgSrc}
           alt="Raumplan"
@@ -99,7 +99,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             margin: 0,
             padding: 0,
             boxSizing: 'border-box',
-            objectFit: 'cover',
+            objectFit: 'contain',
             objectPosition: 'center',
             filter: darkFilter,
             zIndex: 0,
