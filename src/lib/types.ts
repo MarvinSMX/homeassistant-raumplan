@@ -13,6 +13,8 @@ export interface RoomPlanEntity {
   y?: number;
   scale?: number;
   color?: string;
+  /** Hintergrund-Transparenz des Kreises (0–1), Standard 1 */
+  background_opacity?: number;
   icon?: string;
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;

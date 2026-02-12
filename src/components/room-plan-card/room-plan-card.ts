@@ -167,6 +167,13 @@ export class RoomPlanCard extends LitElement {
     }
   }
 
+  private _hexToRgba(hex: string, alpha: number): string {
+    const m = hex.replace(/^#/, '').match(/(.{2})/g);
+    if (!m || m.length !== 3) return `rgba(45, 45, 45, ${alpha})`;
+    const [r, g, b] = m.map((x) => parseInt(x, 16));
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
   private _renderEntity(ent: RoomPlanEntity): TemplateResult {
     const x = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
     const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
@@ -174,6 +181,10 @@ export class RoomPlanCard extends LitElement {
     const isOn = this.hass?.states?.[ent.entity]?.state === 'on';
     const icon = ent.icon || getEntityIcon(this.hass, ent.entity);
     const title = `${getFriendlyName(this.hass, ent.entity)}: ${getStateDisplay(this.hass, ent.entity)}`;
+    const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
+    const bgColor = ent.color
+      ? this._hexToRgba(ent.color, opacity)
+      : `rgba(45, 45, 45, ${opacity})`;
 
     const actionConfig = this._getEntityActionConfig(ent);
     const hasHold = hasAction(actionConfig.hold_action);
@@ -182,7 +193,7 @@ export class RoomPlanCard extends LitElement {
     return html`
       <div
         class="entity-badge ${isOn ? 'entity-on' : ''}"
-        style="left:${x}%;top:${y}%;--entity-scale:${scale};${ent.color ? `--entity-color:${ent.color}` : ''}"
+        style="left:${x}%;top:${y}%;--entity-scale:${scale};--entity-bg:${bgColor}"
         title="${title}"
         tabindex="0"
         role="button"
@@ -386,17 +397,20 @@ export class RoomPlanCard extends LitElement {
         width: 100%;
         height: 100%;
         border-radius: 50%;
-        background: var(--entity-color, var(--card-background-color, #2d2d2d));
+        background: var(--entity-bg, rgba(45, 45, 45, 0.9));
         color: var(--primary-text-color, #e1e1e1);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      .entity-badge ha-icon {
+      .entity-badge-inner ha-icon {
         --mdc-icon-size: var(--icon-size);
         width: var(--icon-size);
         height: var(--icon-size);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .entity-badge.entity-on .entity-badge-inner {
         color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107));

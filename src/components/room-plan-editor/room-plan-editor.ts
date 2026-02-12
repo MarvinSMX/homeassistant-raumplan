@@ -112,6 +112,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   @change=${(e: Event) => this._updateEntity(i, { scale: Math.min(2, Math.max(0.3, Number((e.target as HTMLInputElement).value) || 1)) })} />
                 <input type="color" .value=${ent.color || '#03a9f4'} title="Farbe"
                   @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value; this._updateEntity(i, { color: v === '#03a9f4' && !ent.color ? undefined : v }); }} />
+                <input type="number" class="entity-opacity" min="0" max="1" step="0.1" .value=${String(Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1)))} title="Deckkraft"
+                  @change=${(e: Event) => this._updateEntity(i, { background_opacity: Math.min(1, Math.max(0, Number((e.target as HTMLInputElement).value) || 1)) })} />
                 <button type="button" class="btn-remove" @click=${() => this._removeEntity(i)} title="Entfernen">
                   <ha-icon icon="mdi:delete-outline"></ha-icon>
                 </button>
@@ -243,14 +245,29 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
         border-radius: 10px;
       }
-      .entity-row input[list] {
+      .entity-row input,
+      .entity-row select,
+      .entity-row button {
+        padding: 8px 10px;
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-radius: 8px;
+        background: var(--ha-card-background, #1e1e1e);
+        color: var(--primary-text-color, #e1e1e1);
+        font-size: 14px;
+        font-family: inherit;
+      }
+      .entity-row input:focus,
+      .entity-row select:focus {
+        outline: none;
+        border-color: var(--primary-color, #03a9f4);
+      }
+      .entity-row input[list],
+      .entity-row input[type='text'] {
         flex: 1 1 140px;
         min-width: 0;
       }
       .entity-row input.entity-icon {
         width: clamp(90px, 22vw, 120px);
-        padding: 8px 10px;
-        font-size: clamp(12px, 3vw, 14px);
       }
       .entity-coords {
         display: flex;
@@ -259,12 +276,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .entity-coords input {
         width: clamp(44px, 12vw, 52px);
-        padding: 8px 10px;
-        font-size: clamp(12px, 3vw, 14px);
       }
       .entity-row input.entity-scale {
         width: clamp(50px, 14vw, 60px);
-        padding: 8px 10px;
+      }
+      .entity-row input.entity-opacity {
+        width: 56px;
       }
       .entity-row input[type='color'] {
         width: 36px;
@@ -272,11 +289,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         min-width: 36px;
         padding: 2px;
         cursor: pointer;
-        border-radius: 6px;
-      }
-      .entity-row input:focus {
-        outline: none;
-        border-color: var(--primary-color, #03a9f4);
       }
       .btn-remove {
         padding: 8px 10px;
