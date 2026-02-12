@@ -13,10 +13,7 @@ export default (env) => {
 
   return {
     mode: isProduction ? 'production' : 'development',
-    entry: {
-      'homeassistant-raumplan': './src/index.ts',
-      'homeassistant-react-card': './src/react-card-index.tsx',
-    },
+    entry: './src/index.ts',
     devtool: isProduction ? undefined : 'inline-source-map',
     module: {
       rules: [
@@ -43,7 +40,7 @@ export default (env) => {
       }),
     ],
     output: {
-      filename: '[name].js',
+      filename: 'homeassistant-raumplan.js',
       path: path.resolve(__dirname, 'dist'),
       clean: true,
       libraryTarget: 'module',
