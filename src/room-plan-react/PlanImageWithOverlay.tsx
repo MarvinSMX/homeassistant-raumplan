@@ -76,14 +76,13 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Fit-Box: exakt Bild-Seitenverhältnis, passt in fillBox. Bild + Overlay in EINER Box → exakt deckungsgleich. */
+  /* Fit-Box: Höhe über paddingBottom % (Prozent der Breite) → immer sichtbar, gleiches Aspect Ratio. Bild + Overlay deckungsgleich. */
   const fitBoxStyle: Record<string, string | number> = {
     position: 'relative',
     width: '100%',
-    height: 'auto',
     maxWidth: '100%',
-    maxHeight: '100%',
-    aspectRatio: imageAspect,
+    height: 0,
+    paddingBottom: `${100 / imageAspect}%`,
     flexShrink: 0,
     overflow: 'hidden',
     background: 'var(--ha-card-background)',
