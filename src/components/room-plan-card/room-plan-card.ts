@@ -566,36 +566,40 @@ export class RoomPlanCard extends LitElement {
         max-width: 100%;
         overflow: hidden;
       }
+      /* Ein gemeinsamer Block für Bild + Overlay, Größe nur aus Breite + Aspect-Ratio (padding-Trick), damit Overlay 1:1 am Bild bleibt */
       .image-and-overlay {
         position: relative;
         width: 100%;
         max-width: 100%;
         max-height: 100%;
-        aspect-ratio: var(--image-aspect, 16 / 9);
         flex-shrink: 0;
         overflow: hidden;
+        /* Höhe aus Aspect-Ratio (padding % = Prozent der eigenen width); Bild + Overlay teilen dieselbe absolute Box */
+        height: 0;
+        padding-bottom: calc(100% / var(--image-aspect, 1.778));
       }
-      .plan-image {
+      .image-and-overlay .plan-image,
+      .image-and-overlay .image-skeleton,
+      .image-and-overlay .image-error,
+      .image-and-overlay .entities-overlay {
         position: absolute;
-        inset: 0;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
+        margin: 0;
+        box-sizing: border-box;
+      }
+      .plan-image {
         object-fit: fill;
         object-position: center;
         display: block;
       }
       .image-skeleton {
-        position: absolute;
-        inset: 0;
         background: var(--ha-card-background, #1e1e1e);
       }
       .entities-overlay {
-        position: absolute;
-        inset: 0;
         pointer-events: none;
-        width: 100%;
-        height: 100%;
-        box-sizing: border-box;
       }
       .entities-overlay > * {
         pointer-events: auto;
