@@ -59,7 +59,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Eine Box füllt den Bereich; Mindesthöhe stellt sicher, dass immer Platz da ist (auch wenn Flex 0 liefert). */
+  /* Äußere Box: füllt den Bereich, zentriert die Fit-Box. Mindesthöhe = Bild immer sichtbar. */
   const fillBoxStyle: Record<string, string | number> = {
     position: 'absolute',
     top: 0,
@@ -68,6 +68,23 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     bottom: 0,
     width: '100%',
     height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    background: 'var(--ha-card-background)',
+    boxSizing: 'border-box',
+  };
+
+  /* Fit-Box: exakt Bild-Seitenverhältnis, passt in fillBox. Bild + Overlay in EINER Box → exakt deckungsgleich. */
+  const fitBoxStyle: Record<string, string | number> = {
+    position: 'relative',
+    width: '100%',
+    height: 'auto',
+    maxWidth: '100%',
+    maxHeight: '100%',
+    aspectRatio: imageAspect,
+    flexShrink: 0,
     overflow: 'hidden',
     background: 'var(--ha-card-background)',
     boxSizing: 'border-box',
@@ -85,55 +102,57 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       }}
     >
       <div style={fillBoxStyle}>
-        <img
-          src={imgSrc}
-          alt="Raumplan"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            margin: 0,
-            padding: 0,
-            boxSizing: 'border-box',
-            objectFit: 'contain',
-            objectPosition: 'center',
-            filter: darkFilter,
-            zIndex: 0,
-            display: 'block',
-          }}
-          onLoad={onImageLoad}
-          onError={onImageError}
-        />
-        {!imageLoaded && !imageError && (
-          <div style={{ ...overlayBoxStyle, zIndex: 1, background: 'var(--ha-card-background)' }} aria-hidden />
-        )}
-        {imageError && (
-          <div style={{ ...overlayBoxStyle, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
-            Bild konnte nicht geladen werden
-          </div>
-        )}
-        {zones.length > 0 && (
-          <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
-            {zones.map((zone, i) => (
-              <HeatmapZone key={i} zone={zone} hass={hass} />
-            ))}
-          </div>
-        )}
-        <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
-          <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
-            {filteredEntities.map((ent, i) => (
-              <EntityBadge
-                key={`${ent.entity}-${i}`}
-                ent={ent}
-                hass={hass}
-                host={host}
-                tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
-                holdAction={ent.hold_action ?? config?.hold_action}
-                doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
-              />
-            ))}
+        <div style={fitBoxStyle}>
+          <img
+            src={imgSrc}
+            alt="Raumplan"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              margin: 0,
+              padding: 0,
+              boxSizing: 'border-box',
+              objectFit: 'contain',
+              objectPosition: 'center',
+              filter: darkFilter,
+              zIndex: 0,
+              display: 'block',
+            }}
+            onLoad={onImageLoad}
+            onError={onImageError}
+          />
+          {!imageLoaded && !imageError && (
+            <div style={{ ...overlayBoxStyle, zIndex: 1, background: 'var(--ha-card-background)' }} aria-hidden />
+          )}
+          {imageError && (
+            <div style={{ ...overlayBoxStyle, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
+              Bild konnte nicht geladen werden
+            </div>
+          )}
+          {zones.length > 0 && (
+            <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
+              {zones.map((zone, i) => (
+                <HeatmapZone key={i} zone={zone} hass={hass} />
+              ))}
+            </div>
+          )}
+          <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
+            <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
+              {filteredEntities.map((ent, i) => (
+                <EntityBadge
+                  key={`${ent.entity}-${i}`}
+                  ent={ent}
+                  hass={hass}
+                  host={host}
+                  tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
+                  holdAction={ent.hold_action ?? config?.hold_action}
+                  doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
