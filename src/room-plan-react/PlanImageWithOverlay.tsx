@@ -59,34 +59,50 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Bild-Container: Höhe aus Breite + Aspect-Ratio (paddingBottom % = Prozent der eigenen Breite), damit Box immer sichtbar */
+  /* Bild-Container: aspect-ratio legt Höhe aus Breite fest; Hintergrund macht Box auch ohne Bild sichtbar */
   const aspectBoxStyle: Record<string, string | number> = {
     position: 'relative',
     width: '100%',
     maxWidth: '100%',
+    minHeight: 180,
+    aspectRatio: imageAspect,
     flexShrink: 0,
     overflow: 'hidden',
-    height: 0,
-    paddingBottom: `${100 / imageAspect}%`,
+    background: 'var(--ha-card-background)',
   };
 
   return (
     <div
-      className="flex-1 flex items-center justify-center min-h-0 overflow-hidden w-full"
-      style={{ transform: `rotate(${rotation}deg)`, minHeight: 120 }}
+      className="flex-1 flex items-center justify-center min-h-0 overflow-hidden w-full min-w-0"
+      style={{
+        transform: `rotate(${rotation}deg)`,
+        minHeight: 120,
+        width: '100%',
+        minWidth: 0,
+        position: 'relative',
+      }}
     >
       <div style={aspectBoxStyle}>
-        {/* 1. Bild: füllt die Box exakt */}
+        {/* 1. Bild: füllt die Box exakt; Position absolute bezieht sich auf den aspect-Box-Container */}
         <img
           src={imgSrc}
           alt="Raumplan"
-          className="block"
           style={{
-            ...overlayBoxStyle,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100%',
+            height: '100%',
+            margin: 0,
+            padding: 0,
+            boxSizing: 'border-box',
             objectFit: 'fill',
             objectPosition: 'center',
             filter: darkFilter,
             zIndex: 0,
+            display: 'block',
           }}
           onLoad={onImageLoad}
           onError={onImageError}
