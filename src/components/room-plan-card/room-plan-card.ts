@@ -408,6 +408,13 @@ export class RoomPlanCard extends LitElement {
             return html`
           <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
             <div class="image-and-overlay ${useDark ? 'dark' : ''}" style="--image-aspect: ${this._imageAspect}; --plan-dark-filter: ${darkFilter};">
+              ${(this.config?.temperature_zones ?? []).length
+                ? html`
+                    <div class="heatmap-layer heatmap-layer-behind">
+                      ${(this.config.temperature_zones ?? []).map((zone) => this._renderHeatmapZone(zone))}
+                    </div>
+                  `
+                : ''}
               <img
                 src="${imgSrc}"
                 alt="Raumplan"
@@ -419,13 +426,6 @@ export class RoomPlanCard extends LitElement {
               ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
               ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
               <div class="entities-overlay">
-                ${(this.config?.temperature_zones ?? []).length
-                  ? html`
-                      <div class="heatmap-layer">
-                        ${(this.config.temperature_zones ?? []).map((zone) => this._renderHeatmapZone(zone))}
-                      </div>
-                    `
-                  : ''}
                 ${this._filteredEntities().map((ent) => this._renderEntity(ent))}
               </div>
             </div>
@@ -578,6 +578,7 @@ export class RoomPlanCard extends LitElement {
         height: 0;
         padding-bottom: calc(100% / var(--image-aspect, 1.778));
       }
+      .image-and-overlay .heatmap-layer,
       .image-and-overlay .plan-image,
       .image-and-overlay .image-skeleton,
       .image-and-overlay .image-error,
@@ -589,6 +590,19 @@ export class RoomPlanCard extends LitElement {
         height: 100%;
         margin: 0;
         box-sizing: border-box;
+      }
+      .heatmap-layer-behind {
+        z-index: 0;
+      }
+      .image-and-overlay .plan-image {
+        z-index: 1;
+      }
+      .image-and-overlay .image-skeleton,
+      .image-and-overlay .image-error {
+        z-index: 1;
+      }
+      .image-and-overlay .entities-overlay {
+        z-index: 2;
       }
       .plan-image {
         object-fit: fill;
@@ -608,7 +622,6 @@ export class RoomPlanCard extends LitElement {
         pointer-events: none;
         position: absolute;
         inset: 0;
-        z-index: 0;
       }
       .heatmap-zone {
         position: absolute;

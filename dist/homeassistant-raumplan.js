@@ -457,6 +457,11 @@ function vt(t){return gt({...t,state:!0})}var ft;
           ${(()=>{const e=void 0!==this.config?.dark_mode?!!this.config.dark_mode:this._darkMode,i=e?this.config?.dark_mode_filter??"brightness(0.88) contrast(1.05)":"none",o=e&&this.config?.image_dark?this.config.image_dark:t;return V`
           <div class="image-wrapper" style="transform: rotate(${n}deg);">
             <div class="image-and-overlay ${e?"dark":""}" style="--image-aspect: ${this._imageAspect}; --plan-dark-filter: ${i};">
+              ${(this.config?.temperature_zones??[]).length?V`
+                    <div class="heatmap-layer heatmap-layer-behind">
+                      ${(this.config.temperature_zones??[]).map(t=>this._renderHeatmapZone(t))}
+                    </div>
+                  `:""}
               <img
                 src="${o}"
                 alt="Raumplan"
@@ -468,11 +473,6 @@ function vt(t){return gt({...t,state:!0})}var ft;
               ${this._imageLoaded||this._imageError?"":V`<div class="image-skeleton" aria-hidden="true"></div>`}
               ${this._imageError?V`<div class="image-error">Bild konnte nicht geladen werden</div>`:""}
               <div class="entities-overlay">
-                ${(this.config?.temperature_zones??[]).length?V`
-                      <div class="heatmap-layer">
-                        ${(this.config.temperature_zones??[]).map(t=>this._renderHeatmapZone(t))}
-                      </div>
-                    `:""}
                 ${this._filteredEntities().map(t=>this._renderEntity(t))}
               </div>
             </div>
@@ -620,6 +620,7 @@ function vt(t){return gt({...t,state:!0})}var ft;
         height: 0;
         padding-bottom: calc(100% / var(--image-aspect, 1.778));
       }
+      .image-and-overlay .heatmap-layer,
       .image-and-overlay .plan-image,
       .image-and-overlay .image-skeleton,
       .image-and-overlay .image-error,
@@ -631,6 +632,19 @@ function vt(t){return gt({...t,state:!0})}var ft;
         height: 100%;
         margin: 0;
         box-sizing: border-box;
+      }
+      .heatmap-layer-behind {
+        z-index: 0;
+      }
+      .image-and-overlay .plan-image {
+        z-index: 1;
+      }
+      .image-and-overlay .image-skeleton,
+      .image-and-overlay .image-error {
+        z-index: 1;
+      }
+      .image-and-overlay .entities-overlay {
+        z-index: 2;
       }
       .plan-image {
         object-fit: fill;
@@ -650,7 +664,6 @@ function vt(t){return gt({...t,state:!0})}var ft;
         pointer-events: none;
         position: absolute;
         inset: 0;
-        z-index: 0;
       }
       .heatmap-zone {
         position: absolute;
