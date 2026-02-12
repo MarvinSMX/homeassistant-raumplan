@@ -51,6 +51,8 @@ export class RoomPlanCard extends LitElement {
 
   @state() private _imageLoaded = false;
   @state() private _imageError = false;
+  /** Seitenverhältnis des Bildes (width/height), damit Overlay exakt aligned */
+  @state() private _imageAspect = 16 / 9;
   /** Lokaler Filter-State (Filter-Buttons auf der Karte) */
   @state() private _activeFilter: string[] = [];
 
@@ -89,6 +91,7 @@ export class RoomPlanCard extends LitElement {
     this._activeFilter = Array.isArray(config?.entity_filter) ? [...config.entity_filter] : [];
     this._imageLoaded = false;
     this._imageError = false;
+    this._imageAspect = 16 / 9;
   }
 
   private _getEntityDomain(entityId: string): string {
@@ -132,7 +135,12 @@ export class RoomPlanCard extends LitElement {
 
   protected shouldUpdate(changedProps: Map<string, unknown>): boolean {
     if (!this.config) return false;
-    if (changedProps.has('_activeFilter') || changedProps.has('_imageLoaded') || changedProps.has('_imageError'))
+    if (
+      changedProps.has('_activeFilter') ||
+      changedProps.has('_imageLoaded') ||
+      changedProps.has('_imageError') ||
+      changedProps.has('_imageAspect')
+    )
       return true;
     return hasConfigOrEntityChanged(this, changedProps, false);
   }
@@ -180,11 +188,13 @@ export class RoomPlanCard extends LitElement {
     const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
     const isOn = this.hass?.states?.[ent.entity]?.state === 'on';
     const icon = ent.icon || getEntityIcon(this.hass, ent.entity);
-    const title = `${getFriendlyName(this.hass, ent.entity)}: ${getStateDisplay(this.hass, ent.entity)}`;
+    const stateDisplay = getStateDisplay(this.hass, ent.entity);
+    const title = `${getFriendlyName(this.hass, ent.entity)}: ${stateDisplay}`;
     const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
     const bgColor = ent.color
       ? this._hexToRgba(ent.color, opacity)
       : `rgba(45, 45, 45, ${opacity})`;
+    const showValue = !!ent.show_value;
 
     const actionConfig = this._getEntityActionConfig(ent);
     const hasHold = hasAction(actionConfig.hold_action);
@@ -192,7 +202,7 @@ export class RoomPlanCard extends LitElement {
 
     return html`
       <div
-        class="entity-badge ${isOn ? 'entity-on' : ''}"
+        class="entity-badge ${isOn ? 'entity-on' : ''} ${showValue ? 'entity-show-value' : ''}"
         style="left:${x}%;top:${y}%;--entity-scale:${scale};--entity-bg:${bgColor}"
         title="${title}"
         tabindex="0"
@@ -201,13 +211,19 @@ export class RoomPlanCard extends LitElement {
         @action=${(e: ActionHandlerEvent) => this._handleEntityAction(e, ent)}
       >
         <div class="entity-badge-inner">
-          <ha-icon icon="${icon}"></ha-icon>
+          ${showValue
+            ? html`<span class="entity-value">${stateDisplay}</span>`
+            : html`<ha-icon icon="${icon}"></ha-icon>`}
         </div>
       </div>
     `;
   }
 
-  private _onImageLoad(): void {
+  private _onImageLoad(ev: Event): void {
+    const img = ev.target as HTMLImageElement;
+    if (img.naturalWidth && img.naturalHeight) {
+      this._imageAspect = img.naturalWidth / img.naturalHeight;
+    }
     this._imageLoaded = true;
     this._imageError = false;
   }
@@ -257,17 +273,19 @@ export class RoomPlanCard extends LitElement {
               `
             : ''}
           <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
-            <img
-              src="${img}"
-              alt="Raumplan"
-              class="plan-image"
-              @load=${this._onImageLoad}
-              @error=${this._onImageError}
-            />
-            ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
-            ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
-            <div class="entities-overlay">
-              ${this._filteredEntities().map((ent) => this._renderEntity(ent))}
+            <div class="image-and-overlay" style="--image-aspect: ${this._imageAspect};">
+              <img
+                src="${img}"
+                alt="Raumplan"
+                class="plan-image"
+                @load=${this._onImageLoad}
+                @error=${this._onImageError}
+              />
+              ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
+              ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
+              <div class="entities-overlay">
+                ${this._filteredEntities().map((ent) => this._renderEntity(ent))}
+              </div>
             </div>
           </div>
         </div>
@@ -345,7 +363,9 @@ export class RoomPlanCard extends LitElement {
         font-size: 0.9rem;
       }
       .image-wrapper {
-        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         flex: 1;
         min-height: 120px;
         min-width: 0;
@@ -353,12 +373,21 @@ export class RoomPlanCard extends LitElement {
         max-width: 100%;
         overflow: hidden;
       }
+      .image-and-overlay {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        aspect-ratio: var(--image-aspect, 16 / 9);
+        flex-shrink: 0;
+        overflow: hidden;
+      }
       .plan-image {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: fill;
         object-position: center;
         display: block;
       }
@@ -373,6 +402,7 @@ export class RoomPlanCard extends LitElement {
         pointer-events: none;
         width: 100%;
         height: 100%;
+        box-sizing: border-box;
       }
       .entities-overlay > * {
         pointer-events: auto;
@@ -411,6 +441,25 @@ export class RoomPlanCard extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+      .entity-badge-inner .entity-value {
+        font-size: calc(var(--icon-size) * 0.5);
+        line-height: 1.1;
+        font-weight: 500;
+        text-align: center;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 0 2px;
+      }
+      .entity-badge.entity-show-value .entity-badge-inner .entity-value {
+        white-space: normal;
+        word-break: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        line-clamp: 3;
       }
       .entity-badge.entity-on .entity-badge-inner {
         color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107));

@@ -16,6 +16,8 @@ export interface RoomPlanEntity {
   /** Hintergrund-Transparenz des Kreises (0–1), Standard 1 */
   background_opacity?: number;
   icon?: string;
+  /** Wenn true: Wert/State der Entität statt Icon anzeigen */
+  show_value?: boolean;
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */

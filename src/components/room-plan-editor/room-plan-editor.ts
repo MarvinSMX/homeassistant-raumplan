@@ -114,6 +114,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value; this._updateEntity(i, { color: v === '#03a9f4' && !ent.color ? undefined : v }); }} />
                 <input type="number" class="entity-opacity" min="0" max="1" step="0.1" .value=${String(Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1)))} title="Deckkraft"
                   @change=${(e: Event) => this._updateEntity(i, { background_opacity: Math.min(1, Math.max(0, Number((e.target as HTMLInputElement).value) || 1)) })} />
+                <label class="entity-check">
+                  <input type="checkbox" .checked=${!!ent.show_value} title="Wert anzeigen"
+                    @change=${(e: Event) => this._updateEntity(i, { show_value: (e.target as HTMLInputElement).checked })} />
+                  Wert
+                </label>
                 <button type="button" class="btn-remove" @click=${() => this._removeEntity(i)} title="Entfernen">
                   <ha-icon icon="mdi:delete-outline"></ha-icon>
                 </button>
@@ -282,6 +287,19 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .entity-row input.entity-opacity {
         width: 56px;
+      }
+      .entity-row .entity-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: var(--secondary-text-color);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .entity-row .entity-check input[type='checkbox'] {
+        width: auto;
+        padding: 0;
       }
       .entity-row input[type='color'] {
         width: 36px;
