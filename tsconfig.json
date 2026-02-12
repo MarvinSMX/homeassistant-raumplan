@@ -14,7 +14,9 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   },
   "include": ["./src/**/*"],
   "exclude": ["node_modules", "boilerplate-card-master", "ha-floorplan-master", "dist"]

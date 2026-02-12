@@ -13,7 +13,10 @@ export default (env) => {
 
   return {
     mode: isProduction ? 'production' : 'development',
-    entry: './src/index.ts',
+    entry: {
+      'homeassistant-raumplan': './src/index.ts',
+      'homeassistant-react-card': './src/react-card-index.tsx',
+    },
     devtool: isProduction ? undefined : 'inline-source-map',
     module: {
       rules: [
@@ -26,6 +29,11 @@ export default (env) => {
     },
     resolve: {
       extensions: ['.tsx', '.ts', '.js'],
+      alias: {
+        react: 'preact/compat',
+        'react-dom': 'preact/compat',
+        'react/jsx-runtime': 'preact/jsx-runtime',
+      },
     },
     plugins: [
       new DefinePlugin({
@@ -35,7 +43,7 @@ export default (env) => {
       }),
     ],
     output: {
-      filename: 'homeassistant-raumplan.js',
+      filename: '[name].js',
       path: path.resolve(__dirname, 'dist'),
       clean: true,
       libraryTarget: 'module',

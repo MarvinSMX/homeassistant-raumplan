@@ -90,6 +90,17 @@ python -m http.server 8080
 
 Dann **http://localhost:8080/test/** im Browser öffnen. Siehe `test/README.md`.
 
+## React/Preact-Demo-Card (optional)
+
+Im Projekt ist eine **zweite, optionale Card** enthalten, die zeigt, wie sich **React/Preact in einer Home-Assistant-Custom-Card** nutzen lässt (Web-Component-Wrapper mit Shadow DOM, Preact für kleine Bundle-Größe).
+
+- **Bundle:** `dist/homeassistant-react-card.js` (separates Build-Output)
+- **Typ:** `custom:react-demo-card`
+- **Ressource:** zusätzlich `/local/homeassistant-react-card.js` als Modul eintragen
+- **Beispiel:** `type: custom:react-demo-card` mit optional `title` und `entity` (z. B. `sensor.date`)
+
+Die Raumplan-Karte bleibt unverändert (Lit); die React-Card ist nur ein Beispiel für den beschriebenen Ansatz.
+
 ## Lizenz
 
 Frei nutzbar für den privaten Einsatz mit Home Assistant.

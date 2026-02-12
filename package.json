@@ -2,7 +2,15 @@
   "name": "homeassistant-raumplan",
   "version": "1.0.0",
   "description": "Interaktiver Raumplan - Lovelace-Karte mit Bild und per Koordinaten positionierten Entitäten",
-  "keywords": ["home-assistant", "homeassistant", "hass", "automation", "lovelace", "custom-cards", "raumplan"],
+  "keywords": [
+    "home-assistant",
+    "homeassistant",
+    "hass",
+    "automation",
+    "lovelace",
+    "custom-cards",
+    "raumplan"
+  ],
   "main": "dist/homeassistant-raumplan.js",
   "repository": "https://github.com/MarvinSMX/homeassistant-raumplan",
   "type": "module",
@@ -13,7 +21,8 @@
   },
   "dependencies": {
     "custom-card-helpers": "^1.7.2",
-    "lit": "^2.4.1"
+    "lit": "^2.4.1",
+    "preact": "^10.28.3"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.45.0",
