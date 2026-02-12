@@ -18,12 +18,25 @@ export interface RoomPlanEntity {
   icon?: string;
   /** Wenn true: Wert/State der Entität statt Icon anzeigen */
   show_value?: boolean;
+  /** Preset: z. B. Temperatur = Wert anzeigen + Farbe nach Wert (blau kalt, orange/rot ab 24°C) */
+  preset?: 'default' | 'temperature';
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */
   hold_action?: ActionConfig;
   /** Doppelklick-Aktion */
   double_tap_action?: ActionConfig;
+}
+
+/** Temperatur-Heatmap: Rechteck aus 2 Punkten (x1,y1) bis (x2,y2) in %, gefärbt nach entity-Wert */
+export interface HeatmapZone {
+  entity: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  /** Deckkraft der Fläche (0–1), Standard 0.4 */
+  opacity?: number;
 }
 
 export interface RoomPlanCardConfig extends LovelaceCardConfig {
@@ -41,5 +54,7 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   full_height?: boolean;
   /** Filter: nur Entitäten dieser Domains anzeigen (z.B. light, sensor). Leer = alle */
   entity_filter?: string[];
+  /** Temperatur-Heatmap: Flächen aus 2 Punkten, Farbe nach Sensor-Wert */
+  temperature_zones?: HeatmapZone[];
   entities?: RoomPlanEntity[];
 }

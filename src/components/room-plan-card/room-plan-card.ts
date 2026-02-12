@@ -14,7 +14,7 @@ import {
   forwardHaptic,
 } from 'custom-card-helpers';
 
-import type { RoomPlanCardConfig, RoomPlanEntity } from '../../lib/types';
+import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
 import { getEntityIcon, getFriendlyName, getStateDisplay } from '../../lib/utils';
@@ -53,8 +53,8 @@ export class RoomPlanCard extends LitElement {
   @state() private _imageError = false;
   /** Seitenverhältnis des Bildes (width/height), damit Overlay exakt aligned */
   @state() private _imageAspect = 16 / 9;
-  /** Lokaler Filter-State (Filter-Buttons auf der Karte) */
-  @state() private _activeFilter: string[] = [];
+  /** Aktiver Tab: null = Alle, sonst Domain (nur einer aktiv) */
+  @state() private _activeFilter: string | null = null;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     return document.createElement(EDITOR_TAG);
@@ -87,8 +87,10 @@ export class RoomPlanCard extends LitElement {
       hold_action: config?.hold_action,
       double_tap_action: config?.double_tap_action,
       entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
+      temperature_zones: Array.isArray(config?.temperature_zones) ? config.temperature_zones : undefined,
     };
-    this._activeFilter = Array.isArray(config?.entity_filter) ? [...config.entity_filter] : [];
+    const pf = config?.entity_filter;
+    this._activeFilter = Array.isArray(pf) && pf.length === 1 ? pf[0] : null;
     this._imageLoaded = false;
     this._imageError = false;
     this._imageAspect = 16 / 9;
@@ -101,9 +103,8 @@ export class RoomPlanCard extends LitElement {
 
   private _filteredEntities(): RoomPlanEntity[] {
     const entities = this.config?.entities ?? [];
-    const filter = this._activeFilter.length > 0 ? this._activeFilter : (this.config?.entity_filter ?? []);
-    if (!filter || filter.length === 0) return entities;
-    return entities.filter((ent) => filter.includes(this._getEntityDomain(ent.entity)));
+    if (this._activeFilter === null || this._activeFilter === '') return entities;
+    return entities.filter((ent) => this._getEntityDomain(ent.entity) === this._activeFilter);
   }
 
   private _availableDomains(): string[] {
@@ -116,11 +117,8 @@ export class RoomPlanCard extends LitElement {
     return Array.from(doms).sort();
   }
 
-  private _toggleFilter(domain: string): void {
-    const next = this._activeFilter.includes(domain)
-      ? this._activeFilter.filter((d) => d !== domain)
-      : [...this._activeFilter, domain].sort();
-    this._activeFilter = [...next];
+  private _selectFilter(domain: string | null): void {
+    this._activeFilter = domain;
   }
 
   public getCardSize(): number {
@@ -182,6 +180,13 @@ export class RoomPlanCard extends LitElement {
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
+  /** Farbe für Temperatur-Preset: blau kalt, orange warm, rot ab 24°C */
+  private _temperatureColor(temp: number): string {
+    if (temp < 18) return '#2196f3';   // blau (kalt)
+    if (temp < 24) return '#ff9800';  // orange
+    return '#f44336';                  // rot (ab 24°C)
+  }
+
   private _renderEntity(ent: RoomPlanEntity): TemplateResult {
     const x = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
     const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
@@ -191,10 +196,23 @@ export class RoomPlanCard extends LitElement {
     const stateDisplay = getStateDisplay(this.hass, ent.entity);
     const title = `${getFriendlyName(this.hass, ent.entity)}: ${stateDisplay}`;
     const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
-    const bgColor = ent.color
-      ? this._hexToRgba(ent.color, opacity)
-      : `rgba(45, 45, 45, ${opacity})`;
-    const showValue = !!ent.show_value;
+
+    const preset = ent.preset ?? 'default';
+    let bgColor: string;
+    let showValue = !!ent.show_value;
+
+    if (preset === 'temperature') {
+      showValue = true;
+      const state = this.hass?.states?.[ent.entity]?.state;
+      const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
+      const temp = Number.isFinite(num) ? num : 20;
+      const presetColor = this._temperatureColor(temp);
+      bgColor = this._hexToRgba(presetColor, opacity);
+    } else {
+      bgColor = ent.color
+        ? this._hexToRgba(ent.color, opacity)
+        : `rgba(45, 45, 45, ${opacity})`;
+    }
 
     const actionConfig = this._getEntityActionConfig(ent);
     const hasHold = hasAction(actionConfig.hold_action);
@@ -216,6 +234,33 @@ export class RoomPlanCard extends LitElement {
             : html`<ha-icon icon="${icon}"></ha-icon>`}
         </div>
       </div>
+    `;
+  }
+
+  /** Heatmap-Zone: Rechteck (x1,y1)–(x2,y2) in %, Farbe nach Temperatur-Entity */
+  private _renderHeatmapZone(zone: HeatmapZone): TemplateResult {
+    const x1 = Math.min(100, Math.max(0, Number(zone.x1) ?? 0));
+    const y1 = Math.min(100, Math.max(0, Number(zone.y1) ?? 0));
+    const x2 = Math.min(100, Math.max(0, Number(zone.x2) ?? 100));
+    const y2 = Math.min(100, Math.max(0, Number(zone.y2) ?? 100));
+    const left = Math.min(x1, x2);
+    const top = Math.min(y1, y2);
+    const width = Math.abs(x2 - x1) || 1;
+    const height = Math.abs(y2 - y1) || 1;
+    const opacity = Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4));
+
+    const state = this.hass?.states?.[zone.entity]?.state;
+    const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
+    const temp = Number.isFinite(num) ? num : 20;
+    const color = this._temperatureColor(temp);
+    const bg = this._hexToRgba(color, opacity);
+
+    return html`
+      <div
+        class="heatmap-zone"
+        style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;background:${bg}"
+        title="${zone.entity}: ${state ?? '?'}"
+      ></div>
     `;
   }
 
@@ -251,19 +296,29 @@ export class RoomPlanCard extends LitElement {
 
     const domains = this._availableDomains();
     const showFilterBar = domains.length > 0;
+    const activeTab = this._activeFilter === null || (this._activeFilter && !domains.includes(this._activeFilter))
+      ? null
+      : this._activeFilter;
 
     return html`
       <ha-card class=${this.config?.full_height ? 'full-height' : ''}>
         <div class="card-content">
           ${showFilterBar
             ? html`
-                <div class="filter-bar">
+                <div class="filter-tabs">
+                  <button
+                    type="button"
+                    class="filter-tab ${activeTab === null ? 'active' : ''}"
+                    @click=${() => this._selectFilter(null)}
+                  >
+                    Alle
+                  </button>
                   ${domains.map(
                     (d) => html`
                       <button
                         type="button"
-                        class="filter-chip ${this._activeFilter.includes(d) ? 'active' : ''}"
-                        @click=${() => this._toggleFilter(d)}
+                        class="filter-tab ${activeTab === d ? 'active' : ''}"
+                        @click=${() => this._selectFilter(d)}
                       >
                         ${d}
                       </button>
@@ -284,6 +339,13 @@ export class RoomPlanCard extends LitElement {
               ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
               ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
               <div class="entities-overlay">
+                ${(this.config?.temperature_zones ?? []).length
+                  ? html`
+                      <div class="heatmap-layer">
+                        ${(this.config.temperature_zones ?? []).map((zone) => this._renderHeatmapZone(zone))}
+                      </div>
+                    `
+                  : ''}
                 ${this._filteredEntities().map((ent) => this._renderEntity(ent))}
               </div>
             </div>
@@ -327,30 +389,39 @@ export class RoomPlanCard extends LitElement {
         width: 100%;
         box-sizing: border-box;
       }
-      .filter-bar {
+      .filter-tabs {
         flex-shrink: 0;
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        padding: 8px 12px;
+        gap: 0;
+        padding: 12px 14px 0;
         background: var(--ha-card-background, #1e1e1e);
-        border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.12));
+        border-bottom: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
       }
-      .filter-chip {
-        padding: 4px 12px;
-        border-radius: 16px;
-        border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
-        background: var(--card-background-color, #2d2d2d);
-        color: var(--primary-text-color, #e1e1e1);
-        font-size: 0.8rem;
+      .filter-tab {
+        padding: 10px 16px;
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        background: var(--ha-card-background, #1e1e1e);
+        color: var(--secondary-text-color, #b0b0b0);
+        font-size: 0.85rem;
+        font-weight: 500;
         cursor: pointer;
+        margin-right: 4px;
+        position: relative;
+        top: 1px;
       }
-      .filter-chip:hover {
-        border-color: var(--primary-color, #03a9f4);
+      .filter-tab:hover {
+        color: var(--primary-text-color, #e1e1e1);
+        background: var(--card-background-color, #2d2d2d);
       }
-      .filter-chip.active {
-        background: var(--primary-color, #03a9f4);
-        border-color: var(--primary-color, #03a9f4);
+      .filter-tab.active {
+        background: var(--card-background-color, #2d2d2d);
+        color: var(--primary-color, #03a9f4);
+        border-color: var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-bottom: 1px solid var(--card-background-color, #2d2d2d);
+        margin-bottom: -1px;
       }
       .image-error {
         position: absolute;
@@ -406,6 +477,18 @@ export class RoomPlanCard extends LitElement {
       }
       .entities-overlay > * {
         pointer-events: auto;
+      }
+      .heatmap-layer {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+      }
+      .heatmap-zone {
+        position: absolute;
+        pointer-events: none;
+        border-radius: 4px;
+        z-index: 0;
       }
       .entity-badge {
         --size: clamp(28px, 8vw, 48px);

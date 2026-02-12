@@ -5,7 +5,7 @@ import { LitElement, html, css, type TemplateResult, type CSSResultGroup } from 
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-helpers';
 
-import type { RoomPlanCardConfig, RoomPlanEntity } from '../../lib/types';
+import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { getFriendlyName } from '../../lib/utils';
 
 @customElement('room-plan-editor')
@@ -29,6 +29,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       image: img,
       entities: Array.isArray(base.entities) ? [...base.entities] : [],
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
+      temperature_zones: Array.isArray(base.temperature_zones) ? [...base.temperature_zones] : undefined,
     };
   }
 
@@ -56,6 +57,23 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _addEntity(): void {
     const entities = [...(this._config.entities ?? []), { entity: '', x: 50, y: 50 }];
     this._updateConfig({ entities });
+  }
+
+  private _updateHeatmapZone(index: number, updates: Partial<HeatmapZone>): void {
+    const zones = [...(this._config.temperature_zones ?? [])];
+    zones[index] = { ...zones[index], ...updates };
+    this._updateConfig({ temperature_zones: zones });
+  }
+
+  private _removeHeatmapZone(index: number): void {
+    const zones = [...(this._config.temperature_zones ?? [])];
+    zones.splice(index, 1);
+    this._updateConfig({ temperature_zones: zones.length ? zones : undefined });
+  }
+
+  private _addHeatmapZone(): void {
+    const zones = [...(this._config.temperature_zones ?? []), { entity: '', x1: 10, y1: 10, x2: 40, y2: 40 }];
+    this._updateConfig({ temperature_zones: zones });
   }
 
   protected render(): TemplateResult {
@@ -102,6 +120,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 <input type="text" class="entity-icon" .value=${ent.icon ?? ''} placeholder="Icon (mdi:...)"
                   title="Icon (optional)"
                   @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateEntity(i, { icon: v || undefined }); }} />
+                <select class="entity-preset" title="Preset"
+                  .value=${ent.preset ?? 'default'}
+                  @change=${(e: Event) => this._updateEntity(i, { preset: (e.target as HTMLSelectElement).value as 'default' | 'temperature' })}>
+                  <option value="default">Standard</option>
+                  <option value="temperature">Temperatur</option>
+                </select>
                 <div class="entity-coords">
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
                     @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 50)) })} />
@@ -127,6 +151,41 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           </div>
           <button type="button" class="btn-add" @click=${this._addEntity}>
             <ha-icon icon="mdi:plus"></ha-icon> Entität hinzufügen
+          </button>
+        </section>
+        <section class="editor-section">
+          <h4 class="section-title"><ha-icon icon="mdi:thermometer"></ha-icon> Temperatur-Heatmap</h4>
+          <p class="section-hint">Fläche durch 2 Punkte (x1,y1) und (x2,y2) in %. Eine Temperatur-Entität färbt die Zone (blau &lt;18°C, orange, rot ≥24°C).</p>
+          <div class="entity-list">
+            ${(this._config.temperature_zones ?? []).map((zone, i) => html`
+              <div class="entity-row heatmap-row">
+                <input type="text" list="rp-heatmap-${i}" .value=${zone.entity} placeholder="sensor.temperatur_raum"
+                  @change=${(e: Event) => this._updateHeatmapZone(i, { entity: (e.target as HTMLInputElement).value.trim() })} />
+                <datalist id="rp-heatmap-${i}">
+                  ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass!, eid)}</option>`)}
+                </datalist>
+                <div class="entity-coords" title="Punkt 1 (x,y)">
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.x1) ?? 0)} placeholder="x1"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { x1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) })} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.y1) ?? 0)} placeholder="y1"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { y1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) })} />
+                </div>
+                <div class="entity-coords" title="Punkt 2 (x,y)">
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.x2) ?? 100)} placeholder="x2"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { x2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) })} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.y2) ?? 100)} placeholder="y2"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { y2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) })} />
+                </div>
+                <input type="number" class="entity-opacity" min="0" max="1" step="0.1" .value=${String(Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4)))} title="Deckkraft"
+                  @change=${(e: Event) => this._updateHeatmapZone(i, { opacity: Math.min(1, Math.max(0, Number((e.target as HTMLInputElement).value) || 0.4)) })} />
+                <button type="button" class="btn-remove" @click=${() => this._removeHeatmapZone(i)} title="Zone entfernen">
+                  <ha-icon icon="mdi:delete-outline"></ha-icon>
+                </button>
+              </div>
+            `)}
+          </div>
+          <button type="button" class="btn-add" @click=${this._addHeatmapZone}>
+            <ha-icon icon="mdi:plus"></ha-icon> Heatmap-Zone hinzufügen
           </button>
         </section>
       </div>
@@ -273,6 +332,10 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .entity-row input.entity-icon {
         width: clamp(90px, 22vw, 120px);
+      }
+      .entity-row select.entity-preset {
+        width: auto;
+        min-width: 100px;
       }
       .entity-coords {
         display: flex;
