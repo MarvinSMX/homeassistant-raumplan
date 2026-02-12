@@ -47,7 +47,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const zones = config?.temperature_zones ?? [];
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
 
-  /* Gemeinsamer Block: Größe nur aus Breite + Aspect-Ratio (paddingBottom), alle Layer exakt dieselbe Box */
+  /* Gemeinsamer Block: alle Layer exakt dieselbe Box (position/size) */
   const overlayBoxStyle: Record<string, string> = {
     position: 'absolute',
     top: '0',
@@ -59,15 +59,23 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
+  /* Bild-Container: nutzt Breite und Höhe des Karten-Layouts, Aspect-Ratio mit max-width/max-height */
+  const aspectBoxStyle: Record<string, string | number> = {
+    position: 'relative',
+    width: '100%',
+    maxWidth: '100%',
+    maxHeight: '100%',
+    aspectRatio: imageAspect,
+    flexShrink: 0,
+    overflow: 'hidden',
+  };
+
   return (
-    <div className="flex-1 flex items-center justify-center min-h-[120px] overflow-hidden w-full" style={{ transform: `rotate(${rotation}deg)` }}>
-      <div
-        className="relative w-full max-w-full flex-shrink-0 overflow-hidden"
-        style={{
-          height: 0,
-          paddingBottom: `${100 / imageAspect}%`,
-        }}
-      >
+    <div
+      className="flex-1 flex items-center justify-center min-h-0 overflow-hidden w-full"
+      style={{ transform: `rotate(${rotation}deg)`, minHeight: 120 }}
+    >
+      <div style={aspectBoxStyle}>
         {/* 1. Bild: füllt die Box exakt */}
         <img
           src={imgSrc}

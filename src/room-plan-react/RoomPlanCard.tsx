@@ -48,7 +48,10 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   return (
     <ha-card class={config?.full_height ? 'full-height' : ''}>
       <style dangerouslySetInnerHTML={{ __html: cssString }} />
-      <div className="flex flex-col flex-1 min-h-0 p-0 overflow-hidden w-full">
+      <div
+        className="flex flex-col p-0 overflow-hidden w-full h-full min-h-0"
+        style={{ flex: 1, minHeight: 0 }}
+      >
         <FilterTabs
           config={config}
           hass={hass}
