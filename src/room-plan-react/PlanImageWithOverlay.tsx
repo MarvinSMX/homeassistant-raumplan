@@ -47,6 +47,18 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const zones = config?.temperature_zones ?? [];
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
 
+  /* Gemeinsamer Block: Größe nur aus Breite + Aspect-Ratio (paddingBottom), alle Layer exakt dieselbe Box */
+  const overlayBoxStyle: Record<string, string> = {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    margin: '0',
+    padding: '0',
+    boxSizing: 'border-box',
+  };
+
   return (
     <div className="flex-1 flex items-center justify-center min-h-[120px] overflow-hidden w-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <div
@@ -56,31 +68,40 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           paddingBottom: `${100 / imageAspect}%`,
         }}
       >
+        {/* 1. Bild: füllt die Box exakt */}
+        <img
+          src={imgSrc}
+          alt="Raumplan"
+          className="block"
+          style={{
+            ...overlayBoxStyle,
+            objectFit: 'fill',
+            objectPosition: 'center',
+            filter: darkFilter,
+            zIndex: 0,
+          }}
+          onLoad={onImageLoad}
+          onError={onImageError}
+        />
+        {!imageLoaded && !imageError && (
+          <div style={{ ...overlayBoxStyle, zIndex: 1, background: 'var(--ha-card-background)' }} aria-hidden />
+        )}
+        {imageError && (
+          <div style={{ ...overlayBoxStyle, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
+            Bild konnte nicht geladen werden
+          </div>
+        )}
+        {/* 2. Heatmap: exakt über dem Bild, gleiche Box, pointer-events: none */}
         {zones.length > 0 && (
-          <div className="absolute inset-0 z-0 pointer-events-none">
+          <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
             {zones.map((zone, i) => (
               <HeatmapZone key={i} zone={zone} hass={hass} />
             ))}
           </div>
         )}
-        <img
-          src={imgSrc}
-          alt="Raumplan"
-          className="absolute top-0 left-0 w-full h-full object-fill object-center z-[1]"
-          style={{ filter: darkFilter }}
-          onLoad={onImageLoad}
-          onError={onImageError}
-        />
-        {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 z-[1] bg-[var(--ha-card-background)]" aria-hidden />
-        )}
-        {imageError && (
-          <div className="absolute inset-0 z-[1] flex items-center justify-center bg-[var(--ha-card-background)] text-[var(--secondary-text-color)] text-sm">
-            Bild konnte nicht geladen werden
-          </div>
-        )}
-        <div className="absolute inset-0 w-full h-full pointer-events-none z-[2]" style={{ pointerEvents: 'none' }}>
-          <div className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'auto' }}>
+        {/* 3. Entitäten: exakt gleiche Box, Klicks durchlassen wo keine Badges */}
+        <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
+          <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
             {filteredEntities.map((ent, i) => (
               <EntityBadge
                 key={`${ent.entity}-${i}`}
