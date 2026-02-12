@@ -50,7 +50,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
       <style dangerouslySetInnerHTML={{ __html: cssString }} />
       <div
         className="flex flex-col p-0 overflow-hidden w-full h-full min-h-0 min-w-0 flex-1"
-        style={{ flex: '1 1 0', minHeight: 0, minWidth: 0 }}
+        style={{ flex: '1 1 0', minHeight: 200, minWidth: 0 }}
       >
         <FilterTabs
           config={config}

@@ -47,7 +47,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const zones = config?.temperature_zones ?? [];
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
 
-  /* Gemeinsamer Block: alle Layer exakt dieselbe Box (position/size) */
+  /* Gemeinsamer Block: alle Layer exakt dieselbe Box */
   const overlayBoxStyle: Record<string, string> = {
     position: 'absolute',
     top: '0',
@@ -59,8 +59,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Container: volle Kartenfläche, zentriert die Fit-Box, overflow versteckt. Flex damit die Box Platz hat. */
-  const containerStyle: Record<string, string | number> = {
+  /* Eine Box füllt den Bereich; Mindesthöhe stellt sicher, dass immer Platz da ist (auch wenn Flex 0 liefert). */
+  const fillBoxStyle: Record<string, string | number> = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -68,22 +68,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     bottom: 0,
     width: '100%',
     height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    boxSizing: 'border-box',
-  };
-
-  /* Fit-Box: Höhe über paddingBottom % (Prozent der eigenen Breite) → immer sichtbare Box, gleiches Aspect Ratio wie Bild. Bild + Overlay in einer Box. */
-  const fitBoxStyle: Record<string, string | number> = {
-    position: 'relative',
-    width: '100%',
-    maxWidth: '100%',
-    height: 0,
-    paddingBottom: `${100 / imageAspect}%`,
-    flexShrink: 0,
     overflow: 'hidden',
     background: 'var(--ha-card-background)',
     boxSizing: 'border-box',
@@ -94,69 +78,62 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       className="flex-1 min-h-0 overflow-hidden w-full min-w-0"
       style={{
         transform: `rotate(${rotation}deg)`,
-        minHeight: 120,
+        minHeight: 280,
         width: '100%',
         minWidth: 0,
         position: 'relative',
       }}
     >
-      <div style={containerStyle}>
-        <div style={fitBoxStyle}>
-          {/* 1. Bild: wie vorher – contain, komplett sichtbar, skaliert mit Karte */}
-          <img
-            src={imgSrc}
-            alt="Raumplan"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: '100%',
-              height: '100%',
-              margin: 0,
-              padding: 0,
-              boxSizing: 'border-box',
-              objectFit: 'contain',
-              objectPosition: 'center',
-              filter: darkFilter,
-              zIndex: 0,
-              display: 'block',
-            }}
-            onLoad={onImageLoad}
-            onError={onImageError}
-          />
-          {!imageLoaded && !imageError && (
-            <div style={{ ...overlayBoxStyle, zIndex: 1, background: 'var(--ha-card-background)' }} aria-hidden />
-          )}
-          {imageError && (
-            <div style={{ ...overlayBoxStyle, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
-              Bild konnte nicht geladen werden
-            </div>
-          )}
-          {/* 2. Heatmap: gleiche Box wie Bild, gleiches Aspect Ratio */}
-          {zones.length > 0 && (
-            <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
-              {zones.map((zone, i) => (
-                <HeatmapZone key={i} zone={zone} hass={hass} />
-              ))}
-            </div>
-          )}
-          {/* 3. Entitäten: gleiche Box wie Bild, gleiches Aspect Ratio */}
-          <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
-            <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
-              {filteredEntities.map((ent, i) => (
-                <EntityBadge
-                  key={`${ent.entity}-${i}`}
-                  ent={ent}
-                  hass={hass}
-                  host={host}
-                  tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
-                  holdAction={ent.hold_action ?? config?.hold_action}
-                  doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
-                />
-              ))}
-            </div>
+      <div style={fillBoxStyle}>
+        <img
+          src={imgSrc}
+          alt="Raumplan"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            margin: 0,
+            padding: 0,
+            boxSizing: 'border-box',
+            objectFit: 'contain',
+            objectPosition: 'center',
+            filter: darkFilter,
+            zIndex: 0,
+            display: 'block',
+          }}
+          onLoad={onImageLoad}
+          onError={onImageError}
+        />
+        {!imageLoaded && !imageError && (
+          <div style={{ ...overlayBoxStyle, zIndex: 1, background: 'var(--ha-card-background)' }} aria-hidden />
+        )}
+        {imageError && (
+          <div style={{ ...overlayBoxStyle, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
+            Bild konnte nicht geladen werden
+          </div>
+        )}
+        {zones.length > 0 && (
+          <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
+            {zones.map((zone, i) => (
+              <HeatmapZone key={i} zone={zone} hass={hass} />
+            ))}
+          </div>
+        )}
+        <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
+          <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
+            {filteredEntities.map((ent, i) => (
+              <EntityBadge
+                key={`${ent.entity}-${i}`}
+                ent={ent}
+                hass={hass}
+                host={host}
+                tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
+                holdAction={ent.hold_action ?? config?.hold_action}
+                doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
+              />
+            ))}
           </div>
         </div>
       </div>
