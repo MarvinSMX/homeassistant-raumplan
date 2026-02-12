@@ -192,15 +192,7 @@ export class RoomPlanCard extends LitElement {
     `;
   }
 
-  private _imageSrc(imgPath: string): string {
-    if (!imgPath) return '';
-    if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) return imgPath;
-    const base = typeof (this.hass as any)?.hassUrl === 'function' ? (this.hass as any).hassUrl('') : '';
-    const path = imgPath.startsWith('/') ? imgPath : `/${imgPath}`;
-    return base ? `${base}${path}` : `${window.location.origin}${path}`;
-  }
-
-  private _onImageLoad(ev: Event): void {
+  private _onImageLoad(): void {
     this._imageLoaded = true;
     this._imageError = false;
   }
@@ -251,12 +243,11 @@ export class RoomPlanCard extends LitElement {
             : ''}
           <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
             <img
-              src="${this._imageSrc(img)}"
+              src="${img}"
               alt="Raumplan"
               class="plan-image"
               @load=${this._onImageLoad}
               @error=${this._onImageError}
-              ?hidden=${!this._imageLoaded}
             />
             ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
             ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
