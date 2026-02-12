@@ -114,9 +114,10 @@ export class RoomPlanCard extends LitElement {
   }
 
   private _toggleFilter(domain: string): void {
-    this._activeFilter = this._activeFilter.includes(domain)
+    const next = this._activeFilter.includes(domain)
       ? this._activeFilter.filter((d) => d !== domain)
       : [...this._activeFilter, domain].sort();
+    this._activeFilter = [...next];
   }
 
   public getCardSize(): number {
@@ -130,7 +131,10 @@ export class RoomPlanCard extends LitElement {
   }
 
   protected shouldUpdate(changedProps: Map<string, unknown>): boolean {
-    return !!this.config && hasConfigOrEntityChanged(this, changedProps, false);
+    if (!this.config) return false;
+    if (changedProps.has('_activeFilter') || changedProps.has('_imageLoaded') || changedProps.has('_imageError'))
+      return true;
+    return hasConfigOrEntityChanged(this, changedProps, false);
   }
 
   connectedCallback(): void {
@@ -332,19 +336,17 @@ export class RoomPlanCard extends LitElement {
       .image-wrapper {
         position: relative;
         flex: 1;
-        min-height: 0;
+        min-height: 120px;
+        min-width: 0;
         width: 100%;
         max-width: 100%;
         overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
       .plan-image {
+        position: absolute;
+        inset: 0;
         width: 100%;
         height: 100%;
-        max-width: 100%;
-        max-height: 100%;
         object-fit: contain;
         object-position: center;
         display: block;
