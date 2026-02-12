@@ -27,12 +27,6 @@ const EDITOR_TAG = 'room-plan-editor';
 /** Sentinel für den Heatmap-Tab (kein Domain-Filter) */
 const HEATMAP_TAB = '__heatmap__';
 
-declare global {
-  interface Window {
-    customCards: Array<{ type: string; name: string; description: string; preview?: boolean }>;
-  }
-}
-
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'custom:' + CARD_TAG,

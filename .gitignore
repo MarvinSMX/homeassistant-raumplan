@@ -30,5 +30,8 @@ yarn-error.log*
 test-results/*
 package-lock.json
 
+# Tailwind-Build (wird bei npm run build erzeugt)
+src/room-plan-react/tailwind-built.css
+
 # dist/ wird für HACS benötigt – gebaute Datei muss im Repo sein
 # dist

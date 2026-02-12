@@ -22,6 +22,10 @@ export default (env) => {
           use: 'ts-loader',
           exclude: /node_modules/,
         },
+        {
+          test: /tailwind-built\.css$/,
+          type: 'asset/source',
+        },
       ],
     },
     resolve: {

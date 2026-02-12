@@ -19,5 +19,5 @@
     "jsxImportSource": "preact"
   },
   "include": ["./src/**/*"],
-  "exclude": ["node_modules", "boilerplate-card-master", "ha-floorplan-master", "dist"]
+  "exclude": ["node_modules", "boilerplate-card-master", "ha-floorplan-master", "dist", "src/components/room-plan-card/room-plan-card.ts"]
 }

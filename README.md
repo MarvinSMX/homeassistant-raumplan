@@ -2,6 +2,8 @@
 
 Lovelace-Karte für einen **Raumplan als Bild** mit per **Koordinaten (x, y)** positionierten Entitäten. Entitäten werden als **Kreise mit Icons** dargestellt. Position per X/Y-Felder im Editor.
 
+**Technisch:** Die Karte ist mit **React (Preact)** und **Tailwind CSS** umgesetzt; der Konfigurations-Editor nutzt weiterhin Lit.
+
 ## Installation
 
 ### Über HACS
