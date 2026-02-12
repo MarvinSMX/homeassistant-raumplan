@@ -425,35 +425,32 @@ export class RoomPlanCard extends LitElement {
         flex-shrink: 0;
         display: flex;
         flex-wrap: wrap;
-        gap: 0;
-        padding: 12px 14px 0;
-        background: var(--ha-card-background, #1e1e1e);
-        border-bottom: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px 12px;
+        background: var(--ha-card-background, var(--card-background-color, #1e1e1e));
+        border-bottom: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
       }
       .filter-tab {
-        padding: 10px 16px;
-        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
-        border-bottom: none;
-        border-radius: 8px 8px 0 0;
-        background: var(--ha-card-background, #1e1e1e);
-        color: var(--secondary-text-color, #b0b0b0);
-        font-size: 0.85rem;
+        padding: 6px 14px;
+        border: none;
+        border-radius: 16px;
+        background: var(--secondary-background-color, rgba(255, 255, 255, 0.05));
+        color: var(--secondary-text-color, rgba(255, 255, 255, 0.7));
+        font-size: 0.875rem;
         font-weight: 500;
         cursor: pointer;
-        margin-right: 4px;
-        position: relative;
-        top: 1px;
+        transition: background-color 0.2s, color 0.2s;
+        font-family: inherit;
+        -webkit-tap-highlight-color: transparent;
       }
       .filter-tab:hover {
-        color: var(--primary-text-color, #e1e1e1);
-        background: var(--card-background-color, #2d2d2d);
+        background: var(--secondary-background-color, rgba(255, 255, 255, 0.08));
+        color: var(--primary-text-color, rgba(255, 255, 255, 0.9));
       }
       .filter-tab.active {
-        background: var(--card-background-color, #2d2d2d);
-        color: var(--primary-color, #03a9f4);
-        border-color: var(--divider-color, rgba(255, 255, 255, 0.12));
-        border-bottom: 1px solid var(--card-background-color, #2d2d2d);
-        margin-bottom: -1px;
+        background: var(--primary-color, #03a9f4);
+        color: #fff;
       }
       .image-error {
         position: absolute;
