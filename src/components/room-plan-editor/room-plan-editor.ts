@@ -32,29 +32,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     };
   }
 
-  private _getEntityDomain(entityId: string): string {
-    const idx = entityId.indexOf('.');
-    return idx > 0 ? entityId.slice(0, idx) : '';
-  }
-
-  private _availableDomains(): string[] {
-    const entities = this._config.entities ?? [];
-    const doms = new Set<string>();
-    entities.forEach((e) => {
-      const d = this._getEntityDomain(e.entity);
-      if (d) doms.add(d);
-    });
-    return Array.from(doms).sort();
-  }
-
-  private _toggleFilter(domain: string): void {
-    const current = this._config.entity_filter ?? [];
-    const next = current.includes(domain)
-      ? current.filter((d) => d !== domain)
-      : [...current, domain].sort();
-    this._updateConfig({ entity_filter: next.length > 0 ? next : undefined });
-  }
-
   private _emitConfig(): void {
     fireEvent(this, 'config-changed', { config: this._config });
   }
@@ -90,10 +67,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
     return html`
       <div class="editor">
-        <header class="editor-header">
-          <ha-icon icon="mdi:floor-plan"></ha-icon>
-          <h3>Raumplan konfigurieren</h3>
-        </header>
         <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:image"></ha-icon> Bild</h4>
           <div class="field">
@@ -113,24 +86,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
               </select>
             </div>
-          </div>
-        </section>
-        <section class="editor-section">
-          <h4 class="section-title"><ha-icon icon="mdi:filter-variant"></ha-icon> Filter</h4>
-          <p class="section-hint">Nach Typ filtern – nur angeklickte Typen werden in der Karte gezeigt.</p>
-          <div class="filter-chips">
-            ${this._availableDomains().map(
-              (d) => html`
-                <button
-                  type="button"
-                  class="filter-chip ${(this._config.entity_filter ?? []).includes(d) ? 'active' : ''}"
-                  @click=${() => this._toggleFilter(d)}
-                >
-                  ${d}
-                </button>
-              `,
-            )}
-            ${this._availableDomains().length === 0 ? html`<span class="filter-empty">Entitäten hinzufügen</span>` : ''}
           </div>
         </section>
         <section class="editor-section">
@@ -296,33 +251,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         width: clamp(90px, 22vw, 120px);
         padding: 8px 10px;
         font-size: clamp(12px, 3vw, 14px);
-      }
-      .filter-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
-      }
-      .filter-chip {
-        padding: 6px 14px;
-        border-radius: 20px;
-        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
-        background: var(--ha-card-background, #1e1e1e);
-        color: var(--primary-text-color);
-        font-size: 0.85rem;
-        cursor: pointer;
-      }
-      .filter-chip:hover {
-        border-color: var(--primary-color, #03a9f4);
-      }
-      .filter-chip.active {
-        background: var(--primary-color, #03a9f4);
-        border-color: var(--primary-color, #03a9f4);
-        color: var(--primary-text-color);
-      }
-      .filter-empty {
-        font-size: 0.85rem;
-        color: var(--secondary-text-color);
       }
       .entity-coords {
         display: flex;

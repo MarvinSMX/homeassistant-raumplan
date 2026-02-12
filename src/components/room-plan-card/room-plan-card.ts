@@ -50,6 +50,9 @@ export class RoomPlanCard extends LitElement {
   };
 
   @state() private _imageLoaded = false;
+  @state() private _imageError = false;
+  /** Lokaler Filter-State (Filter-Buttons auf der Karte) */
+  @state() private _activeFilter: string[] = [];
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     return document.createElement(EDITOR_TAG);
@@ -83,6 +86,9 @@ export class RoomPlanCard extends LitElement {
       double_tap_action: config?.double_tap_action,
       entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
     };
+    this._activeFilter = Array.isArray(config?.entity_filter) ? [...config.entity_filter] : [];
+    this._imageLoaded = false;
+    this._imageError = false;
   }
 
   private _getEntityDomain(entityId: string): string {
@@ -92,9 +98,25 @@ export class RoomPlanCard extends LitElement {
 
   private _filteredEntities(): RoomPlanEntity[] {
     const entities = this.config?.entities ?? [];
-    const filter = this.config?.entity_filter;
+    const filter = this._activeFilter.length > 0 ? this._activeFilter : (this.config?.entity_filter ?? []);
     if (!filter || filter.length === 0) return entities;
     return entities.filter((ent) => filter.includes(this._getEntityDomain(ent.entity)));
+  }
+
+  private _availableDomains(): string[] {
+    const entities = this.config?.entities ?? [];
+    const doms = new Set<string>();
+    entities.forEach((e) => {
+      const d = this._getEntityDomain(e.entity);
+      if (d) doms.add(d);
+    });
+    return Array.from(doms).sort();
+  }
+
+  private _toggleFilter(domain: string): void {
+    this._activeFilter = this._activeFilter.includes(domain)
+      ? this._activeFilter.filter((d) => d !== domain)
+      : [...this._activeFilter, domain].sort();
   }
 
   public getCardSize(): number {
@@ -170,14 +192,22 @@ export class RoomPlanCard extends LitElement {
     `;
   }
 
+  private _imageSrc(imgPath: string): string {
+    if (!imgPath) return '';
+    if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) return imgPath;
+    const base = typeof (this.hass as any)?.hassUrl === 'function' ? (this.hass as any).hassUrl('') : '';
+    const path = imgPath.startsWith('/') ? imgPath : `/${imgPath}`;
+    return base ? `${base}${path}` : `${window.location.origin}${path}`;
+  }
+
   private _onImageLoad(ev: Event): void {
-    const img = ev.target as HTMLImageElement;
-    const w = img.naturalWidth;
-    const h = img.naturalHeight;
-    if (w && h && img.parentElement) {
-      img.parentElement.style.aspectRatio = `${w}/${h}`;
-    }
     this._imageLoaded = true;
+    this._imageError = false;
+  }
+
+  private _onImageError(): void {
+    this._imageError = true;
+    this._imageLoaded = false;
   }
 
   protected render(): TemplateResult {
@@ -187,7 +217,7 @@ export class RoomPlanCard extends LitElement {
 
     if (!img) {
       return html`
-        <ha-card header="${title || 'Interaktiver Raumplan'}">
+        <ha-card>
           <div class="empty-state">
             <ha-icon icon="mdi:floor-plan"></ha-icon>
             <p>${localize('common.configure')}</p>
@@ -196,18 +226,40 @@ export class RoomPlanCard extends LitElement {
       `;
     }
 
+    const domains = this._availableDomains();
+    const showFilterBar = domains.length > 0;
+
     return html`
-      <ha-card .header=${title || undefined} class=${this.config?.full_height ? 'full-height' : ''}>
+      <ha-card class=${this.config?.full_height ? 'full-height' : ''}>
         <div class="card-content">
-          <div class="image-wrapper" style="transform: rotate(${rotation}deg); aspect-ratio: 16/9;">
+          ${showFilterBar
+            ? html`
+                <div class="filter-bar">
+                  ${domains.map(
+                    (d) => html`
+                      <button
+                        type="button"
+                        class="filter-chip ${this._activeFilter.includes(d) ? 'active' : ''}"
+                        @click=${() => this._toggleFilter(d)}
+                      >
+                        ${d}
+                      </button>
+                    `,
+                  )}
+                </div>
+              `
+            : ''}
+          <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
             <img
-              src="${img}"
+              src="${this._imageSrc(img)}"
               alt="Raumplan"
               class="plan-image"
               @load=${this._onImageLoad}
+              @error=${this._onImageError}
               ?hidden=${!this._imageLoaded}
             />
-            ${!this._imageLoaded ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
+            ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
+            ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
             <div class="entities-overlay">
               ${this._filteredEntities().map((ent) => this._renderEntity(ent))}
             </div>
@@ -224,37 +276,87 @@ export class RoomPlanCard extends LitElement {
         width: 100%;
         max-width: 100%;
         min-width: 0;
+        height: 100%;
+        min-height: 0;
+        box-sizing: border-box;
       }
       ha-card {
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
         width: 100%;
         height: 100%;
+        min-height: 0;
+        box-sizing: border-box;
       }
       ha-card.full-height {
-        height: 100%;
         flex: 1;
         min-height: 0;
       }
       .card-content {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
         padding: 0;
         overflow: hidden;
         width: 100%;
+        box-sizing: border-box;
+      }
+      .filter-bar {
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 12px;
+        background: var(--ha-card-background, #1e1e1e);
+        border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.12));
+      }
+      .filter-chip {
+        padding: 4px 12px;
+        border-radius: 16px;
+        border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
+        background: var(--card-background-color, #2d2d2d);
+        color: var(--primary-text-color, #e1e1e1);
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
+      .filter-chip:hover {
+        border-color: var(--primary-color, #03a9f4);
+      }
+      .filter-chip.active {
+        background: var(--primary-color, #03a9f4);
+        border-color: var(--primary-color, #03a9f4);
+      }
+      .image-error {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--ha-card-background, #1e1e1e);
+        color: var(--secondary-text-color);
+        font-size: 0.9rem;
       }
       .image-wrapper {
         position: relative;
+        flex: 1;
+        min-height: 0;
         width: 100%;
         max-width: 100%;
         overflow: hidden;
-        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .plan-image {
         width: 100%;
         height: 100%;
         max-width: 100%;
+        max-height: 100%;
         object-fit: contain;
         object-position: center;
         display: block;
-        vertical-align: middle;
       }
       .image-skeleton {
         position: absolute;
