@@ -73,13 +73,15 @@ export class RoomPlanCardWrapper extends HTMLElement {
   }
 
   getCardSize() {
-    return this._config?.full_height ? 1 : 4;
+    /* Größerer Wert = mehr Zeilenhöhe; full_height: 1 = eine Zeile (nimmt Rest), sonst mehr Platz anfordern */
+    return this._config?.full_height ? 1 : 10;
   }
 
   getGridOptions() {
+    /* Mehr Zeilen/Spalten erlauben, damit die Karte mit der Viewport-Größe mitwächst */
     return this._config?.full_height
       ? { rows: 1, columns: 1, min_rows: 1, min_columns: 1 }
-      : { rows: 4, columns: 6, min_rows: 3, min_columns: 3 };
+      : { rows: 10, columns: 12, min_rows: 4, min_columns: 4 };
   }
 
   private _render() {
@@ -88,6 +90,14 @@ export class RoomPlanCardWrapper extends HTMLElement {
       return;
     }
     if (!this._hass) return;
+
+    /* Host soll Grid-Zelle voll ausfüllen und in Flex-Layouts mitwachsen */
+    this.style.display = 'block';
+    this.style.width = '100%';
+    this.style.height = '100%';
+    this.style.minHeight = '0';
+    this.style.flex = '1 1 0';
+    this.style.boxSizing = 'border-box';
 
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
