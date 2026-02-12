@@ -55,6 +55,10 @@ export class RoomPlanCard extends LitElement {
   @state() private _imageAspect = 16 / 9;
   /** Aktiver Tab: null = Alle, sonst Domain (nur einer aktiv) */
   @state() private _activeFilter: string | null = null;
+  /** Dark Mode (System/Theme), für Bild-Filter oder image_dark */
+  @state() private _darkMode = false;
+
+  private _darkModeMedia: MediaQueryList | null = null;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     return document.createElement(EDITOR_TAG);
@@ -88,6 +92,9 @@ export class RoomPlanCard extends LitElement {
       double_tap_action: config?.double_tap_action,
       entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
       temperature_zones: Array.isArray(config?.temperature_zones) ? config.temperature_zones : undefined,
+      image_dark: config?.image_dark,
+      dark_mode_filter: config?.dark_mode_filter,
+      dark_mode: config?.dark_mode,
     };
     const pf = config?.entity_filter;
     this._activeFilter = Array.isArray(pf) && pf.length === 1 ? pf[0] : null;
@@ -137,7 +144,8 @@ export class RoomPlanCard extends LitElement {
       changedProps.has('_activeFilter') ||
       changedProps.has('_imageLoaded') ||
       changedProps.has('_imageError') ||
-      changedProps.has('_imageAspect')
+      changedProps.has('_imageAspect') ||
+      changedProps.has('_darkMode')
     )
       return true;
     return hasConfigOrEntityChanged(this, changedProps, false);
@@ -147,8 +155,24 @@ export class RoomPlanCard extends LitElement {
     super.connectedCallback();
     if (this.closest('.element-preview')) {
       this.style.display = 'none';
+      return;
+    }
+    this._darkModeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+    this._darkMode = this._darkModeMedia.matches;
+    this._darkModeMedia.addEventListener('change', this._onDarkModeChange);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback?.();
+    if (this._darkModeMedia) {
+      this._darkModeMedia.removeEventListener('change', this._onDarkModeChange);
+      this._darkModeMedia = null;
     }
   }
+
+  private _onDarkModeChange = (ev: MediaQueryListEvent): void => {
+    this._darkMode = ev.matches;
+  };
 
   private _getEntityActionConfig(ent: RoomPlanEntity): {
     entity: string;
@@ -327,12 +351,18 @@ export class RoomPlanCard extends LitElement {
                 </div>
               `
             : ''}
+          ${(() => {
+            const useDark = this.config?.dark_mode !== undefined ? !!this.config.dark_mode : this._darkMode;
+            const darkFilter = useDark ? (this.config?.dark_mode_filter ?? 'brightness(0.88) contrast(1.05)') : 'none';
+            const imgSrc = useDark && this.config?.image_dark ? this.config.image_dark : img;
+            return html`
           <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
-            <div class="image-and-overlay" style="--image-aspect: ${this._imageAspect};">
+            <div class="image-and-overlay ${useDark ? 'dark' : ''}" style="--image-aspect: ${this._imageAspect}; --plan-dark-filter: ${darkFilter};">
               <img
-                src="${img}"
+                src="${imgSrc}"
                 alt="Raumplan"
                 class="plan-image"
+                style="filter: var(--plan-dark-filter, none);"
                 @load=${this._onImageLoad}
                 @error=${this._onImageError}
               />
@@ -350,6 +380,8 @@ export class RoomPlanCard extends LitElement {
               </div>
             </div>
           </div>
+            `;
+          })()}
         </div>
       </ha-card>
     `;

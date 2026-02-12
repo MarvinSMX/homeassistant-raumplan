@@ -42,6 +42,12 @@ export interface HeatmapZone {
 export interface RoomPlanCardConfig extends LovelaceCardConfig {
   type: string;
   image?: string;
+  /** Optional: anderes Bild im Dark Mode (z. B. invertierte SVG-URL) */
+  image_dark?: string;
+  /** Optional: CSS-Filter im Dark Mode (z. B. brightness(0.9) oder invert(1)) */
+  dark_mode_filter?: string;
+  /** Optional: Dark Mode erzwingen (true) oder Light (false); sonst System/Theme */
+  dark_mode?: boolean;
   title?: string;
   rotation?: number;
   /** Standard tap_action für alle Entitäten */

@@ -30,6 +30,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       entities: Array.isArray(base.entities) ? [...base.entities] : [],
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
       temperature_zones: Array.isArray(base.temperature_zones) ? [...base.temperature_zones] : undefined,
+      image_dark: base.image_dark,
+      dark_mode_filter: base.dark_mode_filter,
+      dark_mode: base.dark_mode,
     };
   }
 
@@ -104,6 +107,31 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
               </select>
             </div>
+          </div>
+          <div class="field">
+            <label>Dark Mode</label>
+            <select .value=${this._config.dark_mode === true ? 'dark' : this._config.dark_mode === false ? 'light' : 'auto'}
+              @change=${(e: Event) => {
+                const v = (e.target as HTMLSelectElement).value;
+                this._updateConfig({ dark_mode: v === 'auto' ? undefined : v === 'dark' });
+              }}>
+              <option value="auto">Auto (System/Theme)</option>
+              <option value="light">Immer Hell</option>
+              <option value="dark">Immer Dunkel</option>
+            </select>
+            <span class="hint">Auto nutzt die Systemeinstellung (prefers-color-scheme).</span>
+          </div>
+          <div class="field">
+            <label>Bild-URL (Dark Mode, optional)</label>
+            <input type="text" .value=${this._config.image_dark ?? ''} placeholder="z. B. /local/raumplan_dark.svg"
+              @change=${(e: Event) => this._updateConfig({ image_dark: (e.target as HTMLInputElement).value.trim() || undefined })} />
+            <span class="hint">Anderes Bild bei Dark Mode (z. B. invertierte SVG).</span>
+          </div>
+          <div class="field">
+            <label>CSS-Filter (Dark Mode, optional)</label>
+            <input type="text" .value=${this._config.dark_mode_filter ?? ''} placeholder="z. B. brightness(0.88) contrast(1.05)"
+              @change=${(e: Event) => this._updateConfig({ dark_mode_filter: (e.target as HTMLInputElement).value.trim() || undefined })} />
+            <span class="hint">Standard bei Auto: leichte Abdunklung. Für Inversion: <code>invert(1)</code>.</span>
           </div>
         </section>
         <section class="editor-section">
