@@ -73,6 +73,21 @@ card_mod:
 - **y: 0** = oben, **y: 100** = unten
 - Im Konfigurations-Editor: X/Y-Werte pro Entität eintragen
 
+## SVG-Schriften auf Mobilgeräten
+
+Wenn dein Raumplan eine **SVG-Datei** mit eigenen Schriften ist, können die Schriften auf **Mobilgeräten** fehlen (Desktop zeigt sie oft trotzdem). Das liegt daran, dass das SVG als Bild geladen wird und auf dem Handy keine externen Fonts nachgeladen werden.
+
+**Lösungen:**
+
+1. **System-Schrift in der SVG verwenden** (am zuverlässigsten):  
+   In der SVG z. B. `font-family="sans-serif"` oder `font-family="Arial, sans-serif"` setzen statt einer eigenen Schrift. Dann wird überall die System-Schrift genutzt.
+
+2. **Text in Pfade umwandeln**:  
+   In Inkscape/Illustrator: Text markieren → „Objekt → Objekt in Pfad umwandeln“ (bzw. „Create Outlines“). Danach ist kein Font mehr nötig, die „Buchstaben“ sind nur noch Formen.
+
+3. **Schrift in der SVG einbetten**:  
+   Die Font-Datei als Base64 in die SVG einbinden (z. B. per `<style>` mit `@font-face` und `url(data:font/woff2;base64,...)`). Erfordert etwas Aufwand, funktioniert dann aber auch auf Mobilgeräten.
+
 ## Nutzung
 
 1. Bild des Raumplans unter `config/www/` ablegen (z.B. `raumplan.png`)

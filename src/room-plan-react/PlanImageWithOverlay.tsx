@@ -1,9 +1,16 @@
+import { useState, useEffect, useRef } from 'preact/hooks';
 import type { RoomPlanCardConfig, RoomPlanEntity } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone } from './HeatmapZone';
 import { getEntityDomain } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
+
+/** SVG-Text mit Font-Fallback für Mobilgeräte: sans-serif in die SVG einfügen. */
+function svgWithFontFallback(svgText: string): string {
+  const style = '<defs><style>text,tspan{font-family:sans-serif !important}</style></defs>';
+  return svgText.replace(/<svg(\s[^>]*)?>/i, (m) => m + style);
+}
 
 interface PlanImageWithOverlayProps {
   config: RoomPlanCardConfig;
@@ -34,6 +41,71 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const useDark = config.dark_mode !== undefined ? !!config.dark_mode : (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const darkFilter = useDark ? (config.dark_mode_filter ?? 'brightness(0.88) contrast(1.05)') : 'none';
   const imgSrc = useDark && config.image_dark ? config.image_dark : img;
+
+  const [resolvedSrc, setResolvedSrc] = useState(imgSrc);
+  const blobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!imgSrc || typeof window === 'undefined') {
+      setResolvedSrc(imgSrc);
+      return;
+    }
+    const isSvg = imgSrc.toLowerCase().includes('.svg') || imgSrc.toLowerCase().startsWith('data:image/svg');
+    let sameOrigin = false;
+    try {
+      sameOrigin = new URL(imgSrc, window.location.href).origin === window.location.origin;
+    } catch {
+      sameOrigin = imgSrc.startsWith('/') || imgSrc.startsWith('./');
+    }
+    if (!isSvg || !sameOrigin) {
+      setResolvedSrc(imgSrc);
+      return;
+    }
+
+    const revokePrevious = () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+
+    const urlToFetch = imgSrc.startsWith('data:') ? imgSrc : (imgSrc.startsWith('/') ? `${window.location.origin}${imgSrc}` : imgSrc);
+    if (imgSrc.startsWith('data:')) {
+      try {
+        const base64 = imgSrc.split(',')[1];
+        if (base64) {
+          revokePrevious();
+          const decoded = atob(base64);
+          const modified = svgWithFontFallback(decoded);
+          const blob = new Blob([modified], { type: 'image/svg+xml' });
+          const url = URL.createObjectURL(blob);
+          blobUrlRef.current = url;
+          setResolvedSrc(url);
+        } else {
+          setResolvedSrc(imgSrc);
+        }
+      } catch {
+        setResolvedSrc(imgSrc);
+      }
+      return revokePrevious;
+    }
+
+    revokePrevious();
+    fetch(urlToFetch)
+      .then((r) => r.text())
+      .then((text) => {
+        revokePrevious();
+        const modified = svgWithFontFallback(text);
+        const blob = new Blob([modified], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        setResolvedSrc(url);
+      })
+      .catch(() => setResolvedSrc(imgSrc));
+
+    return revokePrevious;
+  }, [imgSrc]);
+
   const rotation = Number(config.rotation) ?? 0;
 
   const entities = config?.entities ?? [];
@@ -104,7 +176,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       <div style={fillBoxStyle}>
         <div style={fitBoxStyle}>
           <img
-            src={imgSrc}
+            src={resolvedSrc}
             alt="Raumplan"
             style={{
               position: 'absolute',

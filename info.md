@@ -14,4 +14,4 @@ Dieses Repository als Custom Repository in HACS unter **Frontend** hinzufügen, 
 4. Entitäten hinzufügen und in der Vorschau per Drag & Drop auf die richtigen Stellen ziehen.
 5. Speichern.
 
-Details siehe [README.md](README.md).
+**Hinweis SVGs:** Nutzt dein Raumplan eine SVG mit eigener Schrift, kann die Schrift auf Mobilgeräten fehlen. In der SVG am besten `font-family="sans-serif"` verwenden oder Text in Pfade umwandeln. Details siehe [README.md](README.md).
