@@ -1,5 +1,5 @@
 import type { HomeAssistant } from 'custom-card-helpers';
-import type { RoomPlanEntity, RoomBoundaryItem } from './types';
+import type { RoomPlanEntity, RoomBoundaryItem, RoomPlanCardConfig, RoomPlanRoom } from './types';
 
 export type RoomBoundary = RoomBoundaryItem;
 
@@ -36,6 +36,48 @@ export function getEntityBoundaries(ent: RoomPlanEntity): RoomBoundary[] {
     return [ent.room_boundary];
   }
   return [];
+}
+
+/** Liefert die Räume aus der Config (immer Array, ggf. leer). */
+export function getRooms(config: RoomPlanCardConfig | undefined): RoomPlanRoom[] {
+  if (!config || !Array.isArray(config.rooms)) return [];
+  return config.rooms;
+}
+
+/** Ein Eintrag in der flachen Entity-Liste inkl. Herkunft (Raum oder Legacy). */
+export interface FlattenedEntity {
+  entity: RoomPlanEntity;
+  roomIndex: number | null;
+  entityIndexInRoom: number;
+}
+
+/** Liefert alle Entities flach: aus rooms[].entities, oder bei leerem rooms aus config.entities (Legacy). */
+export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): FlattenedEntity[] {
+  const rooms = getRooms(config);
+  if (rooms.length > 0) {
+    return rooms.flatMap((room, roomIndex) =>
+      (room.entities ?? []).map((entity, entityIndexInRoom) => ({ entity, roomIndex, entityIndexInRoom }))
+    );
+  }
+  if (!config || !Array.isArray(config.entities)) return [];
+  return config.entities.map((entity, entityIndexInRoom) => ({ entity, roomIndex: null, entityIndexInRoom }));
+}
+
+/** Liefert die Boundaries für Heatmap/Abdunkeln: aus Raum (wenn in Raum), sonst von der Entität. Fensterkontakt nutzt weiterhin ent.room_boundaries (Linien). */
+export function getBoundariesForEntity(
+  config: RoomPlanCardConfig | undefined,
+  roomIndex: number | null,
+  ent: RoomPlanEntity
+): RoomBoundary[] {
+  if (ent.preset === 'window_contact') {
+    return getEntityBoundaries(ent);
+  }
+  if (roomIndex !== null) {
+    const rooms = getRooms(config);
+    const room = rooms[roomIndex];
+    if (room?.boundary && room.boundary.length > 0) return room.boundary;
+  }
+  return getEntityBoundaries(ent);
 }
 
 export function getEntityIcon(hass: HomeAssistant | undefined, entityId: string): string {

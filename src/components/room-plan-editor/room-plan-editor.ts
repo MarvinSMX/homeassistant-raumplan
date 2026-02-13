@@ -5,9 +5,9 @@ import { LitElement, html, css, type TemplateResult, type CSSResultGroup } from 
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-helpers';
 
-import type { RoomPlanCardConfig, RoomPlanEntity } from '../../lib/types';
+import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom } from '../../lib/types';
 import type { RoomBoundary } from '../../lib/utils';
-import { getFriendlyName, getEntityBoundaries, isPolygonBoundary } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -16,18 +16,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   @state() private _config: RoomPlanCardConfig = {
     type: '',
     image: '',
-    entities: [],
+    rooms: [],
   };
 
-  /** „Auf Plan einzeichnen“: wofür und Zeichen-Vorschau */
+  /** „Auf Plan einzeichnen“: roomIndex + entityIndex (in Raum) oder boundaryIndex (Raum-Zone). */
   @state() private _pickerFor:
-    | { type: 'position'; entityIndex: number }
-    | { type: 'rect'; entityIndex: number; boundaryIndex: number }
-    | { type: 'rectNew'; entityIndex: number }
-    | { type: 'polygon'; entityIndex: number; boundaryIndex: number }
-    | { type: 'polygonNew'; entityIndex: number }
-    | { type: 'line'; entityIndex: number; lineIndex: number }
-    | { type: 'lineNew'; entityIndex: number }
+    | { type: 'position'; roomIndex: number; entityIndex: number }
+    | { type: 'rect'; roomIndex: number; boundaryIndex: number }
+    | { type: 'rectNew'; roomIndex: number }
+    | { type: 'polygon'; roomIndex: number; boundaryIndex: number }
+    | { type: 'polygonNew'; roomIndex: number }
+    | { type: 'line'; roomIndex: number; entityIndex: number; lineIndex: number }
+    | { type: 'lineNew'; roomIndex: number; entityIndex: number }
     | null = null;
   @state() private _drawStart: { x: number; y: number } | null = null;
   @state() private _drawCurrent: { x: number; y: number } | null = null;
@@ -48,23 +48,27 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _pickerDocUp = () => this._onPickerDocUp();
 
   public setConfig(config: RoomPlanCardConfig): void {
-    const base = config ?? { type: '', image: '', entities: [] };
+    const base = config ?? { type: '', image: '', rooms: [] };
     const img =
       typeof base.image === 'string'
         ? base.image
         : ((base.image as { location?: string } | undefined)?.location ?? '');
-    const entities = Array.isArray(base.entities)
-      ? base.entities.map((ent) => {
-          if (ent.room_boundary && !(ent.room_boundaries?.length)) {
-            return { ...ent, room_boundaries: [ent.room_boundary!] };
-          }
-          return { ...ent };
-        })
-      : [];
+    let rooms = Array.isArray(base.rooms) ? base.rooms : [];
+    if (rooms.length === 0 && Array.isArray(base.entities) && base.entities.length > 0) {
+      const entities = base.entities.map((ent) => {
+        if (ent.room_boundary && !(ent.room_boundaries?.length)) {
+          return { ...ent, room_boundaries: [ent.room_boundary!] };
+        }
+        return { ...ent };
+      });
+      rooms = [{ name: '', boundary: [], entities }];
+    }
+    if (rooms.length === 0) rooms = [{ name: '', boundary: [], entities: [] }];
     this._config = {
       ...base,
       image: img,
-      entities,
+      rooms,
+      entities: undefined,
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
       temperature_zones: Array.isArray(base.temperature_zones) ? [...base.temperature_zones] : undefined,
       alert_entities: Array.isArray(base.alert_entities) ? base.alert_entities : undefined,
@@ -84,62 +88,159 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._emitConfig();
   }
 
-  private _updateEntity(index: number, updates: Partial<RoomPlanEntity>): void {
-    const entities = [...(this._config.entities ?? [])];
-    entities[index] = { ...entities[index], ...updates };
-    this._updateConfig({ entities });
+  private _getRooms(): RoomPlanRoom[] {
+    return getRooms(this._config);
   }
 
-  private _removeEntity(index: number): void {
-    const entities = [...(this._config.entities ?? [])];
-    entities.splice(index, 1);
-    this._updateConfig({ entities });
+  private _updateRoom(roomIndex: number, updates: Partial<RoomPlanRoom>): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    rooms[roomIndex] = { ...rooms[roomIndex], ...updates };
+    this._updateConfig({ rooms });
   }
 
-  private _addEntity(): void {
-    const entities = [...(this._config.entities ?? []), { entity: '', x: 50, y: 50 }];
-    this._updateConfig({ entities });
+  private _addRoom(): void {
+    const rooms = [...this._getRooms(), { name: '', boundary: [], entities: [] }];
+    this._updateConfig({ rooms });
   }
 
-  private _updateEntityBoundary(entityIndex: number, boundaryIndex: number, updates: Partial<RoomBoundary>): void {
-    const entities = [...(this._config.entities ?? [])];
+  private _removeRoom(roomIndex: number): void {
+    const rooms = this._getRooms().filter((_, i) => i !== roomIndex);
+    this._updateConfig({ rooms: rooms.length ? rooms : [{ name: '', boundary: [], entities: [] }] });
+  }
+
+  private _getRoomEntities(roomIndex: number): RoomPlanEntity[] {
+    const rooms = this._getRooms();
+    const room = rooms[roomIndex];
+    return room?.entities ?? [];
+  }
+
+  private _updateRoomEntity(roomIndex: number, entityIndex: number, updates: Partial<RoomPlanEntity>): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const entities = [...(rooms[roomIndex].entities ?? [])];
+    if (entityIndex >= entities.length) return;
+    entities[entityIndex] = { ...entities[entityIndex], ...updates };
+    rooms[roomIndex] = { ...rooms[roomIndex], entities };
+    this._updateConfig({ rooms });
+  }
+
+  private _removeRoomEntity(roomIndex: number, entityIndex: number): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const entities = rooms[roomIndex].entities?.filter((_, i) => i !== entityIndex) ?? [];
+    rooms[roomIndex] = { ...rooms[roomIndex], entities };
+    this._updateConfig({ rooms });
+  }
+
+  private _addRoomEntity(roomIndex: number): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const entities = [...(rooms[roomIndex].entities ?? []), { entity: '', x: 50, y: 50 }];
+    rooms[roomIndex] = { ...rooms[roomIndex], entities };
+    this._updateConfig({ rooms });
+  }
+
+  private _getRoomBoundaries(roomIndex: number): RoomBoundary[] {
+    const rooms = this._getRooms();
+    const room = rooms[roomIndex];
+    return Array.isArray(room?.boundary) ? room.boundary : [];
+  }
+
+  private _updateRoomBoundary(roomIndex: number, boundaryIndex: number, updates: Partial<RoomBoundary>): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const list = [...this._getRoomBoundaries(roomIndex)];
+    if (boundaryIndex >= list.length) return;
+    list[boundaryIndex] = { ...list[boundaryIndex], ...updates };
+    rooms[roomIndex] = { ...rooms[roomIndex], boundary: list };
+    this._updateConfig({ rooms });
+  }
+
+  private _addRoomBoundary(roomIndex: number, isTemperature: boolean): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const list = [...this._getRoomBoundaries(roomIndex)];
+    list.push(isTemperature ? { x1: 10, y1: 10, x2: 40, y2: 40, opacity: 0.4 } : { x1: 0, y1: 0, x2: 100, y2: 0 });
+    rooms[roomIndex] = { ...rooms[roomIndex], boundary: list };
+    this._updateConfig({ rooms });
+  }
+
+  private _addRoomBoundaryPolygon(roomIndex: number, points: { x: number; y: number }[]): void {
+    if (points.length < 3) return;
+    const round = (v: number) => Math.round(v * 10) / 10;
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const list = [...this._getRoomBoundaries(roomIndex)];
+    list.push({ points: points.map((p) => ({ x: round(p.x), y: round(p.y) })), opacity: 0.4 });
+    rooms[roomIndex] = { ...rooms[roomIndex], boundary: list };
+    this._updateConfig({ rooms });
+  }
+
+  private _removeRoomBoundary(roomIndex: number, boundaryIndex: number): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const list = this._getRoomBoundaries(roomIndex).filter((_, i) => i !== boundaryIndex);
+    rooms[roomIndex] = { ...rooms[roomIndex], boundary: list };
+    this._updateConfig({ rooms });
+  }
+
+  /** Entity-Boundary (Fensterkontakt-Linien) – bleibt an der Entität. */
+  private _updateEntityBoundary(roomIndex: number, entityIndex: number, boundaryIndex: number, updates: Partial<RoomBoundary>): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const entities = [...(rooms[roomIndex].entities ?? [])];
     const ent = entities[entityIndex];
-    const list = [...(getEntityBoundaries(ent))];
+    if (!ent) return;
+    const list = [...getEntityBoundaries(ent)];
     if (boundaryIndex >= list.length) return;
     list[boundaryIndex] = { ...list[boundaryIndex], ...updates };
     entities[entityIndex] = { ...ent, room_boundaries: list };
-    this._updateConfig({ entities });
+    rooms[roomIndex] = { ...rooms[roomIndex], entities };
+    this._updateConfig({ rooms });
   }
 
-  private _addEntityBoundary(entityIndex: number, isTemperature: boolean): void {
-    const entities = [...(this._config.entities ?? [])];
+  private _addEntityBoundary(roomIndex: number, entityIndex: number, isTemperature: boolean): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const entities = [...(rooms[roomIndex].entities ?? [])];
     const ent = entities[entityIndex];
+    if (!ent) return;
     const list = [...getEntityBoundaries(ent)];
     list.push(isTemperature ? { x1: 10, y1: 10, x2: 40, y2: 40, opacity: 0.4 } : { x1: 0, y1: 0, x2: 100, y2: 0 });
     entities[entityIndex] = { ...ent, room_boundaries: list };
-    this._updateConfig({ entities });
+    rooms[roomIndex] = { ...rooms[roomIndex], entities };
+    this._updateConfig({ rooms });
   }
 
-  private _addEntityBoundaryPolygon(entityIndex: number, points: { x: number; y: number }[]): void {
+  private _addEntityBoundaryPolygon(roomIndex: number, entityIndex: number, points: { x: number; y: number }[]): void {
     if (points.length < 3) return;
     const round = (v: number) => Math.round(v * 10) / 10;
-    const entities = [...(this._config.entities ?? [])];
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const entities = [...(rooms[roomIndex].entities ?? [])];
     const ent = entities[entityIndex];
+    if (!ent) return;
     const list = [...getEntityBoundaries(ent)];
     list.push({ points: points.map((p) => ({ x: round(p.x), y: round(p.y) })), opacity: 0.4 });
     entities[entityIndex] = { ...ent, room_boundaries: list };
-    this._updateConfig({ entities });
+    rooms[roomIndex] = { ...rooms[roomIndex], entities };
+    this._updateConfig({ rooms });
   }
 
-  private _removeEntityBoundary(entityIndex: number, boundaryIndex: number): void {
-    const entities = [...(this._config.entities ?? [])];
+  private _removeEntityBoundary(roomIndex: number, entityIndex: number, boundaryIndex: number): void {
+    const rooms = [...this._getRooms()];
+    if (roomIndex >= rooms.length) return;
+    const entities = [...(rooms[roomIndex].entities ?? [])];
     const ent = entities[entityIndex];
+    if (!ent) return;
     const list = getEntityBoundaries(ent);
     if (boundaryIndex >= list.length) return;
     const next = list.filter((_, i) => i !== boundaryIndex);
     const updated = next.length ? { ...ent, room_boundaries: next } : { ...ent, room_boundaries: undefined, room_boundary: undefined };
     entities[entityIndex] = updated;
-    this._updateConfig({ entities });
+    rooms[roomIndex] = { ...rooms[roomIndex], entities };
+    this._updateConfig({ rooms });
   }
 
   /** Koordinaten in % aus Klick/Drag relativ zum Plan-Bild (object-fit: contain) */
@@ -192,41 +293,39 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     return { x, y };
   }
 
-  private _openPickerPosition(entityIndex: number): void {
-    this._pickerFor = { type: 'position', entityIndex };
+  private _openPickerPosition(roomIndex: number, entityIndex: number): void {
+    this._pickerFor = { type: 'position', roomIndex, entityIndex };
     this._drawStart = null;
     this._drawCurrent = null;
   }
 
-  private _openPickerRect(entityIndex: number, boundaryIndex?: number): void {
+  private _openPickerRect(roomIndex: number, boundaryIndex?: number): void {
     this._pickerFor =
       boundaryIndex !== undefined
-        ? { type: 'rect', entityIndex, boundaryIndex }
-        : { type: 'rectNew', entityIndex };
+        ? { type: 'rect', roomIndex, boundaryIndex }
+        : { type: 'rectNew', roomIndex };
     this._drawStart = null;
     this._drawCurrent = null;
   }
 
-  private _openPickerLine(entityIndex: number, lineIndex?: number): void {
+  private _openPickerLine(roomIndex: number, entityIndex: number, lineIndex?: number): void {
     this._pickerFor =
       lineIndex !== undefined
-        ? { type: 'line', entityIndex, lineIndex }
-        : { type: 'lineNew', entityIndex };
+        ? { type: 'line', roomIndex, entityIndex, lineIndex }
+        : { type: 'lineNew', roomIndex, entityIndex };
     this._drawStart = null;
     this._drawCurrent = null;
   }
 
-  private _openPickerPolygon(entityIndex: number, boundaryIndex?: number): void {
+  private _openPickerPolygon(roomIndex: number, boundaryIndex?: number): void {
     if (boundaryIndex !== undefined) {
-      const ent = this._config.entities?.[entityIndex];
-      if (!ent) return;
-      const list = getEntityBoundaries(ent);
+      const list = this._getRoomBoundaries(roomIndex);
       const b = list[boundaryIndex];
       this._pickerPolygonPoints = isPolygonBoundary(b) ? b.points.map((p) => ({ ...p })) : [];
-      this._pickerFor = { type: 'polygon', entityIndex, boundaryIndex };
+      this._pickerFor = { type: 'polygon', roomIndex, boundaryIndex };
     } else {
       this._pickerPolygonPoints = [];
-      this._pickerFor = { type: 'polygonNew', entityIndex };
+      this._pickerFor = { type: 'polygonNew', roomIndex };
     }
     this._drawStart = null;
     this._drawCurrent = null;
@@ -287,10 +386,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     if (this._pickerPolygonPoints.length < 3) return;
     const round = (v: number) => Math.round(v * 10) / 10;
     const points = this._pickerPolygonPoints.map((p) => ({ x: round(p.x), y: round(p.y) }));
+    const roomIndex = this._pickerFor.roomIndex;
     if (this._pickerFor.type === 'polygon') {
-      this._updateEntityBoundary(this._pickerFor.entityIndex, this._pickerFor.boundaryIndex, { points });
+      this._updateRoomBoundary(roomIndex, this._pickerFor.boundaryIndex, { points });
     } else {
-      this._addEntityBoundaryPolygon(this._pickerFor.entityIndex, points);
+      this._addRoomBoundaryPolygon(roomIndex, points);
     }
     this._closePicker();
   }
@@ -298,16 +398,16 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _onPickerDocMove(e: MouseEvent): void {
     const p = this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerDrag || !this._pickerFor) return;
-    const entityIndex = this._pickerFor.entityIndex;
-    const ent = this._config.entities?.[entityIndex];
-    if (!ent) return;
+    const roomIndex = this._pickerFor.roomIndex;
     const round = (v: number) => Math.round(v * 10) / 10;
-    if (this._pickerDrag.kind === 'position') {
-      this._updateEntity(entityIndex, { x: round(p.x), y: round(p.y) });
+    if (this._pickerDrag.kind === 'position' && this._pickerFor.type === 'position') {
+      const entityIndex = this._pickerFor.entityIndex;
+      this._updateRoomEntity(roomIndex, entityIndex, { x: round(p.x), y: round(p.y) });
       return;
     }
-    const boundaries = getEntityBoundaries(ent);
-    if (this._pickerDrag.kind === 'rect' && this._pickerDrag.boundaryIndex < boundaries.length) {
+    if (this._pickerDrag.kind === 'rect') {
+      const boundaries = this._getRoomBoundaries(roomIndex);
+      if (this._pickerDrag.boundaryIndex >= boundaries.length) return;
       const b = boundaries[this._pickerDrag.boundaryIndex] as { x1?: number; y1?: number; x2?: number; y2?: number };
       const x1 = this._pickerDrag.corner === 0 ? p.x : (b.x1 ?? 0);
       const y1 = this._pickerDrag.corner === 0 ? p.y : (b.y1 ?? 0);
@@ -317,7 +417,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       const ry1 = Math.min(y1, y2);
       const rx2 = Math.max(x1, x2);
       const ry2 = Math.max(y1, y2);
-      this._updateEntityBoundary(entityIndex, this._pickerDrag.boundaryIndex, {
+      this._updateRoomBoundary(roomIndex, this._pickerDrag.boundaryIndex, {
         x1: round(rx1),
         y1: round(ry1),
         x2: round(rx2),
@@ -325,13 +425,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       });
       return;
     }
-    if (this._pickerDrag.kind === 'line' && this._pickerDrag.lineIndex < boundaries.length) {
+    if (this._pickerDrag.kind === 'line' && this._pickerFor.type === 'line') {
+      const entityIndex = this._pickerFor.entityIndex;
+      const ent = this._getRoomEntities(roomIndex)[entityIndex];
+      if (!ent) return;
+      const boundaries = getEntityBoundaries(ent);
+      if (this._pickerDrag.lineIndex >= boundaries.length) return;
       const b = boundaries[this._pickerDrag.lineIndex] as { x1?: number; y1?: number; x2?: number; y2?: number };
       const x1 = this._pickerDrag.end === 0 ? p.x : (b.x1 ?? 0);
       const y1 = this._pickerDrag.end === 0 ? p.y : (b.y1 ?? 0);
       const x2 = this._pickerDrag.end === 1 ? p.x : (b.x2 ?? 0);
       const y2 = this._pickerDrag.end === 1 ? p.y : (b.y2 ?? 0);
-      this._updateEntityBoundary(entityIndex, this._pickerDrag.lineIndex, {
+      this._updateEntityBoundary(roomIndex, entityIndex, this._pickerDrag.lineIndex, {
         x1: round(x1),
         y1: round(y1),
         x2: round(x2),
@@ -345,7 +450,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       if (idx >= 0 && idx < pts.length) {
         pts[idx] = { x: round(p.x), y: round(p.y) };
         this._pickerPolygonPoints = pts;
-        this._updateEntityBoundary(entityIndex, this._pickerDrag.boundaryIndex, { points: pts });
+        this._updateRoomBoundary(roomIndex, this._pickerDrag.boundaryIndex, { points: pts });
       }
     }
   }
@@ -392,8 +497,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     e.preventDefault();
     const p = this._getPercentFromEvent(e) ?? this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerFor) return;
+    const roomIndex = this._pickerFor.roomIndex;
     if (this._pickerFor.type === 'position') {
-      this._updateEntity(this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
+      this._updateRoomEntity(roomIndex, this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
       this._closePicker();
       return;
     }
@@ -421,13 +527,13 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       const x2 = p.x;
       const y2 = p.y;
       if (this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew') {
+        const entityIndex = this._pickerFor.entityIndex;
         if (this._pickerFor.type === 'line') {
-          this._updateEntityBoundary(this._pickerFor.entityIndex, this._pickerFor.lineIndex, { x1, y1, x2, y2 });
+          this._updateEntityBoundary(roomIndex, entityIndex, this._pickerFor.lineIndex, { x1, y1, x2, y2 });
         } else {
-          this._addEntityBoundary(this._pickerFor.entityIndex, false);
-          const ent = this._config.entities?.[this._pickerFor.entityIndex];
-          const list = ent ? getEntityBoundaries(ent) : [];
-          this._updateEntityBoundary(this._pickerFor.entityIndex, list.length - 1, { x1, y1, x2, y2 });
+          this._addEntityBoundary(roomIndex, entityIndex, false);
+          const list = getEntityBoundaries(this._getRoomEntities(roomIndex)[entityIndex]!);
+          this._updateEntityBoundary(roomIndex, entityIndex, list.length - 1, { x1, y1, x2, y2 });
         }
       } else {
         const rx1 = Math.min(x1, x2);
@@ -440,7 +546,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           return;
         }
         if (this._pickerFor.type === 'rect') {
-          this._updateEntityBoundary(this._pickerFor.entityIndex, this._pickerFor.boundaryIndex, {
+          this._updateRoomBoundary(roomIndex, this._pickerFor.boundaryIndex, {
             x1: rx1,
             y1: ry1,
             x2: rx2,
@@ -448,10 +554,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             opacity: 0.4,
           });
         } else {
-          this._addEntityBoundary(this._pickerFor.entityIndex, true);
-          const ent = this._config.entities?.[this._pickerFor.entityIndex];
-          const list = ent ? getEntityBoundaries(ent) : [];
-          this._updateEntityBoundary(this._pickerFor.entityIndex, list.length - 1, {
+          this._addRoomBoundary(roomIndex, true);
+          const list = this._getRoomBoundaries(roomIndex);
+          this._updateRoomBoundary(roomIndex, list.length - 1, {
             x1: rx1,
             y1: ry1,
             x2: rx2,
@@ -515,11 +620,20 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const img = typeof this._config.image === 'string' ? this._config.image : '';
     const title = this._config.title ?? '';
     const rotation = Number(this._config.rotation) ?? 0;
-    const entities = this._config.entities ?? [];
+    const rooms = this._getRooms();
     const entityIds = this.hass?.states ? Object.keys(this.hass.states).sort() : [];
 
-    const pickerEntity = this._pickerFor ? this._config.entities?.[this._pickerFor.entityIndex] : null;
-    const pickerBoundaries = pickerEntity ? getEntityBoundaries(pickerEntity) : [];
+    let pickerEntity: RoomPlanEntity | null = null;
+    let pickerBoundaries: RoomBoundary[] = [];
+    if (this._pickerFor) {
+      const ri = this._pickerFor.roomIndex;
+      if (this._pickerFor.type === 'position' || this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew') {
+        pickerEntity = this._getRoomEntities(ri)[this._pickerFor.entityIndex] ?? null;
+        pickerBoundaries = pickerEntity ? getEntityBoundaries(pickerEntity) : [];
+      } else {
+        pickerBoundaries = this._getRoomBoundaries(ri);
+      }
+    }
 
     return html`
       <div class="editor">
@@ -684,43 +798,27 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           </div>
         </section>
         <section class="editor-section">
-          <h4 class="section-title"><ha-icon icon="mdi:map-marker"></ha-icon> Entitäten</h4>
-          <p class="section-hint">X/Y = Position (0–100), Skalierung, Icon optional (z.B. mdi:lightbulb).</p>
-          <div class="entity-list">
-            ${entities.map((ent, i) => html`
-              <div class="entity-row">
-                <input type="text" list="rp-entities-${i}" .value=${ent.entity} placeholder="light.wohnzimmer"
-                  @change=${(e: Event) => this._updateEntity(i, { entity: (e.target as HTMLInputElement).value.trim() })} />
-                <datalist id="rp-entities-${i}">
-                  ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass, eid)}</option>`)}
-                </datalist>
-                <input type="text" class="entity-icon" .value=${ent.icon ?? ''} placeholder="Icon (mdi:...)"
-                  title="Icon (optional)"
-                  @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateEntity(i, { icon: v || undefined }); }} />
-                <select class="entity-preset" title="Preset"
-                  .value=${ent.preset ?? 'default'}
-                  @change=${(e: Event) => {
-                    const preset = (e.target as HTMLSelectElement).value as RoomPlanEntity['preset'];
-                    this._updateEntity(i, preset === 'smoke_detector' ? { preset, show_name: false } : { preset });
-                  }}>
-                  <option value="default">Standard</option>
-                  <option value="temperature">Temperatur</option>
-                  <option value="binary_sensor">Binary Sensor</option>
-                  <option value="window_contact">Fensterkontakt</option>
-                  <option value="smoke_detector">Rauchmelder</option>
-                </select>
-                ${(ent.preset === 'temperature') ? html`
-                <div class="entity-boundaries" title="Raum-/Heatmap-Zonen: Rechteck oder Polygon (beliebig viele Ecken)">
-                  <span class="boundaries-label">Zonen:</span>
-                  ${getEntityBoundaries(ent).map((b, bi) => {
+          <h4 class="section-title"><ha-icon icon="mdi:door-open"></ha-icon> Räume</h4>
+          <p class="section-hint">Jeder Raum hat eine Boundary (Heatmap/Abdunkeln). Darin liegende Entities (Temperatur, Licht etc.) nutzen diese.</p>
+          <div class="room-list">
+            ${rooms.map((room, ri) => html`
+              <div class="room-block">
+                <div class="room-header">
+                  <input type="text" class="room-name" .value=${room.name ?? ''} placeholder="Raumname (optional)"
+                    @change=${(e: Event) => this._updateRoom(ri, { name: (e.target as HTMLInputElement).value.trim() || undefined })} />
+                  <button type="button" class="btn-remove" @click=${() => this._removeRoom(ri)} title="Raum entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                </div>
+                <div class="room-boundaries" title="Grenze / Heatmap-Zone dieses Raums (Rechteck oder Polygon)">
+                  <span class="boundaries-label">Boundary (Raum/Heatmap):</span>
+                  ${this._getRoomBoundaries(ri).map((b, bi) => {
                     if (isPolygonBoundary(b)) {
                       return html`
                     <div class="entity-coords room-boundary">
                       <span class="boundary-type">Polygon (${b.points.length} Ecken)</span>
                       <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(b.opacity) ?? 0.4)))} title="Deckkraft"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
-                      <button type="button" class="btn-draw" @click=${() => this._openPickerPolygon(i, bi)} title="Polygon bearbeiten"><ha-icon icon="mdi:vector-polygon"></ha-icon></button>
-                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                        @change=${(e: Event) => this._updateRoomBoundary(ri, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerPolygon(ri, bi)} title="Polygon bearbeiten"><ha-icon icon="mdi:vector-polygon"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeRoomBoundary(ri, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                     </div>
                   `;
                     }
@@ -728,27 +826,49 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     return html`
                     <div class="entity-coords room-boundary">
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.x1) ?? 0)} placeholder="x1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                        @change=${(e: Event) => this._updateRoomBoundary(ri, bi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.y1) ?? 0)} placeholder="y1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                        @change=${(e: Event) => this._updateRoomBoundary(ri, bi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.x2) ?? 100)} placeholder="x2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                        @change=${(e: Event) => this._updateRoomBoundary(ri, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.y2) ?? 100)} placeholder="y2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                        @change=${(e: Event) => this._updateRoomBoundary(ri, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                       <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(r.opacity) ?? 0.4)))} title="Deckkraft"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
-                      <button type="button" class="btn-draw" @click=${() => this._openPickerRect(i, bi)} title="Rechteck bearbeiten"><ha-icon icon="mdi:draw"></ha-icon></button>
-                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                        @change=${(e: Event) => this._updateRoomBoundary(ri, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerRect(ri, bi)} title="Rechteck bearbeiten"><ha-icon icon="mdi:draw"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeRoomBoundary(ri, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                     </div>
                   `;
                   })}
-                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, true)} title="Rechteck-Zone hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
-                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerRect(i)} title="Neues Rechteck zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Rechteck</button>
-                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerPolygon(i)} title="Neues Polygon zeichnen (beliebig viele Ecken)"><ha-icon icon="mdi:vector-polygon"></ha-icon> Polygon</button>
+                  <button type="button" class="btn-add-small" @click=${() => this._addRoomBoundary(ri, true)} title="Rechteck-Zone"><ha-icon icon="mdi:plus"></ha-icon></button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerRect(ri)} title="Rechteck zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Rechteck</button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerPolygon(ri)} title="Polygon zeichnen"><ha-icon icon="mdi:vector-polygon"></ha-icon> Polygon</button>
                 </div>
-                ` : ''}
+                <div class="room-entities">
+                  <span class="boundaries-label">Entitäten im Raum:</span>
+                  ${(room.entities ?? []).map((ent, ei) => html`
+              <div class="entity-row">
+                <input type="text" list="rp-entities-${ri}-${ei}" .value=${ent.entity} placeholder="light.wohnzimmer"
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { entity: (e.target as HTMLInputElement).value.trim() })} />
+                <datalist id="rp-entities-${ri}-${ei}">
+                  ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass, eid)}</option>`)}
+                </datalist>
+                <input type="text" class="entity-icon" .value=${ent.icon ?? ''} placeholder="Icon (mdi:...)"
+                  @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateRoomEntity(ri, ei, { icon: v || undefined }); }} />
+                <select class="entity-preset" .value=${ent.preset ?? 'default'}
+                  @change=${(e: Event) => {
+                    const preset = (e.target as HTMLSelectElement).value as RoomPlanEntity['preset'];
+                    this._updateRoomEntity(ri, ei, preset === 'smoke_detector' ? { preset, show_name: false } : { preset });
+                  }}>
+                  <option value="default">Standard</option>
+                  <option value="temperature">Temperatur</option>
+                  <option value="binary_sensor">Binary Sensor</option>
+                  <option value="window_contact">Fensterkontakt</option>
+                  <option value="smoke_detector">Rauchmelder</option>
+                </select>
+                ${(ent.preset === 'temperature') ? html`<span class="hint-inline">(nutzt Raumboundary)</span>` : ''}
                 ${(ent.preset === 'window_contact') ? html`
-                <div class="entity-boundaries" title="Linien (x1,y1)→(x2,y2) in %, mehrere pro Entität möglich">
+                <div class="entity-boundaries">
                   <span class="boundaries-label">Linien:</span>
                   ${getEntityBoundaries(ent).filter((b) => !isPolygonBoundary(b)).map((b, bi) => {
                     const br = b as { x1: number; y1: number; x2: number; y2: number };
@@ -757,59 +877,53 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     return html`
                     <div class="entity-coords room-boundary">
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.x1) ?? 0)} placeholder="x1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.y1) ?? 0)} placeholder="y1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.x2) ?? 100)} placeholder="x2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.y2) ?? 100)} placeholder="y2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                      <button type="button" class="btn-draw" @click=${() => this._openPickerLine(i, realIndex)} title="Linie auf Plan einzeichnen"><ha-icon icon="mdi:draw"></ha-icon></button>
-                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, realIndex)} title="Linie entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerLine(ri, ei, realIndex)} title="Linie bearbeiten"><ha-icon icon="mdi:draw"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(ri, ei, realIndex)} title="Linie entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                     </div>
                   `;
                   })}
-                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, false)} title="Linie hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
-                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerLine(i)} title="Neue Linie durch Zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Zeichnen</button>
+                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(ri, ei, false)} title="Linie hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerLine(ri, ei)} title="Linie zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Zeichnen</button>
                 </div>
                 <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
-                  @change=${(e: Event) => this._updateEntity(i, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
-                <input type="color" .value=${ent.line_color_open ?? '#f44336'} title="Farbe wenn offen"
-                  @change=${(e: Event) => this._updateEntity(i, { line_color_open: (e.target as HTMLInputElement).value })} />
-                <input type="color" .value=${ent.line_color_closed ?? '#9e9e9e'} title="Farbe wenn zu"
-                  @change=${(e: Event) => this._updateEntity(i, { line_color_closed: (e.target as HTMLInputElement).value })} />
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
+                <input type="color" .value=${ent.line_color_open ?? '#f44336'} title="Farbe offen"
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_open: (e.target as HTMLInputElement).value })} />
+                <input type="color" .value=${ent.line_color_closed ?? '#9e9e9e'} title="Farbe zu"
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_closed: (e.target as HTMLInputElement).value })} />
                 ` : ''}
                 <div class="entity-coords">
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
-                    @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
+                    @change=${(e: Event) => this._updateRoomEntity(ri, ei, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
-                    @change=${(e: Event) => this._updateEntity(i, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
-                  <button type="button" class="btn-draw" @click=${() => this._openPickerPosition(i)} title="Position auf Plan klicken"><ha-icon icon="mdi:crosshairs-gps"></ha-icon></button>
+                    @change=${(e: Event) => this._updateRoomEntity(ri, ei, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
+                  <button type="button" class="btn-draw" @click=${() => this._openPickerPosition(ri, ei)} title="Position"><ha-icon icon="mdi:crosshairs-gps"></ha-icon></button>
                 </div>
                 <input type="number" class="entity-scale" min="0.3" max="2" step="0.1" .value=${String(Math.min(2, Math.max(0.3, Number(ent.scale) || 1)))} title="Skalierung"
-                  @change=${(e: Event) => this._updateEntity(i, { scale: Math.min(2, Math.max(0.3, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { scale: Math.min(2, Math.max(0.3, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
                 <input type="color" .value=${ent.color || '#03a9f4'} title="Farbe"
-                  @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value; this._updateEntity(i, { color: v === '#03a9f4' && !ent.color ? undefined : v }); }} />
+                  @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value; this._updateRoomEntity(ri, ei, { color: v === '#03a9f4' && !ent.color ? undefined : v }); }} />
                 <input type="number" class="entity-opacity" min="0" max="1" step="0.01" .value=${String(Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1)))} title="Deckkraft"
-                  @change=${(e: Event) => this._updateEntity(i, { background_opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
-                <label class="entity-check">
-                  <input type="checkbox" .checked=${!!ent.show_value} title="Wert anzeigen"
-                    @change=${(e: Event) => this._updateEntity(i, { show_value: (e.target as HTMLInputElement).checked })} />
-                  Wert
-                </label>
-                <label class="entity-check">
-                  <input type="checkbox" .checked=${ent.show_name !== false} title="Text (Name) anzeigen"
-                    @change=${(e: Event) => this._updateEntity(i, { show_name: (e.target as HTMLInputElement).checked })} />
-                  Text
-                </label>
-                <button type="button" class="btn-remove" @click=${() => this._removeEntity(i)} title="Entfernen">
-                  <ha-icon icon="mdi:delete-outline"></ha-icon>
-                </button>
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { background_opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
+                <label class="entity-check"><input type="checkbox" .checked=${!!ent.show_value} @change=${(e: Event) => this._updateRoomEntity(ri, ei, { show_value: (e.target as HTMLInputElement).checked })} /> Wert</label>
+                <label class="entity-check"><input type="checkbox" .checked=${ent.show_name !== false} @change=${(e: Event) => this._updateRoomEntity(ri, ei, { show_name: (e.target as HTMLInputElement).checked })} /> Text</label>
+                <button type="button" class="btn-remove" @click=${() => this._removeRoomEntity(ri, ei)} title="Entität entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+              </div>
+            `)}
+                </div>
+                <button type="button" class="btn-add-small" @click=${() => this._addRoomEntity(ri)}><ha-icon icon="mdi:plus"></ha-icon> Entität in Raum</button>
               </div>
             `)}
           </div>
-          <button type="button" class="btn-add" @click=${this._addEntity}>
-            <ha-icon icon="mdi:plus"></ha-icon> Entität hinzufügen
+          <button type="button" class="btn-add" @click=${this._addRoom}>
+            <ha-icon icon="mdi:plus"></ha-icon> Raum hinzufügen
           </button>
         </section>
         <section class="editor-section heatmap-legacy">
@@ -976,6 +1090,41 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         padding: 2px 6px;
         border-radius: 4px;
         font-size: 0.75rem;
+      }
+      .room-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .room-block {
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-radius: 10px;
+        padding: 12px;
+        background: var(--secondary-background-color, rgba(255, 255, 255, 0.05));
+      }
+      .room-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .room-header .room-name {
+        flex: 1;
+        min-width: 0;
+        font-weight: 500;
+      }
+      .room-boundaries {
+        margin-bottom: 12px;
+      }
+      .room-entities {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .hint-inline {
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+        margin-left: 4px;
       }
       .entity-list {
         display: flex;

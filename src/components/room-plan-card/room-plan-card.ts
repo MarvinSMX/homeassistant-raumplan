@@ -17,7 +17,7 @@ import {
 import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getBoundariesForEntity } from '../../lib/utils';
 import { actionHandler } from '../../lib/action-handler';
 
 import '../room-plan-editor/room-plan-editor';
@@ -80,6 +80,7 @@ export class RoomPlanCard extends LitElement {
       type: config?.type ?? 'custom:room-plan-card',
       image: img,
       entities: Array.isArray(config?.entities) ? config.entities : [],
+      rooms: Array.isArray(config?.rooms) ? config.rooms : undefined,
       title: config?.title ?? '',
       rotation: Number(config?.rotation) ?? 0,
       full_height: config?.full_height ?? false,
@@ -107,14 +108,16 @@ export class RoomPlanCard extends LitElement {
   }
 
   private _filteredEntities(): RoomPlanEntity[] {
-    const entities = this.config?.entities ?? [];
+    const flattened = getFlattenedEntities(this.config);
+    const entities = flattened.map((f) => f.entity);
     if (this._activeFilter === HEATMAP_TAB) return []; // Nur Heatmap anzeigen
     if (this._activeFilter === null || this._activeFilter === '') return entities;
     return entities.filter((ent) => this._getEntityDomain(ent.entity) === this._activeFilter);
   }
 
   private _availableDomains(): string[] {
-    const entities = this.config?.entities ?? [];
+    const flattened = getFlattenedEntities(this.config);
+    const entities = flattened.map((f) => f.entity);
     const doms = new Set<string>();
     entities.forEach((e) => {
       const d = this._getEntityDomain(e.entity);
@@ -413,9 +416,11 @@ export class RoomPlanCard extends LitElement {
             <div class="image-and-overlay ${useDark ? 'dark' : ''}" style="--image-aspect: ${this._imageAspect}; --plan-dark-filter: ${darkFilter};">
               ${(() => {
                 const fromEntities: HeatmapZone[] = [];
-                for (const ent of this.config?.entities ?? []) {
+                const flattened = getFlattenedEntities(this.config);
+                for (const { entity: ent, roomIndex } of flattened) {
                   if (ent.preset !== 'temperature') continue;
-                  for (const b of getEntityBoundaries(ent)) {
+                  const boundaries = getBoundariesForEntity(this.config, roomIndex, ent);
+                  for (const b of boundaries) {
                     if (isPolygonBoundary(b)) {
                       fromEntities.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 });
                     } else {

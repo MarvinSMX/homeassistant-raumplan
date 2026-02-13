@@ -4,7 +4,7 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { getEntityDomain, hexToRgba, temperatureColor } from './utils';
@@ -244,21 +244,24 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const rotation = Number(config.rotation) ?? 0;
 
-  const entities = config?.entities ?? [];
-  const filteredEntities: RoomPlanEntity[] = entities.filter((e) =>
-    selectedTabs.has(getEntityDomain(e.entity)) ||
-    (selectedTabs.has(HEATMAP_TAB) && e.preset === 'temperature')
+  const flattened = getFlattenedEntities(config);
+  const entities = flattened.map((f) => f.entity);
+  const filteredEntities = flattened.filter(
+    (f) =>
+      selectedTabs.has(getEntityDomain(f.entity.entity)) ||
+      (selectedTabs.has(HEATMAP_TAB) && f.entity.preset === 'temperature')
   );
-  const badgeEntities = filteredEntities.filter((e) => e.preset !== 'window_contact');
+  const badgeEntities = filteredEntities.filter((f) => f.entity.preset !== 'window_contact');
   const windowLineEntities = filteredEntities.filter(
-    (e) => e.preset === 'window_contact' && getEntityBoundaries(e).length > 0
+    (f) => f.entity.preset === 'window_contact' && getEntityBoundaries(f.entity).length > 0
   );
 
-  /* Heatmap-Zonen aus Temperatur-Entities (room_boundaries), jede Zone nutzt den Wert der Entity */
+  /* Heatmap-Zonen: aus Räumen (room.boundary) oder Entität (Legacy); Temperatur-Entities */
   const zones: HeatmapZone[] = [];
-  for (const ent of entities) {
+  for (const { entity: ent, roomIndex } of flattened) {
     if (ent.preset !== 'temperature') continue;
-    for (const b of getEntityBoundaries(ent)) {
+    const boundaries = getBoundariesForEntity(config, roomIndex, ent);
+    for (const b of boundaries) {
       if (isPolygonBoundary(b)) {
         zones.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 });
       } else {
@@ -452,7 +455,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               }}
               aria-hidden
             >
-              {windowLineEntities.flatMap((ent) => {
+              {windowLineEntities.flatMap((f) => {
+                const ent = f.entity;
                 const state = hass?.states?.[ent.entity]?.state ?? '';
                 const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
                 const stroke = isOpen
@@ -495,19 +499,24 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           )}
           <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
-              {badgeEntities.map((ent, i) => (
-                <EntityBadge
-                  key={`${ent.entity}-${i}`}
-                  ent={ent}
-                  hass={hass}
-                  host={host}
-                  tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
-                  holdAction={ent.hold_action ?? config?.hold_action}
-                  doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
-                  onRoomPressStart={ent.preset === 'temperature' && getEntityBoundaries(ent).length > 0 ? (entityId, bounds) => onRoomPressStart(entityId, bounds) : undefined}
-                  onRoomPressEnd={ent.preset === 'temperature' && getEntityBoundaries(ent).length > 0 ? onRoomPressEnd : undefined}
-                />
-              ))}
+              {badgeEntities.map((f, i) => {
+                const ent = f.entity;
+                const bounds = getBoundariesForEntity(config, f.roomIndex, ent);
+                const hasBounds = bounds.length > 0;
+                return (
+                  <EntityBadge
+                    key={`${ent.entity}-${f.roomIndex ?? -1}-${f.entityIndexInRoom}-${i}`}
+                    ent={ent}
+                    hass={hass}
+                    host={host}
+                    tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
+                    holdAction={ent.hold_action ?? config?.hold_action}
+                    doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
+                    onRoomPressStart={ent.preset === 'temperature' && hasBounds ? (entityId, b) => onRoomPressStart(entityId, b) : undefined}
+                    onRoomPressEnd={ent.preset === 'temperature' && hasBounds ? onRoomPressEnd : undefined}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>

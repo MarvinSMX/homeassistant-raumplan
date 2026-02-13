@@ -4,6 +4,7 @@ import type { HomeAssistant } from 'custom-card-helpers';
 import { FilterTabs, HEATMAP_TAB } from './FilterTabs';
 import { PlanImageWithOverlay } from './PlanImageWithOverlay';
 import { getEntityDomain } from './utils';
+import { getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;
@@ -14,11 +15,14 @@ interface RoomPlanCardProps {
 
 export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProps) {
   const allTabIds = useMemo(() => {
-    const entities = config?.entities ?? [];
+    const flattened = getFlattenedEntities(config);
+    const entities = flattened.map((f) => f.entity);
     const domains = Array.from(new Set(entities.map((e) => getEntityDomain(e.entity)).filter(Boolean))).sort();
-    const hasHeatmap = (config?.temperature_zones ?? []).length > 0;
+    const hasHeatmap =
+      (config?.temperature_zones ?? []).length > 0 ||
+      flattened.some((f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0);
     return [...(hasHeatmap ? [HEATMAP_TAB] : []), ...domains];
-  }, [config?.entities, config?.temperature_zones]);
+  }, [config]);
 
   const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -44,9 +48,10 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showHeatmapOverlay, setShowHeatmapOverlay] = useState(true);
-  const hasHeatmapZones = (config?.entities ?? []).some(
-    (e) => e.preset === 'temperature' && (e.room_boundaries?.length ?? (e.room_boundary ? 1 : 0)) > 0
-  );
+  const hasHeatmapZones = useMemo(() => {
+    const flattened = getFlattenedEntities(config);
+    return flattened.some((f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0);
+  }, [config]);
   const isTemperaturTabSelected = selectedTabs.has(HEATMAP_TAB);
 
   const onImageLoad = useCallback((e: Event) => {

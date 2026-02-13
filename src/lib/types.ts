@@ -40,6 +40,16 @@ export interface RoomPlanEntity {
   double_tap_action?: ActionConfig;
 }
 
+/** Ein Raum: Boundary (für Heatmap/Abdunkeln) + darin liegende Entities (Temperatur, Licht etc.). */
+export interface RoomPlanRoom {
+  /** Anzeigename des Raums (optional). */
+  name?: string;
+  /** Grenze des Raums / Heatmap-Zone(n). Wird von Temperatur- und Abdunkel-Entities im Raum genutzt. */
+  boundary?: RoomBoundaryItem[];
+  /** Entities in diesem Raum (nutzen room.boundary für Heatmap/Abdunkeln). */
+  entities: RoomPlanEntity[];
+}
+
 /** Ein Eintrag in room_boundaries: Rechteck (x1,y1,x2,y2) oder Polygon (points mit mind. 3 Ecken). */
 export type RoomBoundaryItem =
   | { x1: number; y1: number; x2: number; y2: number; opacity?: number }
@@ -77,5 +87,8 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   alert_entities?: string[];
   /** Aktion beim Klick auf das Meldungs-Badge (optional) */
   alert_badge_action?: ActionConfig;
+  /** Räume: jeder Raum hat Boundary + Entities (Temperatur, Licht etc. nutzen Raumboundary). */
+  rooms?: RoomPlanRoom[];
+  /** @deprecated Nutze rooms[].entities. Flache Entitätsliste für Abwärtskompatibilität. */
   entities?: RoomPlanEntity[];
 }
