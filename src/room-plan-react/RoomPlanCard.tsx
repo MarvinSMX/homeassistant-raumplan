@@ -80,7 +80,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
       <style dangerouslySetInnerHTML={{ __html: cssString }} />
       <div
         className="flex flex-col p-0 overflow-hidden w-full h-full min-h-0 min-w-0 flex-1"
-        style={{ flex: '1 1 0', minHeight: 200, minWidth: 0 }}
+        style={{ flex: '1 1 0', minHeight: 200, minWidth: 0, position: 'relative' }}
       >
         <FilterTabs
           config={config}
@@ -96,15 +96,39 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           host={host}
           selectedTabs={selectedTabs}
           showHeatmapOverlay={showHeatmapOverlay}
-          onHeatmapToggle={setShowHeatmapOverlay}
-          hasHeatmapZones={hasHeatmapZones}
-          isTemperaturTabSelected={isTemperaturTabSelected}
           imageAspect={imageAspect}
           imageLoaded={imageLoaded}
           imageError={imageError}
           onImageLoad={onImageLoad}
           onImageError={onImageError}
         />
+        {hasHeatmapZones && isTemperaturTabSelected && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              padding: '8px 12px',
+              borderRadius: 8,
+              background: 'var(--ha-card-background)',
+              border: '1px solid var(--divider-color)',
+              borderBottom: 'none',
+              borderRight: 'none',
+              boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
+              pointerEvents: 'auto',
+            }}
+          >
+            <label style={{ fontSize: '0.8125rem', color: 'var(--secondary-text-color)', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={showHeatmapOverlay}
+                onChange={(e) => setShowHeatmapOverlay((e.target as HTMLInputElement).checked)}
+                style={{ margin: 0 }}
+              />
+              Heatmap
+            </label>
+          </div>
+        )}
       </div>
     </ha-card>
   );

@@ -77,6 +77,11 @@ export function EntityBadge(props: EntityBadgeProps) {
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
 
+  /* Responsive Einheiten: Basiswerte mit scale, clamp für Viewport-Anpassung */
+  const r = (basePx: number, minPx = 4, maxPx = 32) =>
+    `calc(${scale} * clamp(${minPx}px, ${basePx}px + 1vw, ${maxPx}px))`;
+  const rFont = () => `calc(${scale} * clamp(0.7rem, 0.8125rem + 0.3vw, 0.9375rem))`;
+
   /* Chip: immer weißer Hintergrund (Badge-Style), nur Icons in Farbe; Text standardmäßig dunkel */
   const chipStyle: Record<string, string | number> = {
     position: 'absolute',
@@ -85,21 +90,21 @@ export function EntityBadge(props: EntityBadgeProps) {
     transform: 'translate(-50%, -50%)',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: `calc(4px * ${scale}) calc(10px * ${scale})`,
-    minHeight: `calc(28px * ${scale})`,
-    borderRadius: 16,
+    gap: r(6, 4, 10),
+    padding: `${r(4, 4, 8)} ${r(10, 8, 14)}`,
+    minHeight: r(28, 24, 36),
+    borderRadius: r(16, 12, 20),
     border: '1px solid var(--divider-color)',
     background: '#fff',
     color: 'var(--primary-text-color, #212121)',
-    fontSize: `calc(clamp(0.7rem, 2vw, 0.8125rem) * ${scale})`,
+    fontSize: rFont(),
     fontWeight: 600,
     fontFamily: 'inherit',
     cursor: 'pointer',
     boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
     transition: 'box-shadow 0.2s',
     zIndex: 2,
-    maxWidth: 'min(90vw, 160px)',
+    maxWidth: 'min(90vw, 180px)',
     boxSizing: 'border-box',
   };
 
@@ -120,9 +125,9 @@ export function EntityBadge(props: EntityBadgeProps) {
         ...(isIconOnly
           ? {
               background: '#fff',
-              padding: `calc(10px * ${scale}) calc(18px * ${scale})`,
-              minWidth: `calc(48px * ${scale})`,
-              minHeight: `calc(32px * ${scale})`,
+              padding: `${r(10, 8, 14)} ${r(18, 14, 24)}`,
+              minWidth: r(48, 40, 56),
+              minHeight: r(32, 28, 40),
               borderRadius: 9999,
               position: 'relative',
             }
@@ -146,33 +151,32 @@ export function EntityBadge(props: EntityBadgeProps) {
         <span
           style={{
             position: 'absolute',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: `calc(22px * ${scale})`,
-            height: `calc(22px * ${scale})`,
+            inset: 0,
+            display: 'grid',
+            placeItems: 'center',
+            pointerEvents: 'none',
           }}
         >
-          <ha-icon
-            icon={displayIcon}
-            style={{
-              width: `calc(20px * ${scale})`,
-              height: `calc(20px * ${scale})`,
-              flexShrink: 0,
-              color: iconColor,
-              display: 'block',
-            }}
-          />
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ha-icon
+              icon={displayIcon}
+              style={{
+                width: r(20, 18, 26),
+                height: r(20, 18, 26),
+                minWidth: r(20, 18, 26),
+                minHeight: r(20, 18, 26),
+                color: iconColor,
+                display: 'block',
+              }}
+            />
+          </span>
         </span>
       ) : (
         <ha-icon
           icon={displayIcon}
           style={{
-            width: `calc(18px * ${scale})`,
-            height: `calc(18px * ${scale})`,
+            width: r(18, 16, 24),
+            height: r(18, 16, 24),
             flexShrink: 0,
             color: iconColor,
           }}
