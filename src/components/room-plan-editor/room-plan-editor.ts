@@ -33,6 +33,14 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   @state() private _pickerImageAspect: number | null = null;
   /** Overlay-Ausschnitt in % der Wrap-Breite/Höhe, damit 0–100 % exakt wie in der Card (Bildinhalt object-fit: contain) */
   @state() private _pickerContentRect: { left: number; top: number; width: number; height: number } | null = null;
+  /** Beim Ziehen eines bestehenden Punkts (Position / Rechteck-Ecke / Linien-Endpunkt) */
+  @state() private _pickerDrag:
+    | { kind: 'position' }
+    | { kind: 'rect'; boundaryIndex: number; corner: 0 | 1 }
+    | { kind: 'line'; lineIndex: number; end: 0 | 1 }
+    | null = null;
+  private _pickerDocMove = (e: MouseEvent) => this._onPickerDocMove(e);
+  private _pickerDocUp = () => this._onPickerDocUp();
 
   public setConfig(config: RoomPlanCardConfig): void {
     const base = config ?? { type: '', image: '', entities: [] };
@@ -145,6 +153,29 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     return { x, y };
   }
 
+  /** Wie _getPercentFromEvent, nutzt aber Picker-Img aus dem Shadow DOM (für Document-Mouse-Events beim Ziehen). */
+  private _getPercentFromPickerEvent(e: MouseEvent): { x: number; y: number } | null {
+    const wrap = this.renderRoot?.querySelector?.('.picker-image-wrap');
+    const img = wrap?.querySelector?.('img') as HTMLImageElement | null;
+    if (!img || !this._pickerImageNatural) return null;
+    const rect = img.getBoundingClientRect();
+    const nw = this._pickerImageNatural.w;
+    const nh = this._pickerImageNatural.h;
+    const rw = rect.width;
+    const rh = rect.height;
+    const scale = Math.min(rw / nw, rh / nh);
+    const contentW = nw * scale;
+    const contentH = nh * scale;
+    const left = (rw - contentW) / 2;
+    const top = (rh - contentH) / 2;
+    const px = e.clientX - rect.left - left;
+    const py = e.clientY - rect.top - top;
+    if (px < 0 || py < 0 || px > contentW || py > contentH) return null;
+    const x = Math.min(100, Math.max(0, (px / contentW) * 100));
+    const y = Math.min(100, Math.max(0, (py / contentH) * 100));
+    return { x, y };
+  }
+
   private _openPickerPosition(entityIndex: number): void {
     this._pickerFor = { type: 'position', entityIndex };
     this._drawStart = null;
@@ -175,6 +206,89 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._drawCurrent = null;
     this._pickerImageAspect = null;
     this._pickerContentRect = null;
+    if (this._pickerDrag) {
+      this._pickerDrag = null;
+      document.removeEventListener('mousemove', this._pickerDocMove);
+      document.removeEventListener('mouseup', this._pickerDocUp);
+    }
+  }
+
+  private _startPickerDragPosition(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!this._pickerFor || this._pickerFor.type !== 'position') return;
+    this._pickerDrag = { kind: 'position' };
+    document.addEventListener('mousemove', this._pickerDocMove);
+    document.addEventListener('mouseup', this._pickerDocUp);
+  }
+
+  private _startPickerDragRect(boundaryIndex: number, corner: 0 | 1, e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!this._pickerFor || this._pickerFor.type !== 'rect') return;
+    this._pickerDrag = { kind: 'rect', boundaryIndex, corner };
+    document.addEventListener('mousemove', this._pickerDocMove);
+    document.addEventListener('mouseup', this._pickerDocUp);
+  }
+
+  private _startPickerDragLine(lineIndex: number, end: 0 | 1, e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!this._pickerFor || this._pickerFor.type !== 'line') return;
+    this._pickerDrag = { kind: 'line', lineIndex, end };
+    document.addEventListener('mousemove', this._pickerDocMove);
+    document.addEventListener('mouseup', this._pickerDocUp);
+  }
+
+  private _onPickerDocMove(e: MouseEvent): void {
+    const p = this._getPercentFromPickerEvent(e);
+    if (!p || !this._pickerDrag || !this._pickerFor) return;
+    const entityIndex = this._pickerFor.entityIndex;
+    const ent = this._config.entities?.[entityIndex];
+    if (!ent) return;
+    const round = (v: number) => Math.round(v * 10) / 10;
+    if (this._pickerDrag.kind === 'position') {
+      this._updateEntity(entityIndex, { x: round(p.x), y: round(p.y) });
+      return;
+    }
+    const boundaries = getEntityBoundaries(ent);
+    if (this._pickerDrag.kind === 'rect' && this._pickerDrag.boundaryIndex < boundaries.length) {
+      const b = boundaries[this._pickerDrag.boundaryIndex];
+      const x1 = this._pickerDrag.corner === 0 ? p.x : (b.x1 ?? 0);
+      const y1 = this._pickerDrag.corner === 0 ? p.y : (b.y1 ?? 0);
+      const x2 = this._pickerDrag.corner === 1 ? p.x : (b.x2 ?? 100);
+      const y2 = this._pickerDrag.corner === 1 ? p.y : (b.y2 ?? 100);
+      const rx1 = Math.min(x1, x2);
+      const ry1 = Math.min(y1, y2);
+      const rx2 = Math.max(x1, x2);
+      const ry2 = Math.max(y1, y2);
+      this._updateEntityBoundary(entityIndex, this._pickerDrag.boundaryIndex, {
+        x1: round(rx1),
+        y1: round(ry1),
+        x2: round(rx2),
+        y2: round(ry2),
+      });
+      return;
+    }
+    if (this._pickerDrag.kind === 'line' && this._pickerDrag.lineIndex < boundaries.length) {
+      const b = boundaries[this._pickerDrag.lineIndex];
+      const x1 = this._pickerDrag.end === 0 ? p.x : (b.x1 ?? 0);
+      const y1 = this._pickerDrag.end === 0 ? p.y : (b.y1 ?? 0);
+      const x2 = this._pickerDrag.end === 1 ? p.x : (b.x2 ?? 0);
+      const y2 = this._pickerDrag.end === 1 ? p.y : (b.y2 ?? 0);
+      this._updateEntityBoundary(entityIndex, this._pickerDrag.lineIndex, {
+        x1: round(x1),
+        y1: round(y1),
+        x2: round(x2),
+        y2: round(y2),
+      });
+    }
+  }
+
+  private _onPickerDocUp(): void {
+    this._pickerDrag = null;
+    document.removeEventListener('mousemove', this._pickerDocMove);
+    document.removeEventListener('mouseup', this._pickerDocUp);
   }
 
   private _onPickerImageLoad(e: Event): void {
@@ -211,7 +325,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
   private _onPickerImageClick(e: MouseEvent): void {
     e.preventDefault();
-    const p = this._getPercentFromEvent(e);
+    const p = this._getPercentFromEvent(e) ?? this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerFor) return;
     if (this._pickerFor.type === 'position') {
       this._updateEntity(this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
@@ -367,29 +481,41 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
               </div>
               <div class="picker-overlay-layer" style=${this._pickerContentRect
                 ? `left:${this._pickerContentRect.left}%;top:${this._pickerContentRect.top}%;width:${this._pickerContentRect.width}%;height:${this._pickerContentRect.height}%`
-                : 'left:0;top:0;width:100%;height:100%'}>
+                : 'left:0;top:0;width:100%;height:100%'}
+                @click=${(e: MouseEvent) => {
+                  if (e.target === e.currentTarget) this._onPickerImageClick(e);
+                  else if (this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew') this._onPickerImageClick(e);
+                }}>
                 ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null
-                  ? html`<div class="picker-point" style="left:${Number(pickerEntity.x) ?? 50}%;top:${Number(pickerEntity.y) ?? 50}%"></div>`
+                  ? html`<div class="picker-point draggable" style="left:${Number(pickerEntity.x) ?? 50}%;top:${Number(pickerEntity.y) ?? 50}%"
+                      @mousedown=${(e: MouseEvent) => this._startPickerDragPosition(e)} @click=${(e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); }}></div>`
                   : ''}
                 ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? pickerBoundaries.map((b, bi) => {
                   const isEditing = this._pickerFor?.type === 'rect' && this._pickerFor.boundaryIndex === bi
                     || this._pickerFor?.type === 'line' && this._pickerFor.lineIndex === bi;
+                  const stopClick = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
                   if (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') {
                     const len = Math.hypot((b.x2 ?? 0) - (b.x1 ?? 0), (b.y2 ?? 0) - (b.y1 ?? 0)) || 1;
                     const ang = Math.atan2((b.y2 ?? 0) - (b.y1 ?? 0), (b.x2 ?? 0) - (b.x1 ?? 0)) * (180 / Math.PI);
+                    const canDrag = this._pickerFor?.type === 'line';
                     return html`
                       <div class="picker-line ${isEditing ? 'editing' : ''}" style="left:${b.x1}%;top:${b.y1}%;width:${len}%;transform:rotate(${ang}deg)"></div>
-                      <div class="picker-point" style="left:${b.x1}%;top:${b.y1}%"></div>
-                      <div class="picker-point" style="left:${b.x2}%;top:${b.y2}%"></div>`;
+                      <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${b.x1}%;top:${b.y1}%"
+                        @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragLine(bi, 0, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>
+                      <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${b.x2}%;top:${b.y2}%"
+                        @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragLine(bi, 1, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>`;
                   }
                   const left = Math.min(b.x1, b.x2);
                   const top = Math.min(b.y1, b.y2);
                   const w = Math.abs((b.x2 ?? 100) - (b.x1 ?? 0)) || 1;
                   const h = Math.abs((b.y2 ?? 100) - (b.y1 ?? 0)) || 1;
+                  const canDrag = this._pickerFor?.type === 'rect';
                   return html`
                     <div class="picker-rect ${isEditing ? 'editing' : ''}" style="left:${left}%;top:${top}%;width:${w}%;height:${h}%"></div>
-                    <div class="picker-point" style="left:${left}%;top:${top}%"></div>
-                    <div class="picker-point" style="left:${left + w}%;top:${top + h}%"></div>`;
+                    <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${left}%;top:${top}%"
+                      @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragRect(bi, 0, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>
+                    <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${left + w}%;top:${top + h}%"
+                      @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragRect(bi, 1, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>`;
                 }) : ''}
                 ${this._drawStart && this._drawCurrent ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
                   ? (() => {
@@ -894,7 +1020,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       .picker-overlay-layer {
         position: absolute;
         z-index: 10;
-        pointer-events: none;
+        pointer-events: auto;
         box-sizing: border-box;
         outline: 3px solid #00bcd4;
       }
@@ -908,6 +1034,10 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         background: #00bcd4;
         border: 2px solid #fff;
         box-sizing: border-box;
+      }
+      .picker-point.draggable {
+        cursor: move;
+        pointer-events: auto;
       }
       .picker-point.draw-preview {
         background: #00bcd4;
