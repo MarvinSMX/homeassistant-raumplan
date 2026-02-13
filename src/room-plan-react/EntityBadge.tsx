@@ -2,7 +2,8 @@ import { handleAction, hasAction } from 'custom-card-helpers';
 import type { HomeAssistant } from 'custom-card-helpers';
 import type { RoomPlanEntity } from '../lib/types';
 import { getEntityIcon, getFriendlyName, getStateDisplay } from '../lib/utils';
-import { hexToRgba, temperatureColor } from './utils';
+import { temperatureColor } from './utils';
+import { MdiIcon } from './MdiIcon';
 
 interface EntityBadgeProps {
   ent: RoomPlanEntity;
@@ -81,9 +82,10 @@ export function EntityBadge(props: EntityBadgeProps) {
   const r = (basePx: number, minPx = 4, maxPx = 32) =>
     `calc(${scale} * clamp(${minPx}px, ${basePx}px + 1vw, ${maxPx}px))`;
   const rFont = () => `calc(${scale} * clamp(0.7rem, 0.8125rem + 0.3vw, 0.9375rem))`;
-  /* Icon-Größe direkt aus scale (px), damit ha-icon zuverlässig mitskaliert */
-  const iconSizePx = Math.round(18 * scale);
-  const iconSizeIconOnlyPx = Math.round(20 * scale);
+
+  /* Icon: responsive (clamp), ohne Entity-Scale – siehe MdiIcon */
+  const iconStyle = { width: 'clamp(14px, 3.5vw, 22px)', height: 'clamp(14px, 3.5vw, 22px)', minWidth: 'clamp(14px, 3.5vw, 22px)', minHeight: 'clamp(14px, 3.5vw, 22px)' };
+  const iconStyleIconOnly = { width: 'clamp(18px, 4.5vw, 26px)', height: 'clamp(18px, 4.5vw, 26px)', minWidth: 'clamp(18px, 4.5vw, 26px)', minHeight: 'clamp(18px, 4.5vw, 26px)' };
 
   /* Chip: immer weißer Hintergrund (Badge-Style), nur Icons in Farbe; Text standardmäßig dunkel */
   const chipStyle: Record<string, string | number> = {
@@ -160,30 +162,14 @@ export function EntityBadge(props: EntityBadgeProps) {
             pointerEvents: 'none',
           }}
         >
-          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ha-icon
-              icon={displayIcon}
-              style={{
-                width: `${iconSizeIconOnlyPx}px`,
-                height: `${iconSizeIconOnlyPx}px`,
-                minWidth: `${iconSizeIconOnlyPx}px`,
-                minHeight: `${iconSizeIconOnlyPx}px`,
-                color: iconColor,
-                display: 'block',
-              }}
-            />
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: iconColor }}>
+            <MdiIcon icon={displayIcon} color={iconColor} style={iconStyleIconOnly} />
           </span>
         </span>
       ) : (
-        <ha-icon
-          icon={displayIcon}
-          style={{
-            width: `${iconSizePx}px`,
-            height: `${iconSizePx}px`,
-            flexShrink: 0,
-            color: iconColor,
-          }}
-        />
+        <span style={{ display: 'inline-flex', alignItems: 'center', color: iconColor }}>
+          <MdiIcon icon={displayIcon} color={iconColor} style={iconStyle} />
+        </span>
       ))}
       {!isIconOnly && (
         <span
