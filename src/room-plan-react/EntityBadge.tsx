@@ -78,16 +78,13 @@ export function EntityBadge(props: EntityBadgeProps) {
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
 
-  /* Responsive Einheiten: Basiswerte mit scale, clamp für Viewport-Anpassung */
-  const r = (basePx: number, minPx = 4, maxPx = 32) =>
-    `calc(${scale} * clamp(${minPx}px, ${basePx}px + 1vw, ${maxPx}px))`;
-  const rFont = () => `calc(${scale} * clamp(0.7rem, 0.8125rem + 0.3vw, 0.9375rem))`;
+  /* Fully responsive: eine Basis (fontSize) mit scale + viewport, Rest in em → nichts wird geclippt */
+  const baseFontSize = `calc(${scale} * clamp(0.7rem, 0.8125rem + 0.3vw, 0.9375rem))`;
 
-  /* Icon: Größe in em → skaliert automatisch mit Badge (fontSize/Chip-Größe) */
-  const iconStyle = { width: '1.2em', height: '1.2em', minWidth: '1.2em', minHeight: '1.2em' };
-  const iconStyleIconOnly = { width: '1.4em', height: '1.4em', minWidth: '1.4em', minHeight: '1.4em' };
+  const iconSizeEm = 1.15;
+  const iconSizeIconOnlyEm = 1.35;
 
-  /* Chip: immer weißer Hintergrund (Badge-Style), nur Icons in Farbe; Text standardmäßig dunkel */
+  /* Chip: alle Größen in em, skaliert mit fontSize → proportional, kein Clipping */
   const chipStyle: Record<string, string | number> = {
     position: 'absolute',
     left: `${x}%`,
@@ -95,21 +92,21 @@ export function EntityBadge(props: EntityBadgeProps) {
     transform: 'translate(-50%, -50%)',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: r(6, 4, 10),
-    padding: `${r(4, 4, 8)} ${r(10, 8, 14)}`,
-    minHeight: r(28, 24, 36),
-    borderRadius: r(16, 12, 20),
+    gap: '0.4em',
+    padding: '0.35em 0.75em',
+    minHeight: '2.25em',
+    borderRadius: '1em',
     border: '1px solid var(--divider-color)',
     background: '#fff',
     color: 'var(--primary-text-color, #212121)',
-    fontSize: rFont(),
+    fontSize: baseFontSize,
     fontWeight: 600,
     fontFamily: 'inherit',
     cursor: 'pointer',
     boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
     transition: 'box-shadow 0.2s',
     zIndex: 2,
-    maxWidth: 'min(90vw, 180px)',
+    maxWidth: 'min(90vw, 22em)',
     boxSizing: 'border-box',
   };
 
@@ -130,9 +127,9 @@ export function EntityBadge(props: EntityBadgeProps) {
         ...(isIconOnly
           ? {
               background: '#fff',
-              padding: `${r(10, 8, 14)} ${r(18, 14, 24)}`,
-              minWidth: r(48, 40, 56),
-              minHeight: r(32, 28, 40),
+              padding: '0.5em 0.85em',
+              minWidth: '2.75em',
+              minHeight: '2.75em',
               borderRadius: 9999,
               position: 'relative',
             }
@@ -163,12 +160,12 @@ export function EntityBadge(props: EntityBadgeProps) {
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: iconColor }}>
-            <MdiIcon icon={displayIcon} color={iconColor} style={iconStyleIconOnly} />
+            <MdiIcon icon={displayIcon} color={iconColor} style={{ width: `${iconSizeIconOnlyEm}em`, height: `${iconSizeIconOnlyEm}em`, minWidth: `${iconSizeIconOnlyEm}em`, minHeight: `${iconSizeIconOnlyEm}em` }} />
           </span>
         </span>
       ) : (
         <span style={{ display: 'inline-flex', alignItems: 'center', color: iconColor }}>
-          <MdiIcon icon={displayIcon} color={iconColor} style={iconStyle} />
+          <MdiIcon icon={displayIcon} color={iconColor} style={{ width: `${iconSizeEm}em`, height: `${iconSizeEm}em`, minWidth: `${iconSizeEm}em`, minHeight: `${iconSizeEm}em` }} />
         </span>
       ))}
       {!isIconOnly && (

@@ -47,13 +47,10 @@ export function MdiIcon({ icon, color, style, className }: MdiIconProps) {
   }, [name]);
 
   const responsiveStyle: Record<string, string | number> = {
-    width: 'clamp(14px, 3.5vw, 22px)',
-    height: 'clamp(14px, 3.5vw, 22px)',
-    minWidth: 'clamp(14px, 3.5vw, 22px)',
-    minHeight: 'clamp(14px, 3.5vw, 22px)',
     display: 'inline-block',
     flexShrink: 0,
     verticalAlign: 'middle',
+    lineHeight: 0,
     ...(color ? { color } : {}),
     ...style,
   };
@@ -71,7 +68,7 @@ export function MdiIcon({ icon, color, style, className }: MdiIconProps) {
   return (
     <span
       className={className}
-      style={{ ...responsiveStyle, lineHeight: 0 }}
+      style={responsiveStyle}
       dangerouslySetInnerHTML={{ __html: svg }}
       aria-hidden
     />
