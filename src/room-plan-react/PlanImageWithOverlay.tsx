@@ -287,7 +287,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 top: `${Math.min(boundary.y1, boundary.y2)}%`,
                 width: `${Math.abs(boundary.x2 - boundary.x1) || 1}%`,
                 height: `${Math.abs(boundary.y2 - boundary.y1) || 1}%`,
-                background: 'rgba(0, 0, 0, 0.4)',
+                background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, rgba(0,0,0,0.45) 100%)',
                 pointerEvents: 'none',
                 zIndex: 2.5,
                 opacity: 0,
