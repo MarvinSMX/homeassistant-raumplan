@@ -619,17 +619,18 @@ export class RoomPlanCard extends LitElement {
         box-sizing: border-box;
       }
       .heatmap-layer-behind {
-        z-index: 0;
+        z-index: -1;
       }
       .image-and-overlay .plan-image {
-        z-index: 1;
+        z-index: 0;
       }
       .image-and-overlay .image-skeleton,
       .image-and-overlay .image-error {
-        z-index: 1;
+        z-index: 0;
       }
       .image-and-overlay .entities-overlay {
-        z-index: 3;
+        z-index: 1;
+        isolation: isolate;
       }
       .plan-image {
         object-fit: fill;
@@ -654,7 +655,6 @@ export class RoomPlanCard extends LitElement {
         position: absolute;
         pointer-events: none;
         border-radius: 0;
-        z-index: 0;
       }
       .entity-badge {
         --size: clamp(28px, 8vw, 48px);
