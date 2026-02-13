@@ -1,4 +1,18 @@
 import type { HomeAssistant } from 'custom-card-helpers';
+import type { RoomPlanEntity } from './types';
+
+export type RoomBoundary = { x1: number; y1: number; x2: number; y2: number; opacity?: number };
+
+/** Liefert die Raum-/Heatmap-Zonen einer Entität (room_boundaries oder [room_boundary] für Abwärtskompatibilität). */
+export function getEntityBoundaries(ent: RoomPlanEntity): RoomBoundary[] {
+  if (Array.isArray(ent.room_boundaries) && ent.room_boundaries.length > 0) {
+    return ent.room_boundaries;
+  }
+  if (ent.room_boundary) {
+    return [ent.room_boundary];
+  }
+  return [];
+}
 
 export function getEntityIcon(hass: HomeAssistant | undefined, entityId: string): string {
   const s = hass?.states?.[entityId];

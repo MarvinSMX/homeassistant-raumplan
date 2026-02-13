@@ -44,7 +44,9 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showHeatmapOverlay, setShowHeatmapOverlay] = useState(true);
-  const hasHeatmapZones = (config?.temperature_zones ?? []).length > 0;
+  const hasHeatmapZones = (config?.entities ?? []).some(
+    (e) => e.preset === 'temperature' && (e.room_boundaries?.length ?? (e.room_boundary ? 1 : 0)) > 0
+  );
   const isTemperaturTabSelected = selectedTabs.has(HEATMAP_TAB);
 
   const onImageLoad = useCallback((e: Event) => {

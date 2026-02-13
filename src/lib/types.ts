@@ -22,7 +22,9 @@ export interface RoomPlanEntity {
   show_name?: boolean;
   /** Preset: temperature = Wert; binary_sensor = State; window_contact = Linie; smoke_detector = Rauchmelder, bei Auslösung/Sabotage blinkender Rand (Ping) */
   preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact' | 'smoke_detector';
-  /** Temperatur: Raumgrenze in %. Fensterkontakt: Linie von (x1,y1) nach (x2,y2) in %. */
+  /** Temperatur: mehrere Raum-/Heatmap-Zonen (x1,y1,x2,y2 in %). Fensterkontakt: eine Linie = ein Eintrag. */
+  room_boundaries?: { x1: number; y1: number; x2: number; y2: number; /** Nur Temperatur: Deckkraft der Heatmap-Fläche (0–1), Standard 0.4 */ opacity?: number }[];
+  /** @deprecated Nutze room_boundaries. Ein Eintrag für Rückwärtskompatibilität. */
   room_boundary?: { x1: number; y1: number; x2: number; y2: number };
   /** Nur Fensterkontakt: Dicke der Linie (viewBox-Einheiten, z. B. 0.5–2). */
   line_thickness?: number;
@@ -70,7 +72,7 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   full_height?: boolean;
   /** Filter: nur Entitäten dieser Domains anzeigen (z.B. light, sensor). Leer = alle */
   entity_filter?: string[];
-  /** Temperatur-Heatmap: Flächen aus 2 Punkten, Farbe nach Sensor-Wert */
+  /** @deprecated Heatmap-Zonen liegen jetzt in der Temperatur-Entität (room_boundaries). */
   temperature_zones?: HeatmapZone[];
   /** Entitäten für Meldungs-Badge (z. B. Rauchmelder) – Badge zeigt Anzahl aktiver Meldungen, rechts in der Tab-Leiste */
   alert_entities?: string[];

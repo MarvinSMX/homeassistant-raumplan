@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { RoomPlanCardConfig, RoomPlanEntity } from '../lib/types';
+import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
+import { getEntityBoundaries } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
-import { HeatmapZone } from './HeatmapZone';
+import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { getEntityDomain } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
 
@@ -48,38 +50,39 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const [resolvedSrc, setResolvedSrc] = useState(imgSrc);
   const blobUrlRef = useRef<string | null>(null);
-  const [pressBoundary, setPressBoundary] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
-  const pressOverlayRef = useRef<HTMLDivElement>(null);
+  const [pressBoundaries, setPressBoundaries] = useState<{ x1: number; y1: number; x2: number; y2: number }[]>([]);
+  const pressOverlayRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const onRoomPress = (boundary: { x1: number; y1: number; x2: number; y2: number }) => {
-    gsap.killTweensOf(pressOverlayRef.current);
-    setPressBoundary(boundary);
+  const onRoomPressStart = (boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => {
+    gsap.killTweensOf(pressOverlayRefs.current);
+    setPressBoundaries(boundaries.length ? boundaries : []);
   };
 
-  /* Raum abdunkeln: GSAP Fade-in, Haltephase, Fade-out */
+  const onRoomPressEnd = () => {
+    const refs = pressOverlayRefs.current.slice(0, pressBoundaries.length).filter(Boolean) as HTMLDivElement[];
+    if (refs.length === 0) {
+      setPressBoundaries([]);
+      return;
+    }
+    gsap.killTweensOf(refs);
+    gsap.to(refs, {
+      opacity: 0,
+      duration: 0.28,
+      ease: 'power2.inOut',
+      onComplete: () => setPressBoundaries([]),
+    });
+  };
+
+  /* Raum abdunkeln: nur Fade-in (Fade-out erst bei onRoomPressEnd) */
   useEffect(() => {
-    if (!pressBoundary) return;
-    const run = () => {
-      const el = pressOverlayRef.current;
-      if (!el) return;
-      gsap.killTweensOf(el);
-      gsap.set(el, { opacity: 0 });
-      gsap.to(el, { opacity: 1, duration: 0.28, ease: 'power2.inOut' }).then(() => {
-        gsap.to(el, {
-          opacity: 0,
-          duration: 0.28,
-          delay: 0.36,
-          ease: 'power2.inOut',
-          onComplete: () => setPressBoundary(null),
-        });
-      });
-    };
-    const id = requestAnimationFrame(run);
-    return () => {
-      cancelAnimationFrame(id);
-      if (pressOverlayRef.current) gsap.killTweensOf(pressOverlayRef.current);
-    };
-  }, [pressBoundary]);
+    if (pressBoundaries.length === 0) return;
+    const refs = pressOverlayRefs.current.slice(0, pressBoundaries.length).filter(Boolean) as HTMLDivElement[];
+    if (refs.length === 0) return;
+    gsap.killTweensOf(refs);
+    gsap.set(refs, { opacity: 0 });
+    gsap.to(refs, { opacity: 1, duration: 0.28, ease: 'power2.inOut' });
+    return () => gsap.killTweensOf(refs);
+  }, [pressBoundaries]);
 
   useEffect(() => {
     if (!imgSrc || typeof window === 'undefined') {
@@ -152,10 +155,24 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   );
   const badgeEntities = filteredEntities.filter((e) => e.preset !== 'window_contact');
   const windowLineEntities = filteredEntities.filter(
-    (e) => e.preset === 'window_contact' && e.room_boundary
+    (e) => e.preset === 'window_contact' && getEntityBoundaries(e).length > 0
   );
 
-  const zones = config?.temperature_zones ?? [];
+  /* Heatmap-Zonen aus Temperatur-Entities (room_boundaries), jede Zone nutzt den Wert der Entity */
+  const zones: HeatmapZone[] = [];
+  for (const ent of entities) {
+    if (ent.preset !== 'temperature') continue;
+    for (const b of getEntityBoundaries(ent)) {
+      zones.push({
+        entity: ent.entity,
+        x1: b.x1,
+        y1: b.y1,
+        x2: b.x2,
+        y2: b.y2,
+        opacity: b.opacity ?? 0.4,
+      });
+    }
+  }
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
 
   /* Gemeinsamer Block: alle Layer exakt dieselbe Box */
@@ -247,27 +264,29 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (
             <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
               {zones.map((zone, i) => (
-                <HeatmapZone key={i} zone={zone} hass={hass} />
+                <HeatmapZoneComponent key={i} zone={zone} hass={hass} />
               ))}
             </div>
           )}
-          {/* Press/Hover-Effekt: Temperatur-Badge → Raumgrenze abdunkeln (GSAP) */}
-          {pressBoundary && (
+          {/* Press/Hover-Effekt: Temperatur-Badge → Raumgrenzen abdunkeln (GSAP) */}
+          {pressBoundaries.map((boundary, idx) => (
             <div
-              ref={pressOverlayRef}
+              key={idx}
+              ref={(el) => { pressOverlayRefs.current[idx] = el; }}
               style={{
                 position: 'absolute',
-                left: `${Math.min(pressBoundary.x1, pressBoundary.x2)}%`,
-                top: `${Math.min(pressBoundary.y1, pressBoundary.y2)}%`,
-                width: `${Math.abs(pressBoundary.x2 - pressBoundary.x1) || 1}%`,
-                height: `${Math.abs(pressBoundary.y2 - pressBoundary.y1) || 1}%`,
+                left: `${Math.min(boundary.x1, boundary.x2)}%`,
+                top: `${Math.min(boundary.y1, boundary.y2)}%`,
+                width: `${Math.abs(boundary.x2 - boundary.x1) || 1}%`,
+                height: `${Math.abs(boundary.y2 - boundary.y1) || 1}%`,
                 background: 'rgba(0, 0, 0, 0.4)',
                 pointerEvents: 'none',
                 zIndex: 2.5,
+                opacity: 0,
               }}
               aria-hidden
             />
-          )}
+          ))}
           {windowLineEntities.length > 0 && (
             <svg
               viewBox="0 0 100 100"
@@ -279,8 +298,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               }}
               aria-hidden
             >
-              {windowLineEntities.map((ent) => {
-                const b = ent.room_boundary!;
+              {windowLineEntities.flatMap((ent) => {
                 const state = hass?.states?.[ent.entity]?.state ?? '';
                 const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
                 const stroke = isOpen
@@ -294,9 +312,9 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   hold_action: ent.hold_action ?? config?.hold_action,
                   double_tap_action: ent.double_tap_action ?? config?.double_tap_action,
                 };
-                return (
+                return getEntityBoundaries(ent).map((b, bi) => (
                   <g
-                    key={ent.entity}
+                    key={`${ent.entity}-${bi}`}
                     style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                     onClick={() => handleAction(host, hass, actionConfig, 'tap')}
                     onPointerDown={(ev) => ev.stopPropagation()}
@@ -312,7 +330,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                       strokeOpacity={opacity}
                     />
                   </g>
-                );
+                ));
               })}
             </svg>
           )}
@@ -327,7 +345,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
                   holdAction={ent.hold_action ?? config?.hold_action}
                   doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
-                  onRoomPress={ent.preset === 'temperature' && ent.room_boundary ? onRoomPress : undefined}
+                  onRoomPressStart={ent.preset === 'temperature' && getEntityBoundaries(ent).length > 0 ? (bounds) => onRoomPressStart(bounds) : undefined}
+                  onRoomPressEnd={ent.preset === 'temperature' && getEntityBoundaries(ent).length > 0 ? onRoomPressEnd : undefined}
                 />
               ))}
             </div>

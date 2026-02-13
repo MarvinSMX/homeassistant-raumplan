@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'preact/hooks';
 import { handleAction, hasAction } from 'custom-card-helpers';
 import type { HomeAssistant } from 'custom-card-helpers';
 import type { RoomPlanEntity } from '../lib/types';
-import { getEntityIcon, getFriendlyName, getStateDisplay } from '../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries } from '../lib/utils';
 import { temperatureColor } from './utils';
 import { MdiIcon } from './MdiIcon';
 import { gsap } from 'gsap';
@@ -14,12 +14,14 @@ interface EntityBadgeProps {
   tapAction: import('custom-card-helpers').ActionConfig;
   holdAction?: import('custom-card-helpers').ActionConfig;
   doubleTapAction?: import('custom-card-helpers').ActionConfig;
-  /** Bei Temperatur + room_boundary: wird vor der Tap-Aktion aufgerufen für Press-Effekt (Raum abdunkeln). */
-  onRoomPress?: (boundary: { x1: number; y1: number; x2: number; y2: number }) => void;
+  /** Temperatur + room_boundaries: Start der Abdunkel-Animation (Hover/Press), mehrere Zonen möglich. */
+  onRoomPressStart?: (boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => void;
+  /** Temperatur: Ende Hover/Press → Abdunkelung ausblenden. */
+  onRoomPressEnd?: () => void;
 }
 
 export function EntityBadge(props: EntityBadgeProps) {
-  const { ent, hass, host, tapAction, holdAction, doubleTapAction, onRoomPress } = props;
+  const { ent, hass, host, tapAction, holdAction, doubleTapAction, onRoomPressStart, onRoomPressEnd } = props;
   const x = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
   const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
   const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
@@ -78,15 +80,23 @@ export function EntityBadge(props: EntityBadgeProps) {
   };
 
   const onTap = () => handleAction(host, hass, actionConfig, 'tap');
+  const boundaries = getEntityBoundaries(ent);
+  const hasRoomBoundaries = boundaries.length > 0;
   const onPointerDown = () => {
-    if (ent.preset === 'temperature' && ent.room_boundary && onRoomPress) {
-      onRoomPress(ent.room_boundary);
+    if (ent.preset === 'temperature' && hasRoomBoundaries && onRoomPressStart) {
+      onRoomPressStart(boundaries);
     }
   };
-  const onRoomHover = () => {
-    if (ent.preset === 'temperature' && ent.room_boundary && onRoomPress) {
-      onRoomPress(ent.room_boundary);
+  const onPointerUp = () => {
+    if (ent.preset === 'temperature' && onRoomPressEnd) onRoomPressEnd();
+  };
+  const handleRoomHoverStart = () => {
+    if (ent.preset === 'temperature' && hasRoomBoundaries && onRoomPressStart) {
+      onRoomPressStart(boundaries);
     }
+  };
+  const handleRoomHoverEnd = () => {
+    if (ent.preset === 'temperature' && onRoomPressEnd) onRoomPressEnd();
   };
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
@@ -189,14 +199,17 @@ export function EntityBadge(props: EntityBadgeProps) {
       tabIndex={0}
       onClick={onTap}
       onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerUp}
       onDblClick={onDbl}
       onContextMenu={(e) => { e.preventDefault(); onHold(); }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
-        onRoomHover();
+        handleRoomHoverStart();
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+        handleRoomHoverEnd();
       }}
     >
       {showIcon && (isIconOnly ? (

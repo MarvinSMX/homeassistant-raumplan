@@ -17,7 +17,7 @@ import {
 import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries } from '../../lib/utils';
 import { actionHandler } from '../../lib/action-handler';
 
 import '../room-plan-editor/room-plan-editor';
@@ -402,13 +402,31 @@ export class RoomPlanCard extends LitElement {
             return html`
           <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
             <div class="image-and-overlay ${useDark ? 'dark' : ''}" style="--image-aspect: ${this._imageAspect}; --plan-dark-filter: ${darkFilter};">
-              ${(this.config?.temperature_zones ?? []).length
-                ? html`
-                    <div class="heatmap-layer heatmap-layer-behind">
-                      ${(this.config.temperature_zones ?? []).map((zone) => this._renderHeatmapZone(zone))}
-                    </div>
-                  `
-                : ''}
+              ${(() => {
+                const fromEntities: HeatmapZone[] = [];
+                for (const ent of this.config?.entities ?? []) {
+                  if (ent.preset !== 'temperature') continue;
+                  for (const b of getEntityBoundaries(ent)) {
+                    fromEntities.push({
+                      entity: ent.entity,
+                      x1: b.x1,
+                      y1: b.y1,
+                      x2: b.x2,
+                      y2: b.y2,
+                      opacity: b.opacity ?? 0.4,
+                    });
+                  }
+                }
+                const legacy = this.config?.temperature_zones ?? [];
+                const allZones = fromEntities.concat(legacy);
+                return allZones.length
+                  ? html`
+                      <div class="heatmap-layer heatmap-layer-behind">
+                        ${allZones.map((zone) => this._renderHeatmapZone(zone))}
+                      </div>
+                    `
+                  : '';
+              })()}
               <img
                 src="${imgSrc}"
                 alt="Raumplan"

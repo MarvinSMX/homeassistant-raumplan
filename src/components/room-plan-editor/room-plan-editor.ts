@@ -5,8 +5,9 @@ import { LitElement, html, css, type TemplateResult, type CSSResultGroup } from 
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-helpers';
 
-import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
-import { getFriendlyName } from '../../lib/utils';
+import type { RoomPlanCardConfig, RoomPlanEntity } from '../../lib/types';
+import type { RoomBoundary } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -24,10 +25,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       typeof base.image === 'string'
         ? base.image
         : ((base.image as { location?: string } | undefined)?.location ?? '');
+    const entities = Array.isArray(base.entities)
+      ? base.entities.map((ent) => {
+          if (ent.room_boundary && !(ent.room_boundaries?.length)) {
+            return { ...ent, room_boundaries: [ent.room_boundary!] };
+          }
+          return { ...ent };
+        })
+      : [];
     this._config = {
       ...base,
       image: img,
-      entities: Array.isArray(base.entities) ? [...base.entities] : [],
+      entities,
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
       temperature_zones: Array.isArray(base.temperature_zones) ? [...base.temperature_zones] : undefined,
       alert_entities: Array.isArray(base.alert_entities) ? base.alert_entities : undefined,
@@ -64,7 +73,37 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._updateConfig({ entities });
   }
 
-  private _updateHeatmapZone(index: number, updates: Partial<HeatmapZone>): void {
+  private _updateEntityBoundary(entityIndex: number, boundaryIndex: number, updates: Partial<RoomBoundary>): void {
+    const entities = [...(this._config.entities ?? [])];
+    const ent = entities[entityIndex];
+    const list = [...(getEntityBoundaries(ent))];
+    if (boundaryIndex >= list.length) return;
+    list[boundaryIndex] = { ...list[boundaryIndex], ...updates };
+    entities[entityIndex] = { ...ent, room_boundaries: list };
+    this._updateConfig({ entities });
+  }
+
+  private _addEntityBoundary(entityIndex: number, isTemperature: boolean): void {
+    const entities = [...(this._config.entities ?? [])];
+    const ent = entities[entityIndex];
+    const list = [...getEntityBoundaries(ent)];
+    list.push(isTemperature ? { x1: 10, y1: 10, x2: 40, y2: 40, opacity: 0.4 } : { x1: 0, y1: 0, x2: 100, y2: 0 });
+    entities[entityIndex] = { ...ent, room_boundaries: list };
+    this._updateConfig({ entities });
+  }
+
+  private _removeEntityBoundary(entityIndex: number, boundaryIndex: number): void {
+    const entities = [...(this._config.entities ?? [])];
+    const ent = entities[entityIndex];
+    const list = getEntityBoundaries(ent);
+    if (boundaryIndex >= list.length) return;
+    const next = list.filter((_, i) => i !== boundaryIndex);
+    const updated = next.length ? { ...ent, room_boundaries: next } : { ...ent, room_boundaries: undefined, room_boundary: undefined };
+    entities[entityIndex] = updated;
+    this._updateConfig({ entities });
+  }
+
+  private _updateHeatmapZone(index: number, updates: Partial<{ entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number }>): void {
     const zones = [...(this._config.temperature_zones ?? [])];
     zones[index] = { ...zones[index], ...updates };
     this._updateConfig({ temperature_zones: zones });
@@ -180,27 +219,43 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="smoke_detector">Rauchmelder</option>
                 </select>
                 ${(ent.preset === 'temperature') ? html`
-                <div class="entity-coords room-boundary" title="Raumgrenze (%), Klick = Press-Effekt">
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
+                <div class="entity-boundaries" title="Raum-/Heatmap-Zonen (mehrere für Ecken möglich)">
+                  <span class="boundaries-label">Zonen:</span>
+                  ${getEntityBoundaries(ent).map((b, bi) => html`
+                    <div class="entity-coords room-boundary">
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x1) ?? 0)} placeholder="x1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y1) ?? 0)} placeholder="y1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x2) ?? 100)} placeholder="x2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y2) ?? 100)} placeholder="y2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(b.opacity) ?? 0.4)))} title="Deckkraft"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
+                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                    </div>
+                  `)}
+                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, true)} title="Zone hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
                 </div>
                 ` : ''}
                 ${(ent.preset === 'window_contact') ? html`
-                <div class="entity-coords room-boundary" title="Linie von (x1,y1) nach (x2,y2) in %">
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
+                <div class="entity-boundaries" title="Linien (x1,y1)→(x2,y2) in %, mehrere pro Entität möglich">
+                  <span class="boundaries-label">Linien:</span>
+                  ${getEntityBoundaries(ent).map((b, bi) => html`
+                    <div class="entity-coords room-boundary">
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x1) ?? 0)} placeholder="x1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y1) ?? 0)} placeholder="y1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x2) ?? 100)} placeholder="x2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y2) ?? 100)} placeholder="y2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Linie entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                    </div>
+                  `)}
+                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, false)} title="Linie hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
                 </div>
                 <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
                   @change=${(e: Event) => this._updateEntity(i, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
@@ -241,9 +296,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             <ha-icon icon="mdi:plus"></ha-icon> Entität hinzufügen
           </button>
         </section>
-        <section class="editor-section">
-          <h4 class="section-title"><ha-icon icon="mdi:thermometer"></ha-icon> Temperatur-Heatmap</h4>
-          <p class="section-hint">Fläche durch 2 Punkte (x1,y1) und (x2,y2) in %. Eine Temperatur-Entität färbt die Zone (blau &lt;18°C, orange, rot ≥24°C).</p>
+        <section class="editor-section heatmap-legacy">
+          <h4 class="section-title"><ha-icon icon="mdi:thermometer"></ha-icon> Temperatur-Heatmap (Legacy)</h4>
+          <p class="section-hint">Heatmap-Zonen werden jetzt pro Temperatur-Entität unter „Raum-/Heatmap-Zonen“ (Zonen) gepflegt. Alte Einträge hier bleiben für Abwärtskompatibilität erhalten.</p>
           <div class="entity-list">
             ${(this._config.temperature_zones ?? []).map((zone, i) => html`
               <div class="entity-row heatmap-row">
@@ -253,15 +308,15 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass!, eid)}</option>`)}
                 </datalist>
                 <div class="entity-coords" title="Punkt 1 (x,y)">
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.x1) ?? 0)} placeholder="x1"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.x1) ?? 0)} placeholder="x1"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.y1) ?? 0)} placeholder="y1"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.y1) ?? 0)} placeholder="y1"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
                 </div>
                 <div class="entity-coords" title="Punkt 2 (x,y)">
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.x2) ?? 100)} placeholder="x2"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.x2) ?? 100)} placeholder="x2"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.y2) ?? 100)} placeholder="y2"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.y2) ?? 100)} placeholder="y2"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                 </div>
                 <input type="number" class="entity-opacity" min="0" max="1" step="0.01" .value=${String(Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4)))} title="Deckkraft"
@@ -273,7 +328,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             `)}
           </div>
           <button type="button" class="btn-add" @click=${this._addHeatmapZone}>
-            <ha-icon icon="mdi:plus"></ha-icon> Heatmap-Zone hinzufügen
+            <ha-icon icon="mdi:plus"></ha-icon> Legacy-Zone hinzufügen
           </button>
         </section>
         <section class="editor-section">
@@ -453,6 +508,40 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .entity-coords input {
         width: clamp(44px, 12vw, 52px);
+      }
+      .entity-boundaries {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+      .entity-boundaries .room-boundary {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .boundaries-label {
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+        margin-right: 4px;
+        flex-shrink: 0;
+      }
+      .btn-add-small {
+        padding: 6px 10px;
+        border: 1px dashed var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-radius: 8px;
+        background: transparent;
+        color: var(--primary-color, #03a9f4);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .btn-add-small:hover {
+        border-color: var(--primary-color, #03a9f4);
+      }
+      .editor-section.heatmap-legacy {
+        opacity: 0.9;
       }
       .entity-row input.entity-scale {
         width: clamp(50px, 14vw, 60px);
