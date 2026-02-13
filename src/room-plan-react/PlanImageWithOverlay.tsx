@@ -45,15 +45,23 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const [resolvedSrc, setResolvedSrc] = useState(imgSrc);
   const blobUrlRef = useRef<string | null>(null);
   const [pressBoundary, setPressBoundary] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [pressOpacity, setPressOpacity] = useState(0);
   const pressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onRoomPress = (boundary: { x1: number; y1: number; x2: number; y2: number }) => {
     if (pressTimeoutRef.current) clearTimeout(pressTimeoutRef.current);
     setPressBoundary(boundary);
+    setPressOpacity(0);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setPressOpacity(1));
+    });
     pressTimeoutRef.current = setTimeout(() => {
-      setPressBoundary(null);
-      pressTimeoutRef.current = null;
-    }, 400);
+      setPressOpacity(0);
+      pressTimeoutRef.current = setTimeout(() => {
+        setPressBoundary(null);
+        pressTimeoutRef.current = null;
+      }, 220);
+    }, 380);
   };
 
   useEffect(() => {
@@ -239,7 +247,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 background: 'rgba(0, 0, 0, 0.4)',
                 pointerEvents: 'none',
                 zIndex: 2.5,
-                transition: 'opacity 0.2s ease-out',
+                opacity: pressOpacity,
+                transition: 'opacity 0.22s ease-in-out',
               }}
               aria-hidden
             />
