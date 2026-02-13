@@ -107,7 +107,7 @@ export function EntityBadge(props: EntityBadgeProps) {
   const iconSizeEm = 1.15;
   const iconSizeIconOnlyEm = 1.35;
 
-  /* Chip: alle Größen in em, skaliert mit fontSize → proportional, kein Clipping */
+  /* Chip: Mindestgröße in px, damit er bei font-size:0 im Parent nicht unsichtbar wird; sonst em für Skalierung */
   const chipStyle: Record<string, string | number> = {
     position: 'absolute',
     left: `${x}%`,
@@ -117,7 +117,8 @@ export function EntityBadge(props: EntityBadgeProps) {
     alignItems: 'center',
     gap: '0.4em',
     padding: '0.35em 0.75em',
-    minHeight: '2.25em',
+    minHeight: 'max(2.25em, 28px)',
+    minWidth: 'max(2em, 24px)',
     borderRadius: '1em',
     border: '1px solid var(--divider-color)',
     background: '#fff',
@@ -131,6 +132,8 @@ export function EntityBadge(props: EntityBadgeProps) {
     zIndex: 2,
     maxWidth: 'min(90vw, 22em)',
     boxSizing: 'border-box',
+    visibility: 'visible',
+    opacity: 1,
   };
 
   const iconColor = ent.color ?? iconColorOverride ?? accentColor ?? (isOn ? 'var(--state-icon-active-color, var(--state-icon-on-color))' : 'var(--primary-text-color)');
