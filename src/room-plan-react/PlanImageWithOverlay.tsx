@@ -350,21 +350,20 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               objectFit: 'contain',
               objectPosition: 'center',
               filter: darkFilter,
-              zIndex: 0,
               display: 'block',
             }}
             onLoad={onImageLoad}
             onError={onImageError}
           />
           {!imageLoaded && !imageError && (
-            <div style={{ ...overlayBoxStyle, zIndex: 1, background: 'var(--ha-card-background)' }} aria-hidden />
+            <div style={{ ...overlayBoxStyle, background: 'var(--ha-card-background)' }} aria-hidden />
           )}
           {imageError && (
-            <div style={{ ...overlayBoxStyle, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
+            <div style={{ ...overlayBoxStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
               Bild konnte nicht geladen werden
             </div>
           )}
-          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an; pro Entity ein Shape (bei mehreren Boundaries ein gemeinsames SVG); z-index unter Badges */}
+          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an; pro Entity ein Shape (bei mehreren Boundaries ein gemeinsames SVG) */}
           {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (() => {
             const byEntity = new Map<string, HeatmapZone[]>();
             for (const z of zones) {
@@ -373,7 +372,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               byEntity.set(z.entity, list);
             }
             return (
-              <div style={{ ...overlayBoxStyle, zIndex: 1, pointerEvents: 'none' }}>
+              <div style={{ ...overlayBoxStyle, pointerEvents: 'none' }}>
                 {Array.from(byEntity.entries()).map(([entityId, entityZones]) =>
                   entityZones.length === 1 ? (
                     <HeatmapZoneComponent
@@ -407,7 +406,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 width: '100%',
                 height: '100%',
                 pointerEvents: 'none',
-                zIndex: 2.5,
                 opacity: 0,
               }}
               aria-hidden
@@ -457,7 +455,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               preserveAspectRatio="none"
               style={{
                 ...overlayBoxStyle,
-                zIndex: 2.6,
                 pointerEvents: 'none',
               }}
               aria-hidden
@@ -504,7 +501,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               })}
             </svg>
           )}
-          <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
+          <div style={{ ...overlayBoxStyle, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', minWidth: '100%', minHeight: '100%' }}>
               {badgeEntities.map((f, i) => {
                 const ent = f.entity;
