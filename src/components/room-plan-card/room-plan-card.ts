@@ -129,7 +129,12 @@ export class RoomPlanCard extends LitElement {
   /** Zeile der Tab-Optionen: null = Alle, HEATMAP_TAB = Heatmap (wenn Zonen), dann Domains */
   private _filterTabIds(): (string | null)[] {
     const domains = this._availableDomains();
-    const hasHeatmap = (this.config?.temperature_zones ?? []).length > 0;
+    const legacyZones = (this.config?.temperature_zones ?? []).length > 0;
+    const flattened = getFlattenedEntities(this.config);
+    const hasHeatmapFromRooms = flattened.some(
+      (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
+    );
+    const hasHeatmap = legacyZones || hasHeatmapFromRooms;
     const ids: (string | null)[] = [null];
     if (hasHeatmap) ids.push(HEATMAP_TAB);
     ids.push(...domains);
@@ -137,9 +142,14 @@ export class RoomPlanCard extends LitElement {
   }
 
   private _showFilterBar(): boolean {
+    const hasHeatmap =
+      (this.config?.temperature_zones ?? []).length > 0 ||
+      getFlattenedEntities(this.config).some(
+        (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
+      );
     return (
       this._availableDomains().length > 0 ||
-      (this.config?.temperature_zones ?? []).length > 0 ||
+      hasHeatmap ||
       (this.config?.alert_entities ?? []).length > 0
     );
   }

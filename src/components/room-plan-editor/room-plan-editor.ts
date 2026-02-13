@@ -245,9 +245,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
   /** Koordinaten in % aus Klick/Drag relativ zum Plan-Bild (object-fit: contain) */
   private _getPercentFromEvent(e: MouseEvent): { x: number; y: number } | null {
-    const wrap = (e.currentTarget as HTMLElement)?.querySelector?.('img') as HTMLImageElement | null;
-    const img = wrap || (e.currentTarget as HTMLImageElement);
-    if (!img) return null;
+    const target = e.currentTarget as HTMLElement;
+    const img =
+      (target?.querySelector?.('img') as HTMLImageElement) ||
+      (target?.closest?.('.picker-image-wrap')?.querySelector?.('img') as HTMLImageElement) ||
+      (target as HTMLImageElement);
+    if (!img || !img.naturalWidth) return null;
     if (!this._pickerImageNatural && img.naturalWidth && img.naturalHeight) {
       this._pickerImageNatural = { w: img.naturalWidth, h: img.naturalHeight };
     }
