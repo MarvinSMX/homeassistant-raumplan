@@ -249,15 +249,13 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const flattened = flattenedEntities;
   const entities = flattened.map((f) => f.entity);
   const showAllByTab = selectedTabs.size === 0;
+  /* Temperatur-Entities nur, wenn Tab „Temperatur“ gewählt; andere nach Domain. */
   const filteredEntities = showAllByTab
     ? flattened
     : flattened.filter((f) => {
         const domain = getEntityDomain(f.entity.entity);
-        return (
-          selectedTabs.has(domain) ||
-          (selectedTabs.has(HEATMAP_TAB) && f.entity.preset === 'temperature') ||
-          !domain
-        );
+        if (f.entity.preset === 'temperature') return selectedTabs.has(HEATMAP_TAB);
+        return selectedTabs.has(domain) || !domain;
       });
   /* Badges: gleiche Filter wie Tabs (filteredEntities), ohne Fensterkontakt (nur Linien). */
   const badgeEntities = filteredEntities.filter((f) => f.entity.preset !== 'window_contact');
@@ -521,7 +519,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                     tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
                     holdAction={ent.hold_action ?? config?.hold_action}
                     doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
-                    onRoomPressStart={ent.preset === 'temperature' && hasBounds ? (entityId, b) => onRoomPressStart(entityId, b) : undefined}
+                    onRoomPressStart={ent.preset === 'temperature' && hasBounds ? (_id, _b) => onRoomPressStart(ent.entity, bounds) : undefined}
                     onRoomPressEnd={ent.preset === 'temperature' && hasBounds ? onRoomPressEnd : undefined}
                   />
                 );

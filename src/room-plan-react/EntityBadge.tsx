@@ -3,7 +3,7 @@ import { handleAction, hasAction } from 'custom-card-helpers';
 import type { HomeAssistant } from 'custom-card-helpers';
 import type { RoomPlanEntity, RoomBoundaryItem } from '../lib/types';
 import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries } from '../lib/utils';
-import { temperatureColor } from './utils';
+import { temperatureColor, hexToRgba } from './utils';
 import { MdiIcon } from './MdiIcon';
 import { gsap } from 'gsap';
 
@@ -77,6 +77,14 @@ export function EntityBadge(props: EntityBadgeProps) {
     accentColor = 'var(--state-icon-active-color, var(--state-icon-on-color, #ffc107))';
   }
 
+  /* Hintergrund: Temperatur = Farbfläche wie früher, sonst Farbe oder Weiß */
+  const badgeBg =
+    preset === 'temperature' && accentColor
+      ? hexToRgba(accentColor, opacity)
+      : ent.color
+        ? hexToRgba(ent.color, opacity)
+        : '#fff';
+
   const actionConfig = {
     entity: ent.entity,
     tap_action: tapAction,
@@ -126,7 +134,7 @@ export function EntityBadge(props: EntityBadgeProps) {
     minWidth: 'max(2em, 24px)',
     borderRadius: '1em',
     border: '1px solid var(--divider-color)',
-    background: '#fff',
+    background: badgeBg,
     color: 'var(--primary-text-color, #212121)',
     fontSize: baseFontSize,
     fontWeight: 600,
@@ -208,7 +216,11 @@ export function EntityBadge(props: EntityBadgeProps) {
       onClick={onTap}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
+      onPointerLeave={() => {
+        onPointerUp();
+        handleRoomHoverEnd();
+      }}
+      onPointerEnter={() => handleRoomHoverStart()}
       onDblClick={onDbl}
       onContextMenu={(e) => { e.preventDefault(); onHold(); }}
       onMouseEnter={(e) => {
