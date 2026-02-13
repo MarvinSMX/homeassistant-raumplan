@@ -174,6 +174,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="temperature">Temperatur</option>
                   <option value="binary_sensor">Binary Sensor</option>
                 </select>
+                ${(ent.preset === 'temperature') ? html`
+                <div class="entity-coords room-boundary" title="Raumgrenze (%), Klick = Press-Effekt">
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
+                </div>
+                ` : ''}
                 <div class="entity-coords">
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
                     @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 50)) })} />

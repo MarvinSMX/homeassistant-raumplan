@@ -11,10 +11,12 @@ interface EntityBadgeProps {
   tapAction: import('custom-card-helpers').ActionConfig;
   holdAction?: import('custom-card-helpers').ActionConfig;
   doubleTapAction?: import('custom-card-helpers').ActionConfig;
+  /** Bei Temperatur + room_boundary: wird vor der Tap-Aktion aufgerufen für Press-Effekt (Raum abdunkeln). */
+  onRoomPress?: (boundary: { x1: number; y1: number; x2: number; y2: number }) => void;
 }
 
 export function EntityBadge(props: EntityBadgeProps) {
-  const { ent, hass, host, tapAction, holdAction, doubleTapAction } = props;
+  const { ent, hass, host, tapAction, holdAction, doubleTapAction, onRoomPress } = props;
   const x = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
   const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
   const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
@@ -62,7 +64,12 @@ export function EntityBadge(props: EntityBadgeProps) {
     double_tap_action: doubleTapAction,
   };
 
-  const onTap = () => handleAction(host, hass, actionConfig, 'tap');
+  const onTap = () => {
+    if (ent.preset === 'temperature' && ent.room_boundary && onRoomPress) {
+      onRoomPress(ent.room_boundary);
+    }
+    handleAction(host, hass, actionConfig, 'tap');
+  };
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
 

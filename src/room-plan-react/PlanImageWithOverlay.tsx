@@ -44,6 +44,17 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const [resolvedSrc, setResolvedSrc] = useState(imgSrc);
   const blobUrlRef = useRef<string | null>(null);
+  const [pressBoundary, setPressBoundary] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const pressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onRoomPress = (boundary: { x1: number; y1: number; x2: number; y2: number }) => {
+    if (pressTimeoutRef.current) clearTimeout(pressTimeoutRef.current);
+    setPressBoundary(boundary);
+    pressTimeoutRef.current = setTimeout(() => {
+      setPressBoundary(null);
+      pressTimeoutRef.current = null;
+    }, 400);
+  };
 
   useEffect(() => {
     if (!imgSrc || typeof window === 'undefined') {
@@ -105,6 +116,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
     return revokePrevious;
   }, [imgSrc]);
+
+  useEffect(() => () => {
+    if (pressTimeoutRef.current) clearTimeout(pressTimeoutRef.current);
+  }, []);
 
   const rotation = Number(config.rotation) ?? 0;
 
@@ -212,6 +227,23 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               ))}
             </div>
           )}
+          {/* Press-Effekt: Temperatur-Badge geklickt → Raumgrenze kurz abdunkeln */}
+          {pressBoundary && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${Math.min(pressBoundary.x1, pressBoundary.x2)}%`,
+                top: `${Math.min(pressBoundary.y1, pressBoundary.y2)}%`,
+                width: `${Math.abs(pressBoundary.x2 - pressBoundary.x1) || 1}%`,
+                height: `${Math.abs(pressBoundary.y2 - pressBoundary.y1) || 1}%`,
+                background: 'rgba(0, 0, 0, 0.4)',
+                pointerEvents: 'none',
+                zIndex: 2.5,
+                transition: 'opacity 0.2s ease-out',
+              }}
+              aria-hidden
+            />
+          )}
           <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
               {filteredEntities.map((ent, i) => (
@@ -223,6 +255,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
                   holdAction={ent.hold_action ?? config?.hold_action}
                   doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
+                  onRoomPress={ent.preset === 'temperature' && ent.room_boundary ? onRoomPress : undefined}
                 />
               ))}
             </div>

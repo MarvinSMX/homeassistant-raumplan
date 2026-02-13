@@ -18,13 +18,22 @@
   --secondary-background-color: var(--secondary-background-color, rgba(255, 255, 255, 0.05));
   --divider-color: var(--divider-color, rgba(0, 0, 0, 0.12));
   --error-color: var(--error-color, #db4437);
+  /* Tabs: Inactive/Hover – von FilterTabs genutzt */
+  --filter-tab-inactive-color: var(--secondary-text-color, rgba(255, 255, 255, 0.7));
+  --filter-tab-inactive-bg: var(--secondary-background-color, rgba(0, 0, 0, 0.08));
+  --filter-tab-inactive-hover-color: var(--primary-text-color, rgba(255, 255, 255, 0.9));
+  --filter-tab-inactive-hover-bg: var(--secondary-background-color, rgba(0, 0, 0, 0.14));
 }
 
-/* Tabs: Light/Dark – Theme-Variablen werden von HA gesetzt; Fallbacks oben im :host */
+/* Light Mode: Tabs mit dunklem Text auf hellem Grund */
 @media (prefers-color-scheme: light) {
   :host {
     --secondary-background-color: var(--secondary-background-color, rgba(0, 0, 0, 0.06));
     --divider-color: var(--divider-color, rgba(0, 0, 0, 0.08));
+    --filter-tab-inactive-color: var(--secondary-text-color, rgba(0, 0, 0, 0.65));
+    --filter-tab-inactive-bg: var(--secondary-background-color, rgba(0, 0, 0, 0.06));
+    --filter-tab-inactive-hover-color: var(--primary-text-color, rgba(0, 0, 0, 0.9));
+    --filter-tab-inactive-hover-bg: var(--secondary-background-color, rgba(0, 0, 0, 0.1));
   }
 }
 

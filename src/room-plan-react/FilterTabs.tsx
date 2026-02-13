@@ -50,13 +50,13 @@ export function FilterTabs(props: FilterTabsProps) {
     background: 'var(--primary-color, #03a9f4)',
     color: '#fff',
   };
-  const tabInactiveBg = 'var(--secondary-background-color, rgba(0, 0, 0, 0.08))';
+  const tabInactiveBg = 'var(--filter-tab-inactive-bg)';
   const tabInactiveStyle = {
     background: tabInactiveBg,
-    color: 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))',
+    color: 'var(--filter-tab-inactive-color)',
   };
-  const tabInactiveHoverBg = 'var(--secondary-background-color, rgba(0, 0, 0, 0.14))';
-  const tabInactiveHoverFg = 'var(--primary-text-color, rgba(255, 255, 255, 0.9))';
+  const tabInactiveHoverBg = 'var(--filter-tab-inactive-hover-bg)';
+  const tabInactiveHoverFg = 'var(--filter-tab-inactive-hover-color)';
 
   return (
     <div
