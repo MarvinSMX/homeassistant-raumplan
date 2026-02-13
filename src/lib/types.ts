@@ -18,8 +18,8 @@ export interface RoomPlanEntity {
   icon?: string;
   /** Wenn true: Wert/State der Entität statt Icon anzeigen */
   show_value?: boolean;
-  /** Preset: z. B. Temperatur = Wert anzeigen + Farbe nach Wert (blau kalt, orange/rot ab 24°C) */
-  preset?: 'default' | 'temperature';
+  /** Preset: temperature = Wert + Farbe nach Temperatur; binary_sensor = State symbolisieren (on/off, open/closed, Farbe + Icon) */
+  preset?: 'default' | 'temperature' | 'binary_sensor';
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */

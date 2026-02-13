@@ -15,8 +15,17 @@
   --primary-color: var(--primary-color, #03a9f4);
   --primary-text-color: var(--primary-text-color, #e1e1e1);
   --secondary-text-color: var(--secondary-text-color, #b0b0b0);
+  --secondary-background-color: var(--secondary-background-color, rgba(255, 255, 255, 0.05));
   --divider-color: var(--divider-color, rgba(0, 0, 0, 0.12));
   --error-color: var(--error-color, #db4437);
+}
+
+/* Tabs: Light/Dark – Theme-Variablen werden von HA gesetzt; Fallbacks oben im :host */
+@media (prefers-color-scheme: light) {
+  :host {
+    --secondary-background-color: var(--secondary-background-color, rgba(0, 0, 0, 0.06));
+    --divider-color: var(--divider-color, rgba(0, 0, 0, 0.08));
+  }
 }
 
 /* Karte nutzt volle Host-Größe, Inhaltsbereich kann wachsen */

@@ -21,21 +21,38 @@ export function EntityBadge(props: EntityBadgeProps) {
   const isOn = hass?.states?.[ent.entity]?.state === 'on';
   const icon = ent.icon || getEntityIcon(hass, ent.entity);
   const stateDisplay = getStateDisplay(hass, ent.entity);
-  const title = `${getFriendlyName(hass, ent.entity)}: ${stateDisplay}`;
+  const friendlyName = getFriendlyName(hass, ent.entity);
+  const title = `${friendlyName}: ${stateDisplay}`;
   const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
 
   const preset = ent.preset ?? 'default';
-  let bgColor: string;
+  const state = hass?.states?.[ent.entity]?.state ?? '';
   let showValue = !!ent.show_value;
+  let accentColor: string | undefined;
+  let displayIcon = ent.icon || getEntityIcon(hass, ent.entity);
+  let iconColorOverride: string | undefined;
 
   if (preset === 'temperature') {
     showValue = true;
-    const state = hass?.states?.[ent.entity]?.state;
     const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
     const temp = Number.isFinite(num) ? num : 20;
-    bgColor = hexToRgba(temperatureColor(temp), opacity);
-  } else {
-    bgColor = ent.color ? hexToRgba(ent.color, opacity) : `rgba(45, 45, 45, ${opacity})`;
+    accentColor = temperatureColor(temp);
+  } else if (preset === 'binary_sensor') {
+    showValue = true;
+    const active = ['on', 'open', 'detected', 'home', 'present', 'opening'].includes(String(state).toLowerCase());
+    if (active) {
+      accentColor = 'var(--state-icon-active-color, var(--state-icon-on-color, #4caf50))';
+      displayIcon = 'mdi:circle';
+      iconColorOverride = accentColor;
+    } else {
+      accentColor = undefined;
+      displayIcon = 'mdi:circle-outline';
+      iconColorOverride = 'var(--secondary-text-color)';
+    }
+  } else if (ent.color) {
+    accentColor = ent.color;
+  } else if (isOn) {
+    accentColor = 'var(--state-icon-active-color, var(--state-icon-on-color, #ffc107))';
   }
 
   const actionConfig = {
@@ -49,34 +66,70 @@ export function EntityBadge(props: EntityBadgeProps) {
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
 
+  /* HA-Style Chip: Pill-Form, Hintergrund/Border aus Theme, Icon + Text */
+  const chipStyle: Record<string, string | number> = {
+    position: 'absolute',
+    left: `${x}%`,
+    top: `${y}%`,
+    transform: 'translate(-50%, -50%)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: `calc(4px * ${scale}) calc(10px * ${scale})`,
+    minHeight: `calc(28px * ${scale})`,
+    borderRadius: 16,
+    border: '1px solid var(--divider-color)',
+    background: accentColor ? hexToRgba(accentColor, opacity * 0.25) : 'var(--ha-card-background)',
+    color: 'var(--primary-text-color)',
+    fontSize: `calc(clamp(0.7rem, 2vw, 0.8125rem) * ${scale})`,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    transition: 'background-color 0.2s, box-shadow 0.2s',
+    zIndex: 2,
+    maxWidth: 'min(90vw, 160px)',
+    boxSizing: 'border-box',
+  };
+
+  const iconColor = iconColorOverride ?? accentColor ?? (isOn ? 'var(--state-icon-active-color, var(--state-icon-on-color))' : 'var(--primary-text-color)');
+
   return (
     <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full cursor-pointer min-w-5 min-h-5 z-[2]"
-      style={{
-        left: `${x}%`,
-        top: `${y}%`,
-        width: `calc(clamp(28px, 8vw, 48px) * ${scale})`,
-        height: `calc(clamp(28px, 8vw, 48px) * ${scale})`,
-        background: bgColor,
-        color: isOn ? 'var(--state-icon-on-color, #ffc107)' : 'var(--primary-text-color, #e1e1e1)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-      }}
+      className="entity-badge-chip"
+      style={chipStyle}
       title={title}
       role="button"
       tabIndex={0}
       onClick={onTap}
       onDblClick={onDbl}
       onContextMenu={(e) => { e.preventDefault(); onHold(); }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+      }}
     >
-      <div className="w-full h-full flex items-center justify-center rounded-full overflow-hidden p-0.5">
-        {showValue ? (
-          <span className="text-center font-medium text-xs leading-tight truncate max-w-full">
-            {stateDisplay}
-          </span>
-        ) : (
-          <ha-icon icon={icon} />
-        )}
-      </div>
+      <ha-icon
+        icon={displayIcon}
+        style={{
+          width: `calc(18px * ${scale})`,
+          height: `calc(18px * ${scale})`,
+          flexShrink: 0,
+          color: iconColor,
+        }}
+      />
+      <span
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          minWidth: 0,
+        }}
+      >
+        {showValue ? stateDisplay : friendlyName}
+      </span>
     </div>
   );
 }

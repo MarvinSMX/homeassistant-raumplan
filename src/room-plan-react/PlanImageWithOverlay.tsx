@@ -204,7 +204,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               Bild konnte nicht geladen werden
             </div>
           )}
-          {zones.length > 0 && (
+          {/* Heatmap nur anzeigen, wenn Heatmap-Tab aktiv ist */}
+          {zones.length > 0 && activeTab === HEATMAP_TAB && (
             <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
               {zones.map((zone, i) => (
                 <HeatmapZone key={i} zone={zone} hass={hass} />

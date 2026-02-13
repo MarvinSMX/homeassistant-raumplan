@@ -40,14 +40,27 @@ export function FilterTabs(props: FilterTabsProps) {
 
   if (!showBar) return null;
 
+  /* Theme-aware: Light/Dark nutzen HA-Variablen; Fallbacks für beide Modi */
+  const tabBarStyle = {
+    padding: '10px 16px 12px',
+    background: 'var(--ha-card-background)',
+    borderBottom: '1px solid var(--divider-color)',
+  };
+  const tabActiveStyle = {
+    background: 'var(--primary-color)',
+    color: '#fff',
+  };
+  const tabInactiveStyle = {
+    background: 'var(--secondary-background-color)',
+    color: 'var(--secondary-text-color)',
+  };
+  const tabInactiveHoverBg = 'var(--secondary-background-color)';
+  const tabInactiveHoverFg = 'var(--primary-text-color)';
+
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-2 flex-shrink-0"
-      style={{
-        padding: '10px 16px 12px',
-        background: 'var(--ha-card-background, var(--card-background-color, #1e1e1e))',
-        borderBottom: '1px solid var(--divider-color, rgba(0, 0, 0, 0.12))',
-      }}
+      className="flex flex-wrap items-center justify-between gap-2 flex-shrink-0 filter-tabs-bar"
+      style={tabBarStyle}
     >
       <div className="flex flex-wrap items-center gap-2">
         {tabIds.map((id) => (
@@ -55,32 +68,28 @@ export function FilterTabs(props: FilterTabsProps) {
             key={id ?? 'all'}
             type="button"
             onClick={() => onSelectTab(id)}
+            className="filter-tab"
             style={{
               padding: '6px 14px',
-              border: 'none',
+              border: '1px solid var(--divider-color)',
               borderRadius: 16,
               fontSize: '0.875rem',
               fontWeight: 500,
               cursor: 'pointer',
-              transition: 'background-color 0.2s, color 0.2s',
+              transition: 'background-color 0.2s, color 0.2s, border-color 0.2s',
               fontFamily: 'inherit',
-              ...(activeTab === id
-                ? { background: 'var(--primary-color, #03a9f4)', color: '#fff' }
-                : {
-                    background: 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))',
-                    color: 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))',
-                  }),
+              ...(activeTab === id ? tabActiveStyle : tabInactiveStyle),
             }}
             onMouseEnter={(e) => {
               if (activeTab !== id) {
-                e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.08))';
-                e.currentTarget.style.color = 'var(--primary-text-color, rgba(255, 255, 255, 0.9))';
+                e.currentTarget.style.background = tabInactiveHoverBg;
+                e.currentTarget.style.color = tabInactiveHoverFg;
               }
             }}
             onMouseLeave={(e) => {
               if (activeTab !== id) {
-                e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))';
-                e.currentTarget.style.color = 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))';
+                e.currentTarget.style.background = tabInactiveStyle.background;
+                e.currentTarget.style.color = tabInactiveStyle.color;
               }
             }}
           >
@@ -92,38 +101,36 @@ export function FilterTabs(props: FilterTabsProps) {
         <button
           type="button"
           onClick={onAlertClick}
+          className="filter-tab filter-tab-alert"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
             padding: '6px 12px',
-            border: 'none',
+            border: '1px solid var(--divider-color)',
             borderRadius: 16,
             fontSize: '0.875rem',
             fontWeight: 500,
             cursor: 'pointer',
-            transition: 'opacity 0.2s',
+            transition: 'opacity 0.2s, background-color 0.2s, color 0.2s',
             fontFamily: 'inherit',
             ...(alertCount > 0
-              ? { background: 'var(--error-color, #db4437)', color: '#fff' }
-              : {
-                  background: 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))',
-                  color: 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))',
-                }),
+              ? { background: 'var(--error-color)', color: '#fff' }
+              : tabInactiveStyle),
           }}
           title="Meldungen"
           onMouseEnter={(e) => {
             if (alertCount === 0) {
-              e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.08))';
-              e.currentTarget.style.color = 'var(--primary-text-color, rgba(255, 255, 255, 0.9))';
+              e.currentTarget.style.background = tabInactiveHoverBg;
+              e.currentTarget.style.color = tabInactiveHoverFg;
             } else {
               e.currentTarget.style.opacity = '0.9';
             }
           }}
           onMouseLeave={(e) => {
             if (alertCount === 0) {
-              e.currentTarget.style.background = 'var(--secondary-background-color, rgba(255, 255, 255, 0.05))';
-              e.currentTarget.style.color = 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))';
+              e.currentTarget.style.background = tabInactiveStyle.background;
+              e.currentTarget.style.color = tabInactiveStyle.color;
             } else {
               e.currentTarget.style.opacity = '1';
             }

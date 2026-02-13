@@ -169,9 +169,10 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateEntity(i, { icon: v || undefined }); }} />
                 <select class="entity-preset" title="Preset"
                   .value=${ent.preset ?? 'default'}
-                  @change=${(e: Event) => this._updateEntity(i, { preset: (e.target as HTMLSelectElement).value as 'default' | 'temperature' })}>
+                  @change=${(e: Event) => this._updateEntity(i, { preset: (e.target as HTMLSelectElement).value as 'default' | 'temperature' | 'binary_sensor' })}>
                   <option value="default">Standard</option>
                   <option value="temperature">Temperatur</option>
+                  <option value="binary_sensor">Binary Sensor</option>
                 </select>
                 <div class="entity-coords">
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
