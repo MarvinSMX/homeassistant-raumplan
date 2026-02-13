@@ -77,7 +77,7 @@ export function EntityBadge(props: EntityBadgeProps) {
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
 
-  /* Chip: immer weißer Hintergrund (nicht transparent), nur Icons in Farbe; Text standardmäßig dunkel */
+  /* Chip: immer weißer Hintergrund (Badge-Style), nur Icons in Farbe; Text standardmäßig dunkel */
   const chipStyle: Record<string, string | number> = {
     position: 'absolute',
     left: `${x}%`,
@@ -110,11 +110,23 @@ export function EntityBadge(props: EntityBadgeProps) {
   const tempDisplay = Number.isFinite(tempNum) ? `${tempNum} °C` : stateDisplay;
   const showIcon = preset !== 'temperature';
   const textColor = preset === 'temperature' && accentColor ? accentColor : undefined;
+  const isIconOnly = preset === 'window_contact';
 
   return (
     <div
       className="entity-badge-chip"
-      style={chipStyle}
+      style={{
+        ...chipStyle,
+        ...(isIconOnly
+          ? {
+              background: '#fff',
+              justifyContent: 'center',
+              padding: `calc(8px * ${scale})`,
+              minWidth: `calc(36px * ${scale})`,
+              minHeight: `calc(36px * ${scale})`,
+            }
+          : {}),
+      }}
       title={title}
       role="button"
       tabIndex={0}
@@ -140,17 +152,19 @@ export function EntityBadge(props: EntityBadgeProps) {
           }}
         />
       )}
-      <span
-        style={{
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          minWidth: 0,
-          ...(textColor ? { color: textColor } : {}),
-        }}
-      >
-        {preset === 'temperature' ? tempDisplay : (showValue ? stateDisplay : friendlyName)}
-      </span>
+      {!isIconOnly && (
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+            ...(textColor ? { color: textColor } : {}),
+          }}
+        >
+          {preset === 'temperature' ? tempDisplay : (showValue ? stateDisplay : friendlyName)}
+        </span>
+      )}
     </div>
   );
 }

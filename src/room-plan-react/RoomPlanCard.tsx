@@ -27,7 +27,10 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
 
   const onSelectTab = useCallback((id: string | null) => {
     if (id === null) {
-      setSelectedTabs(new Set(allTabIds));
+      /* "Alle" klicken: wenn alle aktiv → alle abwählen (keine Entities); sonst alle aktivieren */
+      setSelectedTabs((prev) =>
+        prev.size === allTabIds.length ? new Set() : new Set(allTabIds)
+      );
     } else {
       setSelectedTabs((prev) => {
         const next = new Set(prev);
@@ -93,25 +96,15 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           host={host}
           selectedTabs={selectedTabs}
           showHeatmapOverlay={showHeatmapOverlay}
+          onHeatmapToggle={setShowHeatmapOverlay}
+          hasHeatmapZones={hasHeatmapZones}
+          isTemperaturTabSelected={isTemperaturTabSelected}
           imageAspect={imageAspect}
           imageLoaded={imageLoaded}
           imageError={imageError}
           onImageLoad={onImageLoad}
           onImageError={onImageError}
         />
-        {hasHeatmapZones && isTemperaturTabSelected && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '8px 12px 10px', gap: 8, borderTop: '1px solid var(--divider-color)', background: 'var(--ha-card-background)' }}>
-            <label style={{ fontSize: '0.875rem', color: 'var(--secondary-text-color)', cursor: 'pointer', userSelect: 'none' }}>
-              <input
-                type="checkbox"
-                checked={showHeatmapOverlay}
-                onChange={(e) => setShowHeatmapOverlay((e.target as HTMLInputElement).checked)}
-                style={{ marginRight: 6, verticalAlign: 'middle' }}
-              />
-              Heatmap
-            </label>
-          </div>
-        )}
       </div>
     </ha-card>
   );

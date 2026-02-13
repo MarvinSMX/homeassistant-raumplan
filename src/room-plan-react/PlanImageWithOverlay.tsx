@@ -17,8 +17,10 @@ interface PlanImageWithOverlayProps {
   hass: HomeAssistant;
   host: HTMLElement;
   selectedTabs: Set<string>;
-  /** Nur bei Temperatur-Tab: Heatmap-Overlay ein-/ausblendbar (Toggle unten rechts) */
   showHeatmapOverlay?: boolean;
+  onHeatmapToggle?: (show: boolean) => void;
+  hasHeatmapZones?: boolean;
+  isTemperaturTabSelected?: boolean;
   imageAspect: number;
   imageLoaded: boolean;
   imageError: boolean;
@@ -33,6 +35,9 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     host,
     selectedTabs,
     showHeatmapOverlay = true,
+    onHeatmapToggle,
+    hasHeatmapZones,
+    isTemperaturTabSelected,
     imageAspect,
     imageLoaded,
     imageError,
@@ -274,6 +279,32 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               ))}
             </div>
           </div>
+          {hasHeatmapZones && isTemperaturTabSelected && onHeatmapToggle && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                zIndex: 4,
+                padding: '6px 10px',
+                borderRadius: 8,
+                background: 'var(--ha-card-background)',
+                border: '1px solid var(--divider-color)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                pointerEvents: 'auto',
+              }}
+            >
+              <label style={{ fontSize: '0.8125rem', color: 'var(--secondary-text-color)', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={showHeatmapOverlay}
+                  onChange={(e) => onHeatmapToggle((e.target as HTMLInputElement).checked)}
+                  style={{ margin: 0 }}
+                />
+                Heatmap
+              </label>
+            </div>
+          )}
         </div>
       </div>
     </div>
