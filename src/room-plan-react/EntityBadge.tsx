@@ -86,19 +86,15 @@ export function EntityBadge(props: EntityBadgeProps) {
 
   const onTap = () => handleAction(host, hass, actionConfig, 'tap');
   const boundaries = getEntityBoundaries(ent);
-  const hasRoomBoundaries = boundaries.length > 0;
+  /* Parent übergibt onRoomPressStart nur bei Temperatur + Raum-Boundary; dann Hover/Press auslösen (unabhängig von ent.room_boundaries). */
   const onPointerDown = () => {
-    if (ent.preset === 'temperature' && hasRoomBoundaries && onRoomPressStart) {
-      onRoomPressStart(ent.entity, boundaries);
-    }
+    if (ent.preset === 'temperature' && onRoomPressStart) onRoomPressStart(ent.entity, boundaries);
   };
   const onPointerUp = () => {
     if (ent.preset === 'temperature' && onRoomPressEnd) onRoomPressEnd();
   };
   const handleRoomHoverStart = () => {
-    if (ent.preset === 'temperature' && hasRoomBoundaries && onRoomPressStart) {
-      onRoomPressStart(ent.entity, boundaries);
-    }
+    if (ent.preset === 'temperature' && onRoomPressStart) onRoomPressStart(ent.entity, boundaries);
   };
   const handleRoomHoverEnd = () => {
     if (ent.preset === 'temperature' && onRoomPressEnd) onRoomPressEnd();
@@ -190,9 +186,9 @@ export function EntityBadge(props: EntityBadgeProps) {
       className="entity-badge-chip"
       style={{
         ...chipStyle,
+        background: '#fff',
         ...(isIconOnly
           ? {
-              background: '#fff',
               padding: '0.5em 0.85em',
               minWidth: '2.75em',
               minHeight: '2.75em',
