@@ -174,6 +174,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="temperature">Temperatur</option>
                   <option value="binary_sensor">Binary Sensor</option>
                   <option value="window_contact">Fensterkontakt</option>
+                  <option value="smoke_detector">Rauchmelder</option>
                 </select>
                 ${(ent.preset === 'temperature') ? html`
                 <div class="entity-coords room-boundary" title="Raumgrenze (%), Klick = Press-Effekt">

@@ -1,9 +1,11 @@
+import { useRef, useEffect } from 'preact/hooks';
 import { handleAction, hasAction } from 'custom-card-helpers';
 import type { HomeAssistant } from 'custom-card-helpers';
 import type { RoomPlanEntity } from '../lib/types';
 import { getEntityIcon, getFriendlyName, getStateDisplay } from '../lib/utils';
 import { temperatureColor } from './utils';
 import { MdiIcon } from './MdiIcon';
+import { gsap } from 'gsap';
 
 interface EntityBadgeProps {
   ent: RoomPlanEntity;
@@ -56,6 +58,12 @@ export function EntityBadge(props: EntityBadgeProps) {
     displayIcon = ent.icon || 'mdi:window-open';
     const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
     iconColorOverride = isOpen ? 'var(--error-color, #f44336)' : 'var(--primary-text-color)';
+  } else if (preset === 'smoke_detector') {
+    displayIcon = ent.icon || 'mdi:smoke-detector';
+    const isAlert = ['triggered', 'smoke', 'alarm', 'sabotage', 'tampered', 'on'].includes(String(state).toLowerCase());
+    if (isAlert) {
+      iconColorOverride = 'var(--error-color, #db4437)';
+    }
   } else if (ent.color) {
     accentColor = ent.color;
   } else if (isOn) {
@@ -118,9 +126,42 @@ export function EntityBadge(props: EntityBadgeProps) {
   const showIcon = preset !== 'temperature';
   const textColor = preset === 'temperature' && accentColor ? accentColor : undefined;
   const isIconOnly = preset === 'window_contact';
+  const isSmokeAlert =
+    preset === 'smoke_detector' &&
+    ['triggered', 'smoke', 'alarm', 'sabotage', 'tampered', 'on'].includes(String(state).toLowerCase());
+
+  const chipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = chipRef.current;
+    if (!el || !isSmokeAlert) {
+      if (el) gsap.set(el, { clearProps: 'boxShadow,borderColor' });
+      return;
+    }
+    const tween = gsap.fromTo(
+      el,
+      {
+        boxShadow: '0 0 0 0 rgba(219, 68, 55, 0.6)',
+        borderColor: 'var(--error-color, #db4437)',
+      },
+      {
+        boxShadow: '0 0 0 8px rgba(219, 68, 55, 0)',
+        borderColor: 'rgba(219, 68, 55, 0.5)',
+        duration: 0.6,
+        repeat: -1,
+        yoyo: true,
+        ease: 'power2.inOut',
+      }
+    );
+    return () => {
+      tween.kill();
+      gsap.set(el, { clearProps: 'boxShadow,borderColor' });
+    };
+  }, [isSmokeAlert]);
 
   return (
     <div
+      ref={chipRef}
       className="entity-badge-chip"
       style={{
         ...chipStyle,
