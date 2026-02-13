@@ -51,14 +51,17 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const [resolvedSrc, setResolvedSrc] = useState(imgSrc);
   const blobUrlRef = useRef<string | null>(null);
   const [pressBoundaries, setPressBoundaries] = useState<{ x1: number; y1: number; x2: number; y2: number }[]>([]);
+  const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
   const pressOverlayRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const onRoomPressStart = (boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => {
+  const onRoomPressStart = (entityId: string, boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => {
     gsap.killTweensOf(pressOverlayRefs.current);
+    setHoveredEntityId(entityId);
     setPressBoundaries(boundaries.length ? boundaries : []);
   };
 
   const onRoomPressEnd = () => {
+    setHoveredEntityId(null);
     const refs = pressOverlayRefs.current.slice(0, pressBoundaries.length).filter(Boolean) as HTMLDivElement[];
     if (refs.length === 0) {
       setPressBoundaries([]);
@@ -264,7 +267,12 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (
             <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
               {zones.map((zone, i) => (
-                <HeatmapZoneComponent key={i} zone={zone} hass={hass} />
+                <HeatmapZoneComponent
+                  key={i}
+                  zone={zone}
+                  hass={hass}
+                  dimmed={hoveredEntityId === zone.entity}
+                />
               ))}
             </div>
           )}
@@ -345,7 +353,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
                   holdAction={ent.hold_action ?? config?.hold_action}
                   doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
-                  onRoomPressStart={ent.preset === 'temperature' && getEntityBoundaries(ent).length > 0 ? (bounds) => onRoomPressStart(bounds) : undefined}
+                  onRoomPressStart={ent.preset === 'temperature' && getEntityBoundaries(ent).length > 0 ? (entityId, bounds) => onRoomPressStart(entityId, bounds) : undefined}
                   onRoomPressEnd={ent.preset === 'temperature' && getEntityBoundaries(ent).length > 0 ? onRoomPressEnd : undefined}
                 />
               ))}

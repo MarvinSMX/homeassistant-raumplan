@@ -5,9 +5,13 @@ import { hexToRgba, temperatureColor } from './utils';
 interface HeatmapZoneProps {
   zone: HeatmapZoneType;
   hass: HomeAssistant;
+  /** Beim Hover/Abdunkeln: Heatmap dieser Zone ausblenden (gleiche Dauer wie Abdunkel-Overlay) */
+  dimmed?: boolean;
 }
 
-export function HeatmapZone({ zone, hass }: HeatmapZoneProps) {
+const DIM_DURATION = 0.28;
+
+export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
   const x1 = Math.min(100, Math.max(0, Number(zone.x1) ?? 0));
   const y1 = Math.min(100, Math.max(0, Number(zone.y1) ?? 0));
   const x2 = Math.min(100, Math.max(0, Number(zone.x2) ?? 100));
@@ -32,6 +36,8 @@ export function HeatmapZone({ zone, hass }: HeatmapZoneProps) {
         top: `${top}%`,
         width: `${width}%`,
         height: `${height}%`,
+        opacity: dimmed ? 0 : 1,
+        transition: `opacity ${DIM_DURATION}s ease-in-out`,
         background: bg,
       }}
       title={`${zone.entity}: ${state ?? '?'}`}

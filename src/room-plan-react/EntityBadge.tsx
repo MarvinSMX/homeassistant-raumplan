@@ -14,8 +14,8 @@ interface EntityBadgeProps {
   tapAction: import('custom-card-helpers').ActionConfig;
   holdAction?: import('custom-card-helpers').ActionConfig;
   doubleTapAction?: import('custom-card-helpers').ActionConfig;
-  /** Temperatur + room_boundaries: Start der Abdunkel-Animation (Hover/Press), mehrere Zonen möglich. */
-  onRoomPressStart?: (boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => void;
+  /** Temperatur + room_boundaries: Start der Abdunkel-Animation (Hover/Press), mehrere Zonen möglich. entityId für Heatmap-Ausblendung. */
+  onRoomPressStart?: (entityId: string, boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => void;
   /** Temperatur: Ende Hover/Press → Abdunkelung ausblenden. */
   onRoomPressEnd?: () => void;
 }
@@ -84,7 +84,7 @@ export function EntityBadge(props: EntityBadgeProps) {
   const hasRoomBoundaries = boundaries.length > 0;
   const onPointerDown = () => {
     if (ent.preset === 'temperature' && hasRoomBoundaries && onRoomPressStart) {
-      onRoomPressStart(boundaries);
+      onRoomPressStart(ent.entity, boundaries);
     }
   };
   const onPointerUp = () => {
@@ -92,7 +92,7 @@ export function EntityBadge(props: EntityBadgeProps) {
   };
   const handleRoomHoverStart = () => {
     if (ent.preset === 'temperature' && hasRoomBoundaries && onRoomPressStart) {
-      onRoomPressStart(boundaries);
+      onRoomPressStart(ent.entity, boundaries);
     }
   };
   const handleRoomHoverEnd = () => {
