@@ -5,8 +5,6 @@
 import { render } from 'preact/compat';
 import { RoomPlanCard } from './RoomPlanCard';
 import type { RoomPlanCardConfig } from '../lib/types';
-import type { FlattenedEntity } from '../lib/utils';
-import { getFlattenedEntities } from '../lib/utils';
 
 // Tailwind-Build wird vor Webpack ausgeführt; Webpack lädt diese Datei als String
 import tailwindCss from './tailwind-built.css';
@@ -49,8 +47,6 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
 export class RoomPlanCardWrapper extends HTMLElement {
   private _config: RoomPlanCardConfig = { type: '', image: '', entities: [] };
   private _hass: import('custom-card-helpers').HomeAssistant | null = null;
-  private _lastConfig: RoomPlanCardConfig | null = null;
-  private _cachedFlattened: FlattenedEntity[] = [];
 
   static getConfigElement() {
     return document.createElement('room-plan-editor');
@@ -110,17 +106,11 @@ export class RoomPlanCardWrapper extends HTMLElement {
 
     const cssString = typeof tailwindCss === 'string' ? tailwindCss : '';
 
-    if (this._config !== this._lastConfig) {
-      this._lastConfig = this._config;
-      this._cachedFlattened = getFlattenedEntities(this._config);
-    }
-    const flattenedEntities = this._cachedFlattened;
     const root = this.shadowRoot!;
     render(
       <RoomPlanCard
         hass={this._hass}
         config={this._config}
-        flattenedEntities={flattenedEntities}
         host={this}
         cssString={cssString}
       />,

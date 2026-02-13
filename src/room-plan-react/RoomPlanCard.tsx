@@ -10,12 +10,17 @@ import { getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
 interface RoomPlanCardProps {
   hass: HomeAssistant;
   config: RoomPlanCardConfig;
-  flattenedEntities: FlattenedEntity[];
   host: HTMLElement;
   cssString: string;
 }
 
-export function RoomPlanCard({ hass, config, flattenedEntities, host, cssString }: RoomPlanCardProps) {
+export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProps) {
+  /** Entities direkt aus config: for each config.rooms, for each room.entities – sonst config.entities (Legacy). */
+  const flattenedEntities = useMemo(
+    () => getFlattenedEntities(config),
+    [config]
+  );
+
   const allTabIds = useMemo(() => {
     const flattened = flattenedEntities;
     const entities = flattened.map((f) => f.entity);
