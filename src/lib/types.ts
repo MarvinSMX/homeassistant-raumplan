@@ -18,6 +18,8 @@ export interface RoomPlanEntity {
   icon?: string;
   /** Wenn true: Wert/State der Entität statt Icon anzeigen */
   show_value?: boolean;
+  /** Wenn false: nur Icon anzeigen, kein Name/Text (z. B. Rauchmelder). Standard true. */
+  show_name?: boolean;
   /** Preset: temperature = Wert; binary_sensor = State; window_contact = Linie; smoke_detector = Rauchmelder, bei Auslösung/Sabotage blinkender Rand (Ping) */
   preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact' | 'smoke_detector';
   /** Temperatur: Raumgrenze in %. Fensterkontakt: Linie von (x1,y1) nach (x2,y2) in %. */

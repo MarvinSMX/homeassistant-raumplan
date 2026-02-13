@@ -169,7 +169,10 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateEntity(i, { icon: v || undefined }); }} />
                 <select class="entity-preset" title="Preset"
                   .value=${ent.preset ?? 'default'}
-                  @change=${(e: Event) => this._updateEntity(i, { preset: (e.target as HTMLSelectElement).value as RoomPlanEntity['preset'] })}>
+                  @change=${(e: Event) => {
+                    const preset = (e.target as HTMLSelectElement).value as RoomPlanEntity['preset'];
+                    this._updateEntity(i, preset === 'smoke_detector' ? { preset, show_name: false } : { preset });
+                  }}>
                   <option value="default">Standard</option>
                   <option value="temperature">Temperatur</option>
                   <option value="binary_sensor">Binary Sensor</option>
@@ -222,6 +225,16 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <input type="checkbox" .checked=${!!ent.show_value} title="Wert anzeigen"
                     @change=${(e: Event) => this._updateEntity(i, { show_value: (e.target as HTMLInputElement).checked })} />
                   Wert
+                </label>
+                <label class="entity-check">
+                  <input type="checkbox" .checked=${ent.show_name !== false} title="Text (Name) anzeigen"
+                    @change=${(e: Event) => this._updateEntity(i, { show_name: (e.target as HTMLInputElement).checked })} />
+                  Text
+                </label>
+                <label class="entity-check">
+                  <input type="checkbox" .checked=${ent.show_name !== false} title="Text (Name) anzeigen"
+                    @change=${(e: Event) => this._updateEntity(i, { show_name: (e.target as HTMLInputElement).checked })} />
+                  Text
                 </label>
                 <button type="button" class="btn-remove" @click=${() => this._removeEntity(i)} title="Entfernen">
                   <ha-icon icon="mdi:delete-outline"></ha-icon>

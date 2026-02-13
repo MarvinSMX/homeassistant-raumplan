@@ -125,7 +125,10 @@ export function EntityBadge(props: EntityBadgeProps) {
   const tempDisplay = Number.isFinite(tempNum) ? `${tempNum} °C` : stateDisplay;
   const showIcon = preset !== 'temperature';
   const textColor = preset === 'temperature' && accentColor ? accentColor : undefined;
-  const isIconOnly = preset === 'window_contact';
+  const isIconOnly =
+    preset === 'window_contact' ||
+    preset === 'smoke_detector' ||
+    ent.show_name === false;
   const isSmokeAlert =
     preset === 'smoke_detector' &&
     ['triggered', 'smoke', 'alarm', 'sabotage', 'tampered', 'on'].includes(String(state).toLowerCase());
