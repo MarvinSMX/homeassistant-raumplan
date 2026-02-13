@@ -16,7 +16,9 @@ interface PlanImageWithOverlayProps {
   config: RoomPlanCardConfig;
   hass: HomeAssistant;
   host: HTMLElement;
-  activeTab: string | null;
+  selectedTabs: Set<string>;
+  /** Nur bei Temperatur-Tab: Heatmap-Overlay ein-/ausblendbar (Toggle unten rechts) */
+  showHeatmapOverlay?: boolean;
   imageAspect: number;
   imageLoaded: boolean;
   imageError: boolean;
@@ -29,7 +31,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     config,
     hass,
     host,
-    activeTab,
+    selectedTabs,
+    showHeatmapOverlay = true,
     imageAspect,
     imageLoaded,
     imageError,
@@ -136,12 +139,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const rotation = Number(config.rotation) ?? 0;
 
   const entities = config?.entities ?? [];
-  const filteredEntities: RoomPlanEntity[] =
-    activeTab === HEATMAP_TAB
-      ? []
-      : activeTab === null || activeTab === ''
-        ? entities
-        : entities.filter((e) => getEntityDomain(e.entity) === activeTab);
+  const filteredEntities: RoomPlanEntity[] = entities.filter((e) =>
+    selectedTabs.has(getEntityDomain(e.entity)) ||
+    (selectedTabs.has(HEATMAP_TAB) && e.preset === 'temperature')
+  );
 
   const zones = config?.temperature_zones ?? [];
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
@@ -231,8 +232,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               Bild konnte nicht geladen werden
             </div>
           )}
-          {/* Heatmap nur anzeigen, wenn Heatmap-Tab aktiv ist */}
-          {zones.length > 0 && activeTab === HEATMAP_TAB && (
+          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an */}
+          {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (
             <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
               {zones.map((zone, i) => (
                 <HeatmapZone key={i} zone={zone} hass={hass} />

@@ -51,6 +51,10 @@ export function EntityBadge(props: EntityBadgeProps) {
       displayIcon = 'mdi:circle-outline';
       iconColorOverride = 'var(--secondary-text-color)';
     }
+  } else if (preset === 'window_contact') {
+    displayIcon = ent.icon || 'mdi:window-open';
+    const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
+    iconColorOverride = isOpen ? 'var(--error-color, #f44336)' : 'var(--primary-text-color)';
   } else if (ent.color) {
     accentColor = ent.color;
   } else if (isOn) {

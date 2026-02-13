@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'preact/hooks';
+import { useState, useCallback, useMemo, useEffect } from 'preact/hooks';
 import type { RoomPlanCardConfig } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
-import { FilterTabs } from './FilterTabs';
+import { FilterTabs, HEATMAP_TAB } from './FilterTabs';
 import { PlanImageWithOverlay } from './PlanImageWithOverlay';
+import { getEntityDomain } from './utils';
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;
@@ -12,10 +13,36 @@ interface RoomPlanCardProps {
 }
 
 export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProps) {
-  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const allTabIds = useMemo(() => {
+    const entities = config?.entities ?? [];
+    const domains = Array.from(new Set(entities.map((e) => getEntityDomain(e.entity)).filter(Boolean))).sort();
+    const hasHeatmap = (config?.temperature_zones ?? []).length > 0;
+    return [...(hasHeatmap ? [HEATMAP_TAB] : []), ...domains];
+  }, [config?.entities, config?.temperature_zones]);
+
+  const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setSelectedTabs(new Set(allTabIds));
+  }, [allTabIds]);
+
+  const onSelectTab = useCallback((id: string | null) => {
+    if (id === null) {
+      setSelectedTabs(new Set(allTabIds));
+    } else {
+      setSelectedTabs((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    }
+  }, [allTabIds]);
   const [imageAspect, setImageAspect] = useState(16 / 9);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showHeatmapOverlay, setShowHeatmapOverlay] = useState(true);
+  const hasHeatmapZones = (config?.temperature_zones ?? []).length > 0;
+  const isTemperaturTabSelected = selectedTabs.has(HEATMAP_TAB);
 
   const onImageLoad = useCallback((e: Event) => {
     const img = e.target as HTMLImageElement;
@@ -55,21 +82,36 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
         <FilterTabs
           config={config}
           hass={hass}
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          allTabIds={allTabIds}
+          selectedTabs={selectedTabs}
+          onSelectTab={onSelectTab}
           host={host}
         />
         <PlanImageWithOverlay
           config={config}
           hass={hass}
           host={host}
-          activeTab={activeTab}
+          selectedTabs={selectedTabs}
+          showHeatmapOverlay={showHeatmapOverlay}
           imageAspect={imageAspect}
           imageLoaded={imageLoaded}
           imageError={imageError}
           onImageLoad={onImageLoad}
           onImageError={onImageError}
         />
+        {hasHeatmapZones && isTemperaturTabSelected && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '8px 12px 10px', gap: 8, borderTop: '1px solid var(--divider-color)', background: 'var(--ha-card-background)' }}>
+            <label style={{ fontSize: '0.875rem', color: 'var(--secondary-text-color)', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={showHeatmapOverlay}
+                onChange={(e) => setShowHeatmapOverlay((e.target as HTMLInputElement).checked)}
+                style={{ marginRight: 6, verticalAlign: 'middle' }}
+              />
+              Heatmap
+            </label>
+          </div>
+        )}
       </div>
     </ha-card>
   );

@@ -7,23 +7,20 @@ export const HEATMAP_TAB = '__heatmap__';
 interface FilterTabsProps {
   config: RoomPlanCardConfig;
   hass: { states?: Record<string, { state?: string }> } | null;
-  activeTab: string | null;
+  allTabIds: string[];
+  selectedTabs: Set<string>;
   onSelectTab: (id: string | null) => void;
   host: HTMLElement;
 }
 
 export function FilterTabs(props: FilterTabsProps) {
-  const { config, hass, activeTab, onSelectTab, host } = props;
-  const entities = config?.entities ?? [];
-  const domains = Array.from(new Set(entities.map((e) => getEntityDomain(e.entity)).filter(Boolean))).sort();
-  const hasHeatmap = (config?.temperature_zones ?? []).length > 0;
+  const { config, hass, allTabIds, selectedTabs, onSelectTab, host } = props;
   const alertEntities = config?.alert_entities ?? [];
 
-  const tabIds: (string | null)[] = [null];
-  if (hasHeatmap) tabIds.push(HEATMAP_TAB);
-  tabIds.push(...domains);
+  const tabIds: (string | null)[] = [null, ...allTabIds];
+  const allSelected = allTabIds.length > 0 && selectedTabs.size === allTabIds.length;
 
-  const showBar = domains.length > 0 || hasHeatmap || alertEntities.length > 0;
+  const showBar = allTabIds.length > 0 || alertEntities.length > 0;
   const alertCount = hass?.states && alertEntities.length > 0
     ? alertEntities.filter((eid) => {
         const s = hass?.states?.[eid]?.state;
@@ -64,39 +61,42 @@ export function FilterTabs(props: FilterTabsProps) {
       style={tabBarStyle}
     >
       <div className="flex flex-wrap items-center gap-2">
-        {tabIds.map((id) => (
-          <button
-            key={id ?? 'all'}
-            type="button"
-            onClick={() => onSelectTab(id)}
-            className="filter-tab"
-            style={{
-              padding: '6px 14px',
-              border: '1px solid var(--divider-color)',
-              borderRadius: 16,
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background-color 0.2s, color 0.2s, border-color 0.2s',
-              fontFamily: 'inherit',
-              ...(activeTab === id ? tabActiveStyle : tabInactiveStyle),
-            }}
-            onMouseEnter={(e) => {
-              if (activeTab !== id) {
-                e.currentTarget.style.background = tabInactiveHoverBg;
-                e.currentTarget.style.color = tabInactiveHoverFg;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== id) {
-                e.currentTarget.style.background = tabInactiveBg;
-                e.currentTarget.style.color = tabInactiveStyle.color;
-              }
-            }}
-          >
-            {id === null ? 'Alle' : id === HEATMAP_TAB ? 'Heatmap' : id}
-          </button>
-        ))}
+        {tabIds.map((id) => {
+          const isActive = id === null ? allSelected : selectedTabs.has(id);
+          return (
+            <button
+              key={id ?? 'all'}
+              type="button"
+              onClick={() => onSelectTab(id)}
+              className="filter-tab"
+              style={{
+                padding: '6px 14px',
+                border: '1px solid var(--divider-color)',
+                borderRadius: 16,
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'background-color 0.2s, color 0.2s, border-color 0.2s',
+                fontFamily: 'inherit',
+                ...(isActive ? tabActiveStyle : tabInactiveStyle),
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = tabInactiveHoverBg;
+                  e.currentTarget.style.color = tabInactiveHoverFg;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = tabInactiveBg;
+                  e.currentTarget.style.color = tabInactiveStyle.color;
+                }
+              }}
+            >
+              {id === null ? 'Alle' : id === HEATMAP_TAB ? 'Temperatur' : id}
+            </button>
+          );
+        })}
       </div>
       {alertEntities.length > 0 && (
         <button
