@@ -361,7 +361,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               Bild konnte nicht geladen werden
             </div>
           )}
-          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an; pro Entity ein Shape (bei mehreren Boundaries ein gemeinsames SVG) */}
+          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an; pro Entity ein Shape (bei mehreren Boundaries ein gemeinsames SVG); z-index unter Badges */}
           {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (() => {
             const byEntity = new Map<string, HeatmapZone[]>();
             for (const z of zones) {
@@ -370,7 +370,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               byEntity.set(z.entity, list);
             }
             return (
-              <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
+              <div style={{ ...overlayBoxStyle, zIndex: 1, pointerEvents: 'none' }}>
                 {Array.from(byEntity.entries()).map(([entityId, entityZones]) =>
                   entityZones.length === 1 ? (
                     <HeatmapZoneComponent
@@ -501,7 +501,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               })}
             </svg>
           )}
-          <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
+          <div style={{ ...overlayBoxStyle, zIndex: 10, pointerEvents: 'none', isolation: 'isolate' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
               {badgeEntities.map((f, i) => {
                 const ent = f.entity;
