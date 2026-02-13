@@ -301,7 +301,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                       y2={b.y2}
                       stroke={stroke}
                       strokeWidth={thickness}
-                      strokeLinecap="round"
+                      strokeLinecap="butt"
                     />
                   </g>
                 );
