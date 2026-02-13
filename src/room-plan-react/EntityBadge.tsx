@@ -82,7 +82,7 @@ export function EntityBadge(props: EntityBadgeProps) {
     background: '#fff',
     color: 'var(--primary-text-color, #212121)',
     fontSize: `calc(clamp(0.7rem, 2vw, 0.8125rem) * ${scale})`,
-    fontWeight: 500,
+    fontWeight: 600,
     fontFamily: 'inherit',
     cursor: 'pointer',
     boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
