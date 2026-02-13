@@ -121,7 +121,7 @@ export function EntityBadge(props: EntityBadgeProps) {
           ? {
               background: '#fff',
               justifyContent: 'center',
-              padding: `calc(8px * ${scale})`,
+              padding: `calc(8px * ${scale}) calc(14px * ${scale})`,
               minWidth: `calc(36px * ${scale})`,
               minHeight: `calc(36px * ${scale})`,
             }
@@ -141,7 +141,28 @@ export function EntityBadge(props: EntityBadgeProps) {
         e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
       }}
     >
-      {showIcon && (
+      {showIcon && (isIconOnly ? (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: `calc(24px * ${scale})`,
+            height: `calc(24px * ${scale})`,
+          }}
+        >
+          <ha-icon
+            icon={displayIcon}
+            style={{
+              width: `calc(20px * ${scale})`,
+              height: `calc(20px * ${scale})`,
+              flexShrink: 0,
+              color: iconColor,
+              display: 'block',
+            }}
+          />
+        </span>
+      ) : (
         <ha-icon
           icon={displayIcon}
           style={{
@@ -151,7 +172,7 @@ export function EntityBadge(props: EntityBadgeProps) {
             color: iconColor,
           }}
         />
-      )}
+      ))}
       {!isIconOnly && (
         <span
           style={{
