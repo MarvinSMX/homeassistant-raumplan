@@ -68,39 +68,21 @@ function ut(t){return ct({...t,state:!0})}var ht;
                 />
               </div>
               <div class="picker-overlay-layer">
-                <svg class="picker-overlay-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <rect x="0" y="0" width="100" height="100" fill="none" stroke="rgba(0,188,212,0.4)" stroke-width="1" vector-effect="non-scaling-stroke"/>
-                  ${"position"===this._pickerFor?.type&&o&&null!=Number(o.x)&&null!=Number(o.y)?H`<circle cx=${Number(o.x)??50} cy=${Number(o.y)??50} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`:""}
-                  ${"rect"===this._pickerFor?.type||"rectNew"===this._pickerFor?.type||"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type?a.map((t,e)=>{const n="rect"===this._pickerFor?.type&&this._pickerFor.boundaryIndex===e||"line"===this._pickerFor?.type&&this._pickerFor.lineIndex===e;if("line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type)return H`<g>
-                        <line x1=${t.x1} y1=${t.y1} x2=${t.x2} y2=${t.y2}
-                          stroke=${n?"#00bcd4":"#fff"} stroke-width="2" stroke-dasharray=${n?"none":"6,6"} vector-effect="non-scaling-stroke"/>
-                        <circle cx=${t.x1} cy=${t.y1} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                        <circle cx=${t.x2} cy=${t.y2} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                      </g>`;const i=Math.min(t.x1,t.x2),r=Math.min(t.y1,t.y2),o=Math.abs((t.x2??100)-(t.x1??0))||1,a=Math.abs((t.y2??100)-(t.y1??0))||1;return H`<g>
-                      <rect x=${i} y=${r} width=${o} height=${a}
-                        fill="rgba(0,188,212,0.25)" stroke=${n?"#00bcd4":"#fff"} stroke-width="2"
-                        stroke-dasharray=${n?"none":"8,8"} vector-effect="non-scaling-stroke"/>
-                      <circle cx=${i} cy=${r} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                      <circle cx=${i+o} cy=${r+a} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                    </g>`}):""}
-                  ${this._drawStart&&this._drawCurrent?"rect"===this._pickerFor?.type||"rectNew"===this._pickerFor?.type?H`<g>
-                        <rect
-                          x=${Math.min(this._drawStart.x,this._drawCurrent.x)}
-                          y=${Math.min(this._drawStart.y,this._drawCurrent.y)}
-                          width=${Math.abs(this._drawCurrent.x-this._drawStart.x)||1}
-                          height=${Math.abs(this._drawCurrent.y-this._drawStart.y)||1}
-                          fill="rgba(0,188,212,0.4)"
-                          stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"
-                        />
-                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                      </g>`:"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type?H`<g>
-                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y}
-                            stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                        </g>`:"":""}
-                </svg>
+                ${"position"===this._pickerFor?.type&&o&&null!=Number(o.x)&&null!=Number(o.y)?H`<div class="picker-point" style="left:${Number(o.x)??50}%;top:${Number(o.y)??50}%"></div>`:""}
+                ${"rect"===this._pickerFor?.type||"rectNew"===this._pickerFor?.type||"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type?a.map((t,e)=>{const n="rect"===this._pickerFor?.type&&this._pickerFor.boundaryIndex===e||"line"===this._pickerFor?.type&&this._pickerFor.lineIndex===e;if("line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type){const e=Math.hypot((t.x2??0)-(t.x1??0),(t.y2??0)-(t.y1??0))||1,i=Math.atan2((t.y2??0)-(t.y1??0),(t.x2??0)-(t.x1??0))*(180/Math.PI);return H`
+                      <div class="picker-line ${n?"editing":""}" style="left:${t.x1}%;top:${t.y1}%;width:${e}%;transform:rotate(${i}deg)"></div>
+                      <div class="picker-point" style="left:${t.x1}%;top:${t.y1}%"></div>
+                      <div class="picker-point" style="left:${t.x2}%;top:${t.y2}%"></div>`}const i=Math.min(t.x1,t.x2),r=Math.min(t.y1,t.y2),o=Math.abs((t.x2??100)-(t.x1??0))||1,a=Math.abs((t.y2??100)-(t.y1??0))||1;return H`
+                    <div class="picker-rect ${n?"editing":""}" style="left:${i}%;top:${r}%;width:${o}%;height:${a}%"></div>
+                    <div class="picker-point" style="left:${i}%;top:${r}%"></div>
+                    <div class="picker-point" style="left:${i+o}%;top:${r+a}%"></div>`}):""}
+                ${this._drawStart&&this._drawCurrent?"rect"===this._pickerFor?.type||"rectNew"===this._pickerFor?.type?(()=>{const t=Math.min(this._drawStart.x,this._drawCurrent.x),e=Math.min(this._drawStart.y,this._drawCurrent.y),n=Math.abs(this._drawCurrent.x-this._drawStart.x)||1,i=Math.abs(this._drawCurrent.y-this._drawStart.y)||1;return H`
+                        <div class="picker-rect draw-preview" style="left:${t}%;top:${e}%;width:${n}%;height:${i}%"></div>
+                        <div class="picker-point draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%"></div>
+                        <div class="picker-point draw-preview" style="left:${this._drawCurrent.x}%;top:${this._drawCurrent.y}%"></div>`})():"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type?(()=>{const t=Math.hypot(this._drawCurrent.x-this._drawStart.x,this._drawCurrent.y-this._drawStart.y)||1,e=Math.atan2(this._drawCurrent.y-this._drawStart.y,this._drawCurrent.x-this._drawStart.x)*(180/Math.PI);return H`
+                          <div class="picker-line draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%;width:${t}%;transform:rotate(${e}deg)"></div>
+                          <div class="picker-point draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%"></div>
+                          <div class="picker-point draw-preview" style="left:${this._drawCurrent.x}%;top:${this._drawCurrent.y}%"></div>`})():"":""}
               </div>
             </div>
           </div>
@@ -578,14 +560,51 @@ function ut(t){return ct({...t,state:!0})}var ht;
         bottom: 0;
         z-index: 10;
         pointer-events: none;
+        box-sizing: border-box;
+        border: 3px solid #00bcd4;
       }
-      .picker-overlay-svg {
-        display: block;
+      .picker-point {
         position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
+        width: 14px;
+        height: 14px;
+        margin-left: -7px;
+        margin-top: -7px;
+        border-radius: 50%;
+        background: #00bcd4;
+        border: 2px solid #fff;
+        box-sizing: border-box;
+      }
+      .picker-point.draw-preview {
+        background: #00bcd4;
+        border-color: #fff;
+      }
+      .picker-rect {
+        position: absolute;
+        box-sizing: border-box;
+        border: 2px solid rgba(255,255,255,0.9);
+        background: rgba(0,188,212,0.2);
+      }
+      .picker-rect.editing {
+        border-color: #00bcd4;
+        background: rgba(0,188,212,0.25);
+      }
+      .picker-rect.draw-preview {
+        border: 2px solid #00bcd4;
+        background: rgba(0,188,212,0.35);
+      }
+      .picker-line {
+        position: absolute;
+        height: 4px;
+        margin-top: -2px;
+        transform-origin: 0 50%;
+        background: rgba(255,255,255,0.9);
+        box-sizing: border-box;
+      }
+      .picker-line.editing {
+        background: #00bcd4;
+      }
+      .picker-line.draw-preview {
+        background: #00bcd4;
       }
       .btn-draw {
         padding: 6px 10px;

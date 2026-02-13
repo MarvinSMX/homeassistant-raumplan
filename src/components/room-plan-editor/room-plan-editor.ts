@@ -339,56 +339,50 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 />
               </div>
               <div class="picker-overlay-layer">
-                <svg class="picker-overlay-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <rect x="0" y="0" width="100" height="100" fill="none" stroke="rgba(0,188,212,0.4)" stroke-width="1" vector-effect="non-scaling-stroke"/>
-                  ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null
-                    ? html`<circle cx=${Number(pickerEntity.x) ?? 50} cy=${Number(pickerEntity.y) ?? 50} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`
-                    : ''}
-                  ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? pickerBoundaries.map((b, bi) => {
-                    const isEditing = this._pickerFor?.type === 'rect' && this._pickerFor.boundaryIndex === bi
-                      || this._pickerFor?.type === 'line' && this._pickerFor.lineIndex === bi;
-                    if (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') {
-                      return html`<g>
-                        <line x1=${b.x1} y1=${b.y1} x2=${b.x2} y2=${b.y2}
-                          stroke=${isEditing ? '#00bcd4' : '#fff'} stroke-width="2" stroke-dasharray=${isEditing ? 'none' : '6,6'} vector-effect="non-scaling-stroke"/>
-                        <circle cx=${b.x1} cy=${b.y1} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                        <circle cx=${b.x2} cy=${b.y2} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                      </g>`;
-                    }
-                    const left = Math.min(b.x1, b.x2);
-                    const top = Math.min(b.y1, b.y2);
-                    const w = Math.abs((b.x2 ?? 100) - (b.x1 ?? 0)) || 1;
-                    const h = Math.abs((b.y2 ?? 100) - (b.y1 ?? 0)) || 1;
-                    return html`<g>
-                      <rect x=${left} y=${top} width=${w} height=${h}
-                        fill="rgba(0,188,212,0.25)" stroke=${isEditing ? '#00bcd4' : '#fff'} stroke-width="2"
-                        stroke-dasharray=${isEditing ? 'none' : '8,8'} vector-effect="non-scaling-stroke"/>
-                      <circle cx=${left} cy=${top} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                      <circle cx=${left + w} cy=${top + h} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                    </g>`;
-                  }) : ''}
-                  ${this._drawStart && this._drawCurrent ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
-                    ? html`<g>
-                        <rect
-                          x=${Math.min(this._drawStart.x, this._drawCurrent.x)}
-                          y=${Math.min(this._drawStart.y, this._drawCurrent.y)}
-                          width=${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}
-                          height=${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}
-                          fill="rgba(0,188,212,0.4)"
-                          stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"
-                        />
-                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                      </g>`
-                    : (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew')
-                      ? html`<g>
-                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y}
-                            stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                        </g>`
-                      : '') : ''}
-                </svg>
+                ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null
+                  ? html`<div class="picker-point" style="left:${Number(pickerEntity.x) ?? 50}%;top:${Number(pickerEntity.y) ?? 50}%"></div>`
+                  : ''}
+                ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? pickerBoundaries.map((b, bi) => {
+                  const isEditing = this._pickerFor?.type === 'rect' && this._pickerFor.boundaryIndex === bi
+                    || this._pickerFor?.type === 'line' && this._pickerFor.lineIndex === bi;
+                  if (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') {
+                    const len = Math.hypot((b.x2 ?? 0) - (b.x1 ?? 0), (b.y2 ?? 0) - (b.y1 ?? 0)) || 1;
+                    const ang = Math.atan2((b.y2 ?? 0) - (b.y1 ?? 0), (b.x2 ?? 0) - (b.x1 ?? 0)) * (180 / Math.PI);
+                    return html`
+                      <div class="picker-line ${isEditing ? 'editing' : ''}" style="left:${b.x1}%;top:${b.y1}%;width:${len}%;transform:rotate(${ang}deg)"></div>
+                      <div class="picker-point" style="left:${b.x1}%;top:${b.y1}%"></div>
+                      <div class="picker-point" style="left:${b.x2}%;top:${b.y2}%"></div>`;
+                  }
+                  const left = Math.min(b.x1, b.x2);
+                  const top = Math.min(b.y1, b.y2);
+                  const w = Math.abs((b.x2 ?? 100) - (b.x1 ?? 0)) || 1;
+                  const h = Math.abs((b.y2 ?? 100) - (b.y1 ?? 0)) || 1;
+                  return html`
+                    <div class="picker-rect ${isEditing ? 'editing' : ''}" style="left:${left}%;top:${top}%;width:${w}%;height:${h}%"></div>
+                    <div class="picker-point" style="left:${left}%;top:${top}%"></div>
+                    <div class="picker-point" style="left:${left + w}%;top:${top + h}%"></div>`;
+                }) : ''}
+                ${this._drawStart && this._drawCurrent ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
+                  ? (() => {
+                      const l = Math.min(this._drawStart.x, this._drawCurrent.x);
+                      const t = Math.min(this._drawStart.y, this._drawCurrent.y);
+                      const w = Math.abs(this._drawCurrent.x - this._drawStart.x) || 1;
+                      const h = Math.abs(this._drawCurrent.y - this._drawStart.y) || 1;
+                      return html`
+                        <div class="picker-rect draw-preview" style="left:${l}%;top:${t}%;width:${w}%;height:${h}%"></div>
+                        <div class="picker-point draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%"></div>
+                        <div class="picker-point draw-preview" style="left:${this._drawCurrent.x}%;top:${this._drawCurrent.y}%"></div>`;
+                    })()
+                  : (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew')
+                    ? (() => {
+                        const len = Math.hypot(this._drawCurrent.x - this._drawStart.x, this._drawCurrent.y - this._drawStart.y) || 1;
+                        const ang = Math.atan2(this._drawCurrent.y - this._drawStart.y, this._drawCurrent.x - this._drawStart.x) * (180 / Math.PI);
+                        return html`
+                          <div class="picker-line draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%;width:${len}%;transform:rotate(${ang}deg)"></div>
+                          <div class="picker-point draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%"></div>
+                          <div class="picker-point draw-preview" style="left:${this._drawCurrent.x}%;top:${this._drawCurrent.y}%"></div>`;
+                      })()
+                    : '') : ''}
               </div>
             </div>
           </div>
@@ -876,14 +870,51 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         bottom: 0;
         z-index: 10;
         pointer-events: none;
+        box-sizing: border-box;
+        border: 3px solid #00bcd4;
       }
-      .picker-overlay-svg {
-        display: block;
+      .picker-point {
         position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
+        width: 14px;
+        height: 14px;
+        margin-left: -7px;
+        margin-top: -7px;
+        border-radius: 50%;
+        background: #00bcd4;
+        border: 2px solid #fff;
+        box-sizing: border-box;
+      }
+      .picker-point.draw-preview {
+        background: #00bcd4;
+        border-color: #fff;
+      }
+      .picker-rect {
+        position: absolute;
+        box-sizing: border-box;
+        border: 2px solid rgba(255,255,255,0.9);
+        background: rgba(0,188,212,0.2);
+      }
+      .picker-rect.editing {
+        border-color: #00bcd4;
+        background: rgba(0,188,212,0.25);
+      }
+      .picker-rect.draw-preview {
+        border: 2px solid #00bcd4;
+        background: rgba(0,188,212,0.35);
+      }
+      .picker-line {
+        position: absolute;
+        height: 4px;
+        margin-top: -2px;
+        transform-origin: 0 50%;
+        background: rgba(255,255,255,0.9);
+        box-sizing: border-box;
+      }
+      .picker-line.editing {
+        background: #00bcd4;
+      }
+      .picker-line.draw-preview {
+        background: #00bcd4;
       }
       .btn-draw {
         padding: 6px 10px;
