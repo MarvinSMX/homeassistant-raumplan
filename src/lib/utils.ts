@@ -1,7 +1,31 @@
 import type { HomeAssistant } from 'custom-card-helpers';
-import type { RoomPlanEntity } from './types';
+import type { RoomPlanEntity, RoomBoundaryItem } from './types';
 
-export type RoomBoundary = { x1: number; y1: number; x2: number; y2: number; opacity?: number };
+export type RoomBoundary = RoomBoundaryItem;
+
+/** True, wenn die Zone ein Polygon (mind. 3 Punkte) ist, sonst Rechteck. */
+export function isPolygonBoundary(b: RoomBoundary): b is { points: { x: number; y: number }[]; opacity?: number } {
+  return Array.isArray((b as { points?: { x: number; y: number }[] }).points) && (b as { points: { x: number; y: number }[] }).points.length >= 3;
+}
+
+/** Liefert die Eckpunkte einer Zone: bei Polygon die points, bei Rechteck die 4 Ecken (links oben → rechts oben → rechts unten → links unten). */
+export function getBoundaryPoints(b: RoomBoundary): { x: number; y: number }[] {
+  if (isPolygonBoundary(b)) return b.points;
+  const x1 = Math.min(100, Math.max(0, Number((b as { x1: number }).x1) ?? 0));
+  const y1 = Math.min(100, Math.max(0, Number((b as { y1: number }).y1) ?? 0));
+  const x2 = Math.min(100, Math.max(0, Number((b as { x2: number }).x2) ?? 100));
+  const y2 = Math.min(100, Math.max(0, Number((b as { y2: number }).y2) ?? 100));
+  const left = Math.min(x1, x2);
+  const top = Math.min(y1, y2);
+  const right = Math.max(x1, x2);
+  const bottom = Math.max(y1, y2);
+  return [
+    { x: left, y: top },
+    { x: right, y: top },
+    { x: right, y: bottom },
+    { x: left, y: bottom },
+  ];
+}
 
 /** Liefert die Raum-/Heatmap-Zonen einer Entität (room_boundaries oder [room_boundary] für Abwärtskompatibilität). */
 export function getEntityBoundaries(ent: RoomPlanEntity): RoomBoundary[] {

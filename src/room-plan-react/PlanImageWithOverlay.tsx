@@ -4,13 +4,28 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { getEntityDomain, hexToRgba, temperatureColor } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
 
 const HEATMAP_DIM_DURATION = 0.28;
+
+/** Punkte einer HeatmapZone (Rechteck = 4 Ecken, Polygon = zone.points). */
+function getZonePoints(z: HeatmapZone): { x: number; y: number }[] {
+  if ('points' in z && Array.isArray(z.points) && z.points.length >= 3) return z.points;
+  const zr = z as { x1?: number; y1?: number; x2?: number; y2?: number };
+  const x1 = Math.min(100, Math.max(0, Number(zr.x1) ?? 0));
+  const y1 = Math.min(100, Math.max(0, Number(zr.y1) ?? 0));
+  const x2 = Math.min(100, Math.max(0, Number(zr.x2) ?? 100));
+  const y2 = Math.min(100, Math.max(0, Number(zr.y2) ?? 100));
+  const left = Math.min(x1, x2);
+  const top = Math.min(y1, y2);
+  const right = Math.max(x1, x2);
+  const bottom = Math.max(y1, y2);
+  return [{ x: left, y: top }, { x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom }];
+}
 
 /** Eine Entity mit mehreren Boundaries als ein SVG-Shape (ein gemeinsamer radialer Verlauf). */
 function HeatmapEntityShape({
@@ -38,25 +53,19 @@ function HeatmapEntityShape({
   let maxX = 0;
   let maxY = 0;
   for (const z of zones) {
-    const x1 = Math.min(100, Math.max(0, Number(z.x1) ?? 0));
-    const y1 = Math.min(100, Math.max(0, Number(z.y1) ?? 0));
-    const x2 = Math.min(100, Math.max(0, Number(z.x2) ?? 100));
-    const y2 = Math.min(100, Math.max(0, Number(z.y2) ?? 100));
-    minX = Math.min(minX, x1, x2);
-    minY = Math.min(minY, y1, y2);
-    maxX = Math.max(maxX, x1, x2);
-    maxY = Math.max(maxY, y1, y2);
+    for (const p of getZonePoints(z)) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    }
   }
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
   let r = 0;
   for (const z of zones) {
-    const x1 = Math.min(100, Math.max(0, Number(z.x1) ?? 0));
-    const y1 = Math.min(100, Math.max(0, Number(z.y1) ?? 0));
-    const x2 = Math.min(100, Math.max(0, Number(z.x2) ?? 100));
-    const y2 = Math.min(100, Math.max(0, Number(z.y2) ?? 100));
-    for (const [px, py] of [[x1, y1], [x2, y1], [x1, y2], [x2, y2]]) {
-      const d = Math.hypot(px - cx, py - cy);
+    for (const p of getZonePoints(z)) {
+      const d = Math.hypot(p.x - cx, p.y - cy);
       if (d > r) r = d;
     }
   }
@@ -85,15 +94,9 @@ function HeatmapEntityShape({
           </radialGradient>
         </defs>
         {zones.map((z, i) => {
-          const x1 = Math.min(100, Math.max(0, Number(z.x1) ?? 0));
-          const y1 = Math.min(100, Math.max(0, Number(z.y1) ?? 0));
-          const x2 = Math.min(100, Math.max(0, Number(z.x2) ?? 100));
-          const y2 = Math.min(100, Math.max(0, Number(z.y2) ?? 100));
-          const left = Math.min(x1, x2);
-          const top = Math.min(y1, y2);
-          const w = Math.abs(x2 - x1) || 1;
-          const h = Math.abs(y2 - y1) || 1;
-          return <rect key={i} x={left} y={top} width={w} height={h} fill={`url(#${gradId})`} />;
+          const pts = getZonePoints(z);
+          const d = pts.map((p, j) => `${j === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+          return <path key={i} d={d} fill={`url(#${gradId})`} />;
         })}
       </svg>
     </div>
@@ -140,11 +143,11 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const [resolvedSrc, setResolvedSrc] = useState(imgSrc);
   const blobUrlRef = useRef<string | null>(null);
-  const [pressBoundaries, setPressBoundaries] = useState<{ x1: number; y1: number; x2: number; y2: number }[]>([]);
+  const [pressBoundaries, setPressBoundaries] = useState<import('../lib/types').RoomBoundaryItem[]>([]);
   const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
   const pressOverlayRef = useRef<HTMLDivElement | null>(null);
 
-  const onRoomPressStart = (entityId: string, boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => {
+  const onRoomPressStart = (entityId: string, boundaries: import('../lib/types').RoomBoundaryItem[]) => {
     gsap.killTweensOf(pressOverlayRef.current);
     setHoveredEntityId(entityId);
     setPressBoundaries(boundaries.length ? boundaries : []);
@@ -256,14 +259,12 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   for (const ent of entities) {
     if (ent.preset !== 'temperature') continue;
     for (const b of getEntityBoundaries(ent)) {
-      zones.push({
-        entity: ent.entity,
-        x1: b.x1,
-        y1: b.y1,
-        x2: b.x2,
-        y2: b.y2,
-        opacity: b.opacity ?? 0.4,
-      });
+      if (isPolygonBoundary(b)) {
+        zones.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 });
+      } else {
+        const r = b as { x1: number; y1: number; x2: number; y2: number; opacity?: number };
+        zones.push({ entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4 });
+      }
     }
   }
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
@@ -401,61 +402,43 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               }}
               aria-hidden
             >
-              {pressBoundaries.length === 1 ? (
-                (() => {
-                  const b = pressBoundaries[0];
-                  return (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: `${Math.min(b.x1, b.x2)}%`,
-                        top: `${Math.min(b.y1, b.y2)}%`,
-                        width: `${Math.abs(b.x2 - b.x1) || 1}%`,
-                        height: `${Math.abs(b.y2 - b.y1) || 1}%`,
-                        background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, rgba(0,0,0,0.45) 100%)',
-                      }}
-                    />
-                  );
-                })()
-              ) : (
-                (() => {
-                  const bounds = pressBoundaries;
-                  let minX = 100, minY = 100, maxX = 0, maxY = 0;
-                  for (const b of bounds) {
-                    minX = Math.min(minX, b.x1, b.x2);
-                    minY = Math.min(minY, b.y1, b.y2);
-                    maxX = Math.max(maxX, b.x1, b.x2);
-                    maxY = Math.max(maxY, b.y1, b.y2);
+              {(() => {
+                const bounds = pressBoundaries;
+                let minX = 100, minY = 100, maxX = 0, maxY = 0;
+                for (const b of bounds) {
+                  for (const p of getBoundaryPoints(b)) {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
                   }
-                  const cx = (minX + maxX) / 2;
-                  const cy = (minY + maxY) / 2;
-                  let r = 0;
-                  for (const b of bounds) {
-                    for (const [px, py] of [[b.x1, b.y1], [b.x2, b.y1], [b.x1, b.y2], [b.x2, b.y2]]) {
-                      const d = Math.hypot(px - cx, py - cy);
-                      if (d > r) r = d;
-                    }
+                }
+                const cx = (minX + maxX) / 2;
+                const cy = (minY + maxY) / 2;
+                let r = 0;
+                for (const b of bounds) {
+                  for (const p of getBoundaryPoints(b)) {
+                    const d = Math.hypot(p.x - cx, p.y - cy);
+                    if (d > r) r = d;
                   }
-                  r = Math.max(r, 1);
-                  return (
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }}>
-                      <defs>
-                        <radialGradient id="dim-gradient" gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={r}>
-                          <stop offset="0%" stopColor="transparent" />
-                          <stop offset="100%" stopColor="rgba(0,0,0,0.45)" />
-                        </radialGradient>
-                      </defs>
-                      {bounds.map((b, i) => {
-                        const left = Math.min(b.x1, b.x2);
-                        const top = Math.min(b.y1, b.y2);
-                        const w = Math.abs(b.x2 - b.x1) || 1;
-                        const h = Math.abs(b.y2 - b.y1) || 1;
-                        return <rect key={i} x={left} y={top} width={w} height={h} fill="url(#dim-gradient)" />;
-                      })}
-                    </svg>
-                  );
-                })()
-              )}
+                }
+                r = Math.max(r, 1);
+                return (
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }}>
+                    <defs>
+                      <radialGradient id="dim-gradient" gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={r}>
+                        <stop offset="0%" stopColor="transparent" />
+                        <stop offset="100%" stopColor="rgba(0,0,0,0.45)" />
+                      </radialGradient>
+                    </defs>
+                    {bounds.map((b, i) => {
+                      const pts = getBoundaryPoints(b);
+                      const d = pts.map((p, j) => `${j === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+                      return <path key={i} d={d} fill="url(#dim-gradient)" />;
+                    })}
+                  </svg>
+                );
+              })()}
             </div>
           )}
           {windowLineEntities.length > 0 && (
@@ -483,7 +466,11 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   hold_action: ent.hold_action ?? config?.hold_action,
                   double_tap_action: ent.double_tap_action ?? config?.double_tap_action,
                 };
-                return getEntityBoundaries(ent).map((b, bi) => (
+                return getEntityBoundaries(ent)
+                  .filter((b) => !isPolygonBoundary(b))
+                  .map((b, bi) => {
+                    const br = b as { x1: number; y1: number; x2: number; y2: number };
+                    return (
                   <g
                     key={`${ent.entity}-${bi}`}
                     style={{ pointerEvents: 'auto', cursor: 'pointer' }}
@@ -491,17 +478,18 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                     onPointerDown={(ev) => ev.stopPropagation()}
                   >
                     <line
-                      x1={b.x1}
-                      y1={b.y1}
-                      x2={b.x2}
-                      y2={b.y2}
+                      x1={br.x1}
+                      y1={br.y1}
+                      x2={br.x2}
+                      y2={br.y2}
                       stroke={stroke}
                       strokeWidth={thickness}
                       strokeLinecap="butt"
                       strokeOpacity={opacity}
                     />
                   </g>
-                ));
+                    );
+                  });
               })}
             </svg>
           )}

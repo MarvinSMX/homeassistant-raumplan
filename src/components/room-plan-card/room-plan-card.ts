@@ -17,7 +17,7 @@ import {
 import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary } from '../../lib/utils';
 import { actionHandler } from '../../lib/action-handler';
 
 import '../room-plan-editor/room-plan-editor';
@@ -297,8 +297,25 @@ export class RoomPlanCard extends LitElement {
     `;
   }
 
-  /** Heatmap-Zone: Rechteck (x1,y1)–(x2,y2) in %, Farbe nach Temperatur-Entity */
+  /** Heatmap-Zone: Rechteck oder Polygon in %, Farbe nach Temperatur-Entity */
   private _renderHeatmapZone(zone: HeatmapZone): TemplateResult {
+    const opacity = Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4));
+    const state = this.hass?.states?.[zone.entity]?.state;
+    const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
+    const temp = Number.isFinite(num) ? num : 20;
+    const color = this._temperatureColor(temp);
+    const bg = this._hexToRgba(color, opacity);
+
+    if ('points' in zone && Array.isArray(zone.points) && zone.points.length >= 3) {
+      const pts = zone.points.map((p) => `${Math.min(100, Math.max(0, p.x))}% ${Math.min(100, Math.max(0, p.y))}%`).join(', ');
+      return html`
+        <div
+          class="heatmap-zone"
+          style="left:0;top:0;width:100%;height:100%;background:${bg};clip-path:polygon(${pts})"
+          title="${zone.entity}: ${state ?? '?'}"
+        ></div>
+      `;
+    }
     const x1 = Math.min(100, Math.max(0, Number(zone.x1) ?? 0));
     const y1 = Math.min(100, Math.max(0, Number(zone.y1) ?? 0));
     const x2 = Math.min(100, Math.max(0, Number(zone.x2) ?? 100));
@@ -307,14 +324,6 @@ export class RoomPlanCard extends LitElement {
     const top = Math.min(y1, y2);
     const width = Math.abs(x2 - x1) || 1;
     const height = Math.abs(y2 - y1) || 1;
-    const opacity = Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4));
-
-    const state = this.hass?.states?.[zone.entity]?.state;
-    const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
-    const temp = Number.isFinite(num) ? num : 20;
-    const color = this._temperatureColor(temp);
-    const bg = this._hexToRgba(color, opacity);
-
     return html`
       <div
         class="heatmap-zone"
@@ -407,14 +416,12 @@ export class RoomPlanCard extends LitElement {
                 for (const ent of this.config?.entities ?? []) {
                   if (ent.preset !== 'temperature') continue;
                   for (const b of getEntityBoundaries(ent)) {
-                    fromEntities.push({
-                      entity: ent.entity,
-                      x1: b.x1,
-                      y1: b.y1,
-                      x2: b.x2,
-                      y2: b.y2,
-                      opacity: b.opacity ?? 0.4,
-                    });
+                    if (isPolygonBoundary(b)) {
+                      fromEntities.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 });
+                    } else {
+                      const r = b as { x1: number; y1: number; x2: number; y2: number };
+                      fromEntities.push({ entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4 });
+                    }
                   }
                 }
                 const legacy = this.config?.temperature_zones ?? [];

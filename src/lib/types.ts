@@ -22,8 +22,8 @@ export interface RoomPlanEntity {
   show_name?: boolean;
   /** Preset: temperature = Wert; binary_sensor = State; window_contact = Linie; smoke_detector = Rauchmelder, bei Auslösung/Sabotage blinkender Rand (Ping) */
   preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact' | 'smoke_detector';
-  /** Temperatur: mehrere Raum-/Heatmap-Zonen (x1,y1,x2,y2 in %). Fensterkontakt: eine Linie = ein Eintrag. */
-  room_boundaries?: { x1: number; y1: number; x2: number; y2: number; /** Nur Temperatur: Deckkraft der Heatmap-Fläche (0–1), Standard 0.4 */ opacity?: number }[];
+  /** Temperatur: mehrere Raum-/Heatmap-Zonen. Rechteck: x1,y1,x2,y2 (%). Polygon: points (beliebig viele Ecken). Fensterkontakt: eine Linie = ein Eintrag (x1,y1,x2,y2). */
+  room_boundaries?: RoomBoundaryItem[];
   /** @deprecated Nutze room_boundaries. Ein Eintrag für Rückwärtskompatibilität. */
   room_boundary?: { x1: number; y1: number; x2: number; y2: number };
   /** Nur Fensterkontakt: Dicke der Linie (viewBox-Einheiten, z. B. 0.5–2). */
@@ -40,16 +40,15 @@ export interface RoomPlanEntity {
   double_tap_action?: ActionConfig;
 }
 
-/** Temperatur-Heatmap: Rechteck aus 2 Punkten (x1,y1) bis (x2,y2) in %, gefärbt nach entity-Wert */
-export interface HeatmapZone {
-  entity: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  /** Deckkraft der Fläche (0–1), Standard 0.4 */
-  opacity?: number;
-}
+/** Ein Eintrag in room_boundaries: Rechteck (x1,y1,x2,y2) oder Polygon (points mit mind. 3 Ecken). */
+export type RoomBoundaryItem =
+  | { x1: number; y1: number; x2: number; y2: number; opacity?: number }
+  | { points: { x: number; y: number }[]; opacity?: number };
+
+/** Temperatur-Heatmap: Rechteck (x1,y1,x2,y2) oder Polygon (points) in %, gefärbt nach entity-Wert */
+export type HeatmapZone =
+  | { entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number }
+  | { entity: string; points: { x: number; y: number }[]; opacity?: number };
 
 export interface RoomPlanCardConfig extends LovelaceCardConfig {
   type: string;

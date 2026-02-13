@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'preact/hooks';
 import { handleAction, hasAction } from 'custom-card-helpers';
 import type { HomeAssistant } from 'custom-card-helpers';
-import type { RoomPlanEntity } from '../lib/types';
+import type { RoomPlanEntity, RoomBoundaryItem } from '../lib/types';
 import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries } from '../lib/utils';
 import { temperatureColor } from './utils';
 import { MdiIcon } from './MdiIcon';
@@ -15,7 +15,7 @@ interface EntityBadgeProps {
   holdAction?: import('custom-card-helpers').ActionConfig;
   doubleTapAction?: import('custom-card-helpers').ActionConfig;
   /** Temperatur + room_boundaries: Start der Abdunkel-Animation (Hover/Press), mehrere Zonen möglich. entityId für Heatmap-Ausblendung. */
-  onRoomPressStart?: (entityId: string, boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => void;
+  onRoomPressStart?: (entityId: string, boundaries: RoomBoundaryItem[]) => void;
   /** Temperatur: Ende Hover/Press → Abdunkelung ausblenden. */
   onRoomPressEnd?: () => void;
 }

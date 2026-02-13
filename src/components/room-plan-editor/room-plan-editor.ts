@@ -7,7 +7,7 @@ import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-h
 
 import type { RoomPlanCardConfig, RoomPlanEntity } from '../../lib/types';
 import type { RoomBoundary } from '../../lib/utils';
-import { getFriendlyName, getEntityBoundaries } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries, isPolygonBoundary } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -24,20 +24,25 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     | { type: 'position'; entityIndex: number }
     | { type: 'rect'; entityIndex: number; boundaryIndex: number }
     | { type: 'rectNew'; entityIndex: number }
+    | { type: 'polygon'; entityIndex: number; boundaryIndex: number }
+    | { type: 'polygonNew'; entityIndex: number }
     | { type: 'line'; entityIndex: number; lineIndex: number }
     | { type: 'lineNew'; entityIndex: number }
     | null = null;
   @state() private _drawStart: { x: number; y: number } | null = null;
   @state() private _drawCurrent: { x: number; y: number } | null = null;
+  /** Beim Polygon-Picker: gesetzte Punkte (Reihenfolge). */
+  @state() private _pickerPolygonPoints: { x: number; y: number }[] = [];
   private _pickerImageNatural: { w: number; h: number } | null = null;
   @state() private _pickerImageAspect: number | null = null;
   /** Overlay-Ausschnitt in % der Wrap-Breite/Höhe, damit 0–100 % exakt wie in der Card (Bildinhalt object-fit: contain) */
   @state() private _pickerContentRect: { left: number; top: number; width: number; height: number } | null = null;
-  /** Beim Ziehen eines bestehenden Punkts (Position / Rechteck-Ecke / Linien-Endpunkt) */
+  /** Beim Ziehen eines bestehenden Punkts (Position / Rechteck-Ecke / Linien-Endpunkt / Polygon-Ecke) */
   @state() private _pickerDrag:
     | { kind: 'position' }
     | { kind: 'rect'; boundaryIndex: number; corner: 0 | 1 }
     | { kind: 'line'; lineIndex: number; end: 0 | 1 }
+    | { kind: 'polygon'; boundaryIndex: number; pointIndex: number }
     | null = null;
   private _pickerDocMove = (e: MouseEvent) => this._onPickerDocMove(e);
   private _pickerDocUp = () => this._onPickerDocUp();
@@ -111,6 +116,17 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const ent = entities[entityIndex];
     const list = [...getEntityBoundaries(ent)];
     list.push(isTemperature ? { x1: 10, y1: 10, x2: 40, y2: 40, opacity: 0.4 } : { x1: 0, y1: 0, x2: 100, y2: 0 });
+    entities[entityIndex] = { ...ent, room_boundaries: list };
+    this._updateConfig({ entities });
+  }
+
+  private _addEntityBoundaryPolygon(entityIndex: number, points: { x: number; y: number }[]): void {
+    if (points.length < 3) return;
+    const round = (v: number) => Math.round(v * 10) / 10;
+    const entities = [...(this._config.entities ?? [])];
+    const ent = entities[entityIndex];
+    const list = [...getEntityBoundaries(ent)];
+    list.push({ points: points.map((p) => ({ x: round(p.x), y: round(p.y) })), opacity: 0.4 });
     entities[entityIndex] = { ...ent, room_boundaries: list };
     this._updateConfig({ entities });
   }
@@ -200,10 +216,27 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._drawCurrent = null;
   }
 
+  private _openPickerPolygon(entityIndex: number, boundaryIndex?: number): void {
+    if (boundaryIndex !== undefined) {
+      const ent = this._config.entities?.[entityIndex];
+      if (!ent) return;
+      const list = getEntityBoundaries(ent);
+      const b = list[boundaryIndex];
+      this._pickerPolygonPoints = isPolygonBoundary(b) ? b.points.map((p) => ({ ...p })) : [];
+      this._pickerFor = { type: 'polygon', entityIndex, boundaryIndex };
+    } else {
+      this._pickerPolygonPoints = [];
+      this._pickerFor = { type: 'polygonNew', entityIndex };
+    }
+    this._drawStart = null;
+    this._drawCurrent = null;
+  }
+
   private _closePicker(): void {
     this._pickerFor = null;
     this._drawStart = null;
     this._drawCurrent = null;
+    this._pickerPolygonPoints = [];
     this._pickerImageAspect = null;
     this._pickerContentRect = null;
     if (this._pickerDrag) {
@@ -240,6 +273,28 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     document.addEventListener('mouseup', this._pickerDocUp);
   }
 
+  private _startPickerDragPolygon(boundaryIndex: number, pointIndex: number, e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!this._pickerFor || this._pickerFor.type !== 'polygon') return;
+    this._pickerDrag = { kind: 'polygon', boundaryIndex, pointIndex };
+    document.addEventListener('mousemove', this._pickerDocMove);
+    document.addEventListener('mouseup', this._pickerDocUp);
+  }
+
+  private _finishPickerPolygon(): void {
+    if (!this._pickerFor || (this._pickerFor.type !== 'polygon' && this._pickerFor.type !== 'polygonNew')) return;
+    if (this._pickerPolygonPoints.length < 3) return;
+    const round = (v: number) => Math.round(v * 10) / 10;
+    const points = this._pickerPolygonPoints.map((p) => ({ x: round(p.x), y: round(p.y) }));
+    if (this._pickerFor.type === 'polygon') {
+      this._updateEntityBoundary(this._pickerFor.entityIndex, this._pickerFor.boundaryIndex, { points });
+    } else {
+      this._addEntityBoundaryPolygon(this._pickerFor.entityIndex, points);
+    }
+    this._closePicker();
+  }
+
   private _onPickerDocMove(e: MouseEvent): void {
     const p = this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerDrag || !this._pickerFor) return;
@@ -253,7 +308,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     }
     const boundaries = getEntityBoundaries(ent);
     if (this._pickerDrag.kind === 'rect' && this._pickerDrag.boundaryIndex < boundaries.length) {
-      const b = boundaries[this._pickerDrag.boundaryIndex];
+      const b = boundaries[this._pickerDrag.boundaryIndex] as { x1?: number; y1?: number; x2?: number; y2?: number };
       const x1 = this._pickerDrag.corner === 0 ? p.x : (b.x1 ?? 0);
       const y1 = this._pickerDrag.corner === 0 ? p.y : (b.y1 ?? 0);
       const x2 = this._pickerDrag.corner === 1 ? p.x : (b.x2 ?? 100);
@@ -271,7 +326,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       return;
     }
     if (this._pickerDrag.kind === 'line' && this._pickerDrag.lineIndex < boundaries.length) {
-      const b = boundaries[this._pickerDrag.lineIndex];
+      const b = boundaries[this._pickerDrag.lineIndex] as { x1?: number; y1?: number; x2?: number; y2?: number };
       const x1 = this._pickerDrag.end === 0 ? p.x : (b.x1 ?? 0);
       const y1 = this._pickerDrag.end === 0 ? p.y : (b.y1 ?? 0);
       const x2 = this._pickerDrag.end === 1 ? p.x : (b.x2 ?? 0);
@@ -282,6 +337,16 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         x2: round(x2),
         y2: round(y2),
       });
+      return;
+    }
+    if (this._pickerDrag.kind === 'polygon') {
+      const idx = this._pickerDrag.pointIndex;
+      const pts = [...this._pickerPolygonPoints];
+      if (idx >= 0 && idx < pts.length) {
+        pts[idx] = { x: round(p.x), y: round(p.y) };
+        this._pickerPolygonPoints = pts;
+        this._updateEntityBoundary(entityIndex, this._pickerDrag.boundaryIndex, { points: pts });
+      }
     }
   }
 
@@ -330,6 +395,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     if (this._pickerFor.type === 'position') {
       this._updateEntity(this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
       this._closePicker();
+      return;
+    }
+    /* Polygon: jeder Klick fügt einen Punkt hinzu (Fertig-Button schließt) */
+    if (this._pickerFor.type === 'polygon' || this._pickerFor.type === 'polygonNew') {
+      this._pickerPolygonPoints = [...this._pickerPolygonPoints, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 }];
       return;
     }
     /* Linie und Rechteck: zwei Klicks (Punkt – Punkt, Linie verbunden) */
@@ -458,8 +528,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
               <span class="picker-title">
                 ${this._pickerFor.type === 'position' ? 'Position: einen Punkt klicken' : ''}
                 ${this._pickerFor.type === 'rect' || this._pickerFor.type === 'rectNew' ? 'Zone: zwei Punkte klicken (Ecke – gegenüberliegende Ecke)' : ''}
+                ${this._pickerFor.type === 'polygon' || this._pickerFor.type === 'polygonNew' ? 'Polygon: Klicks setzen Punkte (mind. 3), dann Fertig' : ''}
                 ${this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew' ? 'Linie: zwei Punkte klicken (Start – Ende)' : ''}
               </span>
+              ${this._pickerFor?.type === 'polygon' || this._pickerFor?.type === 'polygonNew'
+                ? html`<button type="button" class="btn-confirm" ?disabled=${this._pickerPolygonPoints.length < 3} @click=${() => this._finishPickerPolygon()}>Fertig</button>`
+                : ''}
               <button type="button" class="btn-cancel" @click=${() => this._closePicker()}>Abbrechen</button>
             </div>
             <div
@@ -484,31 +558,48 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 : 'left:0;top:0;width:100%;height:100%'}
                 @click=${(e: MouseEvent) => {
                   if (e.target === e.currentTarget) this._onPickerImageClick(e);
-                  else if (this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew') this._onPickerImageClick(e);
+                  else if (this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygon' || this._pickerFor?.type === 'polygonNew') this._onPickerImageClick(e);
                 }}>
+                ${(this._pickerFor?.type === 'polygon' || this._pickerFor?.type === 'polygonNew') && this._pickerPolygonPoints.length > 0 ? (() => {
+                  const pts = this._pickerPolygonPoints;
+                  const stopClick = (ev: MouseEvent) => { ev.preventDefault(); ev.stopPropagation(); };
+                  const canDrag = this._pickerFor?.type === 'polygon';
+                  return html`
+                    ${pts.length >= 2 ? pts.map((pt, pi) => pi === 0 ? null : html`
+                      <div class="picker-line ${canDrag ? 'editing' : ''}" style="left:${pts[pi-1].x}%;top:${pts[pi-1].y}%;width:${Math.hypot(pt.x - pts[pi-1].x, pt.y - pts[pi-1].y)}%;transform:rotate(${Math.atan2(pt.y - pts[pi-1].y, pt.x - pts[pi-1].x) * (180/Math.PI)}deg)"></div>
+                    `).filter(Boolean) : ''}
+                    ${pts.length >= 3 ? html`<div class="picker-line ${canDrag ? 'editing' : ''}" style="left:${pts[pts.length-1].x}%;top:${pts[pts.length-1].y}%;width:${Math.hypot(pts[0].x - pts[pts.length-1].x, pts[0].y - pts[pts.length-1].y)}%;transform:rotate(${Math.atan2(pts[0].y - pts[pts.length-1].y, pts[0].x - pts[pts.length-1].x) * (180/Math.PI)}deg)"></div>` : ''}
+                    ${pts.map((pt, pi) => html`
+                      <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${pt.x}%;top:${pt.y}%"
+                        @mousedown=${canDrag ? (ev: MouseEvent) => { if (this._pickerFor?.type === 'polygon') this._startPickerDragPolygon(this._pickerFor.boundaryIndex, pi, ev); } : undefined} @click=${canDrag ? stopClick : undefined}></div>
+                    `)}
+                  `;
+                })() : ''}
                 ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null
                   ? html`<div class="picker-point draggable" style="left:${Number(pickerEntity.x) ?? 50}%;top:${Number(pickerEntity.y) ?? 50}%"
                       @mousedown=${(e: MouseEvent) => this._startPickerDragPosition(e)} @click=${(e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); }}></div>`
                   : ''}
                 ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? pickerBoundaries.map((b, bi) => {
+                  if (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') { if (isPolygonBoundary(b)) return null; }
                   const isEditing = this._pickerFor?.type === 'rect' && this._pickerFor.boundaryIndex === bi
                     || this._pickerFor?.type === 'line' && this._pickerFor.lineIndex === bi;
                   const stopClick = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
+                  const br = b as { x1?: number; y1?: number; x2?: number; y2?: number };
                   if (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') {
-                    const len = Math.hypot((b.x2 ?? 0) - (b.x1 ?? 0), (b.y2 ?? 0) - (b.y1 ?? 0)) || 1;
-                    const ang = Math.atan2((b.y2 ?? 0) - (b.y1 ?? 0), (b.x2 ?? 0) - (b.x1 ?? 0)) * (180 / Math.PI);
+                    const len = Math.hypot((br.x2 ?? 0) - (br.x1 ?? 0), (br.y2 ?? 0) - (br.y1 ?? 0)) || 1;
+                    const ang = Math.atan2((br.y2 ?? 0) - (br.y1 ?? 0), (br.x2 ?? 0) - (br.x1 ?? 0)) * (180 / Math.PI);
                     const canDrag = this._pickerFor?.type === 'line';
                     return html`
-                      <div class="picker-line ${isEditing ? 'editing' : ''}" style="left:${b.x1}%;top:${b.y1}%;width:${len}%;transform:rotate(${ang}deg)"></div>
-                      <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${b.x1}%;top:${b.y1}%"
+                      <div class="picker-line ${isEditing ? 'editing' : ''}" style="left:${br.x1}%;top:${br.y1}%;width:${len}%;transform:rotate(${ang}deg)"></div>
+                      <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${br.x1}%;top:${br.y1}%"
                         @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragLine(bi, 0, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>
-                      <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${b.x2}%;top:${b.y2}%"
+                      <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${br.x2}%;top:${br.y2}%"
                         @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragLine(bi, 1, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>`;
                   }
-                  const left = Math.min(b.x1, b.x2);
-                  const top = Math.min(b.y1, b.y2);
-                  const w = Math.abs((b.x2 ?? 100) - (b.x1 ?? 0)) || 1;
-                  const h = Math.abs((b.y2 ?? 100) - (b.y1 ?? 0)) || 1;
+                  const left = Math.min(br.x1 ?? 0, br.x2 ?? 100);
+                  const top = Math.min(br.y1 ?? 0, br.y2 ?? 100);
+                  const w = Math.abs((br.x2 ?? 100) - (br.x1 ?? 0)) || 1;
+                  const h = Math.abs((br.y2 ?? 100) - (br.y1 ?? 0)) || 1;
                   const canDrag = this._pickerFor?.type === 'rect';
                   return html`
                     <div class="picker-rect ${isEditing ? 'editing' : ''}" style="left:${left}%;top:${top}%;width:${w}%;height:${h}%"></div>
@@ -616,45 +707,65 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="smoke_detector">Rauchmelder</option>
                 </select>
                 ${(ent.preset === 'temperature') ? html`
-                <div class="entity-boundaries" title="Raum-/Heatmap-Zonen (mehrere für Ecken möglich)">
+                <div class="entity-boundaries" title="Raum-/Heatmap-Zonen: Rechteck oder Polygon (beliebig viele Ecken)">
                   <span class="boundaries-label">Zonen:</span>
-                  ${getEntityBoundaries(ent).map((b, bi) => html`
+                  ${getEntityBoundaries(ent).map((b, bi) => {
+                    if (isPolygonBoundary(b)) {
+                      return html`
                     <div class="entity-coords room-boundary">
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x1) ?? 0)} placeholder="x1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y1) ?? 0)} placeholder="y1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x2) ?? 100)} placeholder="x2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y2) ?? 100)} placeholder="y2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <span class="boundary-type">Polygon (${b.points.length} Ecken)</span>
                       <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(b.opacity) ?? 0.4)))} title="Deckkraft"
                         @change=${(e: Event) => this._updateEntityBoundary(i, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
-                      <button type="button" class="btn-draw" @click=${() => this._openPickerRect(i, bi)} title="Zone auf Plan einzeichnen"><ha-icon icon="mdi:draw"></ha-icon></button>
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerPolygon(i, bi)} title="Polygon bearbeiten"><ha-icon icon="mdi:vector-polygon"></ha-icon></button>
                       <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                     </div>
-                  `)}
-                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, true)} title="Zone hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
-                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerRect(i)} title="Neue Zone durch Zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Zeichnen</button>
+                  `;
+                    }
+                    const r = b as { x1: number; y1: number; x2: number; y2: number; opacity?: number };
+                    return html`
+                    <div class="entity-coords room-boundary">
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.x1) ?? 0)} placeholder="x1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.y1) ?? 0)} placeholder="y1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.x2) ?? 100)} placeholder="x2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.y2) ?? 100)} placeholder="y2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(r.opacity) ?? 0.4)))} title="Deckkraft"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerRect(i, bi)} title="Rechteck bearbeiten"><ha-icon icon="mdi:draw"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                    </div>
+                  `;
+                  })}
+                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, true)} title="Rechteck-Zone hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerRect(i)} title="Neues Rechteck zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Rechteck</button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerPolygon(i)} title="Neues Polygon zeichnen (beliebig viele Ecken)"><ha-icon icon="mdi:vector-polygon"></ha-icon> Polygon</button>
                 </div>
                 ` : ''}
                 ${(ent.preset === 'window_contact') ? html`
                 <div class="entity-boundaries" title="Linien (x1,y1)→(x2,y2) in %, mehrere pro Entität möglich">
                   <span class="boundaries-label">Linien:</span>
-                  ${getEntityBoundaries(ent).map((b, bi) => html`
+                  ${getEntityBoundaries(ent).filter((b) => !isPolygonBoundary(b)).map((b, bi) => {
+                    const br = b as { x1: number; y1: number; x2: number; y2: number };
+                    const fullList = getEntityBoundaries(ent);
+                    const realIndex = fullList.indexOf(b);
+                    return html`
                     <div class="entity-coords room-boundary">
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x1) ?? 0)} placeholder="x1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y1) ?? 0)} placeholder="y1"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.x2) ?? 100)} placeholder="x2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y2) ?? 100)} placeholder="y2"
-                        @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                      <button type="button" class="btn-draw" @click=${() => this._openPickerLine(i, bi)} title="Linie auf Plan einzeichnen"><ha-icon icon="mdi:draw"></ha-icon></button>
-                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Linie entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.x1) ?? 0)} placeholder="x1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.y1) ?? 0)} placeholder="y1"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.x2) ?? 100)} placeholder="x2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.y2) ?? 100)} placeholder="y2"
+                        @change=${(e: Event) => this._updateEntityBoundary(i, realIndex, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerLine(i, realIndex)} title="Linie auf Plan einzeichnen"><ha-icon icon="mdi:draw"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, realIndex)} title="Linie entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                     </div>
-                  `)}
+                  `;
+                  })}
                   <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, false)} title="Linie hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
                   <button type="button" class="btn-draw-small" @click=${() => this._openPickerLine(i)} title="Neue Linie durch Zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Zeichnen</button>
                 </div>
@@ -702,32 +813,35 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           <h4 class="section-title"><ha-icon icon="mdi:thermometer"></ha-icon> Temperatur-Heatmap (Legacy)</h4>
           <p class="section-hint">Heatmap-Zonen werden jetzt pro Temperatur-Entität unter „Raum-/Heatmap-Zonen“ (Zonen) gepflegt. Alte Einträge hier bleiben für Abwärtskompatibilität erhalten.</p>
           <div class="entity-list">
-            ${(this._config.temperature_zones ?? []).map((zone, i) => html`
+            ${(this._config.temperature_zones ?? []).map((zone, i) => {
+              const z = zone as { entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number };
+              return html`
               <div class="entity-row heatmap-row">
-                <input type="text" list="rp-heatmap-${i}" .value=${zone.entity} placeholder="sensor.temperatur_raum"
+                <input type="text" list="rp-heatmap-${i}" .value=${z.entity} placeholder="sensor.temperatur_raum"
                   @change=${(e: Event) => this._updateHeatmapZone(i, { entity: (e.target as HTMLInputElement).value.trim() })} />
                 <datalist id="rp-heatmap-${i}">
                   ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass!, eid)}</option>`)}
                 </datalist>
                 <div class="entity-coords" title="Punkt 1 (x,y)">
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.x1) ?? 0)} placeholder="x1"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.x1) ?? 0)} placeholder="x1"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.y1) ?? 0)} placeholder="y1"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.y1) ?? 0)} placeholder="y1"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
                 </div>
                 <div class="entity-coords" title="Punkt 2 (x,y)">
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.x2) ?? 100)} placeholder="x2"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.x2) ?? 100)} placeholder="x2"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(zone.y2) ?? 100)} placeholder="y2"
+                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.y2) ?? 100)} placeholder="y2"
                     @change=${(e: Event) => this._updateHeatmapZone(i, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                 </div>
-                <input type="number" class="entity-opacity" min="0" max="1" step="0.01" .value=${String(Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4)))} title="Deckkraft"
+                <input type="number" class="entity-opacity" min="0" max="1" step="0.01" .value=${String(Math.min(1, Math.max(0, Number(z.opacity) ?? 0.4)))} title="Deckkraft"
                   @change=${(e: Event) => this._updateHeatmapZone(i, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
                 <button type="button" class="btn-remove" @click=${() => this._removeHeatmapZone(i)} title="Zone entfernen">
                   <ha-icon icon="mdi:delete-outline"></ha-icon>
                 </button>
               </div>
-            `)}
+            `;
+            })}
           </div>
           <button type="button" class="btn-add" @click=${this._addHeatmapZone}>
             <ha-icon icon="mdi:plus"></ha-icon> Legacy-Zone hinzufügen
@@ -989,6 +1103,27 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .btn-cancel:hover {
         background: rgba(255, 255, 255, 0.06);
+      }
+      .btn-confirm {
+        padding: 8px 14px;
+        border: 1px solid var(--primary-color, #03a9f4);
+        border-radius: 8px;
+        background: rgba(3, 169, 244, 0.2);
+        color: var(--primary-color, #03a9f4);
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+      .btn-confirm:hover:not(:disabled) {
+        background: rgba(3, 169, 244, 0.3);
+      }
+      .btn-confirm:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .boundary-type {
+        font-size: 0.85rem;
+        color: var(--secondary-text-color);
+        margin-right: 4px;
       }
       .picker-image-wrap {
         position: relative;
