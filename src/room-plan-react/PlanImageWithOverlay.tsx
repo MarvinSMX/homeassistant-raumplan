@@ -142,23 +142,23 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const blobUrlRef = useRef<string | null>(null);
   const [pressBoundaries, setPressBoundaries] = useState<{ x1: number; y1: number; x2: number; y2: number }[]>([]);
   const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
-  const pressOverlayRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const pressOverlayRef = useRef<HTMLDivElement | null>(null);
 
   const onRoomPressStart = (entityId: string, boundaries: { x1: number; y1: number; x2: number; y2: number }[]) => {
-    gsap.killTweensOf(pressOverlayRefs.current);
+    gsap.killTweensOf(pressOverlayRef.current);
     setHoveredEntityId(entityId);
     setPressBoundaries(boundaries.length ? boundaries : []);
   };
 
   const onRoomPressEnd = () => {
     setHoveredEntityId(null);
-    const refs = pressOverlayRefs.current.slice(0, pressBoundaries.length).filter(Boolean) as HTMLDivElement[];
-    if (refs.length === 0) {
+    const el = pressOverlayRef.current;
+    if (!el) {
       setPressBoundaries([]);
       return;
     }
-    gsap.killTweensOf(refs);
-    gsap.to(refs, {
+    gsap.killTweensOf(el);
+    gsap.to(el, {
       opacity: 0,
       duration: 0.28,
       ease: 'power2.inOut',
@@ -169,12 +169,12 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   /* Raum abdunkeln: nur Fade-in (Fade-out erst bei onRoomPressEnd) */
   useEffect(() => {
     if (pressBoundaries.length === 0) return;
-    const refs = pressOverlayRefs.current.slice(0, pressBoundaries.length).filter(Boolean) as HTMLDivElement[];
-    if (refs.length === 0) return;
-    gsap.killTweensOf(refs);
-    gsap.set(refs, { opacity: 0 });
-    gsap.to(refs, { opacity: 1, duration: 0.28, ease: 'power2.inOut' });
-    return () => gsap.killTweensOf(refs);
+    const el = pressOverlayRef.current;
+    if (!el) return;
+    gsap.killTweensOf(el);
+    gsap.set(el, { opacity: 0 });
+    gsap.to(el, { opacity: 1, duration: 0.28, ease: 'power2.inOut' });
+    return () => gsap.killTweensOf(el);
   }, [pressBoundaries]);
 
   useEffect(() => {
@@ -385,25 +385,79 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               </div>
             );
           })()}
-          {/* Press/Hover-Effekt: Temperatur-Badge → Raumgrenzen abdunkeln (GSAP) */}
-          {pressBoundaries.map((boundary, idx) => (
+          {/* Press/Hover-Effekt: Temperatur-Badge → Raumgrenzen abdunkeln (GSAP), mehrere Zonen = ein Shape wie Heatmap */}
+          {pressBoundaries.length > 0 && (
             <div
-              key={idx}
-              ref={(el) => { pressOverlayRefs.current[idx] = el; }}
+              ref={pressOverlayRef}
               style={{
                 position: 'absolute',
-                left: `${Math.min(boundary.x1, boundary.x2)}%`,
-                top: `${Math.min(boundary.y1, boundary.y2)}%`,
-                width: `${Math.abs(boundary.x2 - boundary.x1) || 1}%`,
-                height: `${Math.abs(boundary.y2 - boundary.y1) || 1}%`,
-                background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, rgba(0,0,0,0.45) 100%)',
+                left: 0,
+                top: 0,
+                width: '100%',
+                height: '100%',
                 pointerEvents: 'none',
                 zIndex: 2.5,
                 opacity: 0,
               }}
               aria-hidden
-            />
-          ))}
+            >
+              {pressBoundaries.length === 1 ? (
+                (() => {
+                  const b = pressBoundaries[0];
+                  return (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: `${Math.min(b.x1, b.x2)}%`,
+                        top: `${Math.min(b.y1, b.y2)}%`,
+                        width: `${Math.abs(b.x2 - b.x1) || 1}%`,
+                        height: `${Math.abs(b.y2 - b.y1) || 1}%`,
+                        background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, rgba(0,0,0,0.45) 100%)',
+                      }}
+                    />
+                  );
+                })()
+              ) : (
+                (() => {
+                  const bounds = pressBoundaries;
+                  let minX = 100, minY = 100, maxX = 0, maxY = 0;
+                  for (const b of bounds) {
+                    minX = Math.min(minX, b.x1, b.x2);
+                    minY = Math.min(minY, b.y1, b.y2);
+                    maxX = Math.max(maxX, b.x1, b.x2);
+                    maxY = Math.max(maxY, b.y1, b.y2);
+                  }
+                  const cx = (minX + maxX) / 2;
+                  const cy = (minY + maxY) / 2;
+                  let r = 0;
+                  for (const b of bounds) {
+                    for (const [px, py] of [[b.x1, b.y1], [b.x2, b.y1], [b.x1, b.y2], [b.x2, b.y2]]) {
+                      const d = Math.hypot(px - cx, py - cy);
+                      if (d > r) r = d;
+                    }
+                  }
+                  r = Math.max(r, 1);
+                  return (
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }}>
+                      <defs>
+                        <radialGradient id="dim-gradient" gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={r}>
+                          <stop offset="0%" stopColor="transparent" />
+                          <stop offset="100%" stopColor="rgba(0,0,0,0.45)" />
+                        </radialGradient>
+                      </defs>
+                      {bounds.map((b, i) => {
+                        const left = Math.min(b.x1, b.x2);
+                        const top = Math.min(b.y1, b.y2);
+                        const w = Math.abs(b.x2 - b.x1) || 1;
+                        const h = Math.abs(b.y2 - b.y1) || 1;
+                        return <rect key={i} x={left} y={top} width={w} height={h} fill="url(#dim-gradient)" />;
+                      })}
+                    </svg>
+                  );
+                })()
+              )}
+            </div>
+          )}
           {windowLineEntities.length > 0 && (
             <svg
               viewBox="0 0 100 100"
