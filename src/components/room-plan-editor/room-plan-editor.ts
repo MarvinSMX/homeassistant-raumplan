@@ -329,71 +329,67 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
               @mouseleave=${() => { this._drawStart = null; this._drawCurrent = null; }}
               @click=${(e: MouseEvent) => this._onPickerImageClick(e)}
             >
-              <img
-                class="picker-image"
-                src=${img}
-                alt="Plan"
-                draggable="false"
-                @load=${(e: Event) => this._onPickerImageLoad(e)}
-              />
-              ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null ? html`
-                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
-                  <circle cx=${Number(pickerEntity.x) ?? 50} cy=${Number(pickerEntity.y) ?? 50} r="3" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
-                </svg>
-              ` : ''}
-              ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? html`
-                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
-                  ${pickerBoundaries.map((b, bi) => {
+              <div class="picker-image-layer">
+                <img
+                  class="picker-image"
+                  src=${img}
+                  alt="Plan"
+                  draggable="false"
+                  @load=${(e: Event) => this._onPickerImageLoad(e)}
+                />
+              </div>
+              <div class="picker-overlay-layer">
+                <svg class="picker-overlay-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <rect x="0" y="0" width="100" height="100" fill="none" stroke="rgba(0,188,212,0.4)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                  ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null
+                    ? html`<circle cx=${Number(pickerEntity.x) ?? 50} cy=${Number(pickerEntity.y) ?? 50} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`
+                    : ''}
+                  ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? pickerBoundaries.map((b, bi) => {
                     const isEditing = this._pickerFor?.type === 'rect' && this._pickerFor.boundaryIndex === bi
                       || this._pickerFor?.type === 'line' && this._pickerFor.lineIndex === bi;
                     if (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') {
-                      return html`
+                      return html`<g>
                         <line x1=${b.x1} y1=${b.y1} x2=${b.x2} y2=${b.y2}
-                          stroke=${isEditing ? '#00bcd4' : 'rgba(255,255,255,0.85)'}
-                          stroke-width=${isEditing ? 3 : 2}
-                          stroke-dasharray=${isEditing ? 'none' : '5,5'}
-                        />
-                        <circle cx=${b.x1} cy=${b.y1} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />
-                        <circle cx=${b.x2} cy=${b.y2} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />`;
+                          stroke=${isEditing ? '#00bcd4' : '#fff'} stroke-width="2" stroke-dasharray=${isEditing ? 'none' : '6,6'} vector-effect="non-scaling-stroke"/>
+                        <circle cx=${b.x1} cy=${b.y1} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                        <circle cx=${b.x2} cy=${b.y2} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                      </g>`;
                     }
                     const left = Math.min(b.x1, b.x2);
                     const top = Math.min(b.y1, b.y2);
                     const w = Math.abs((b.x2 ?? 100) - (b.x1 ?? 0)) || 1;
                     const h = Math.abs((b.y2 ?? 100) - (b.y1 ?? 0)) || 1;
-                    return html`
+                    return html`<g>
                       <rect x=${left} y=${top} width=${w} height=${h}
-                        fill="rgba(0,188,212,0.2)" stroke=${isEditing ? '#00bcd4' : 'rgba(255,255,255,0.9)'}
-                        stroke-width=${isEditing ? 2.5 : 2}
-                        stroke-dasharray=${isEditing ? 'none' : '6,6'}
-                      />
-                      <circle cx=${left} cy=${top} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />
-                      <circle cx=${left + w} cy=${top + h} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />`;
-                  })}
-                </svg>
-              ` : ''}
-              ${this._drawStart && this._drawCurrent ? html`
-                <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
-                  ${this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
-                    ? html`
+                        fill="rgba(0,188,212,0.25)" stroke=${isEditing ? '#00bcd4' : '#fff'} stroke-width="2"
+                        stroke-dasharray=${isEditing ? 'none' : '8,8'} vector-effect="non-scaling-stroke"/>
+                      <circle cx=${left} cy=${top} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                      <circle cx=${left + w} cy=${top + h} r="5" fill="#fff" stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                    </g>`;
+                  }) : ''}
+                  ${this._drawStart && this._drawCurrent ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
+                    ? html`<g>
                         <rect
                           x=${Math.min(this._drawStart.x, this._drawCurrent.x)}
                           y=${Math.min(this._drawStart.y, this._drawCurrent.y)}
                           width=${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}
                           height=${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}
-                          fill="rgba(0,188,212,0.35)"
-                          stroke="#00bcd4"
-                          stroke-width="2.5"
+                          fill="rgba(0,188,212,0.4)"
+                          stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"
                         />
-                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
-                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />`
+                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                      </g>`
                     : (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew')
-                      ? html`
-                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="#00bcd4" stroke-width="3" />
-                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
-                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />`
-                      : ''}
+                      ? html`<g>
+                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y}
+                            stroke="#00bcd4" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="5" fill="#00bcd4" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                        </g>`
+                      : '') : ''}
                 </svg>
-              ` : ''}
+              </div>
             </div>
           </div>
         </div>
@@ -857,6 +853,14 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         user-select: none;
         -webkit-user-drag: none;
       }
+      .picker-image-layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 0;
+      }
       .picker-image {
         width: 100%;
         height: 100%;
@@ -864,23 +868,22 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         display: block;
         pointer-events: none;
       }
-      .picker-overlay,
-      .picker-overlay-existing {
+      .picker-overlay-layer {
         position: absolute;
         left: 0;
         top: 0;
         right: 0;
         bottom: 0;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .picker-overlay-svg {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
         width: 100%;
         height: 100%;
-        pointer-events: none;
-        display: block;
-      }
-      .picker-overlay-existing {
-        z-index: 10;
-      }
-      .picker-overlay {
-        z-index: 11;
       }
       .btn-draw {
         padding: 6px 10px;
