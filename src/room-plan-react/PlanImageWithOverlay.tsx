@@ -52,17 +52,21 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     if (pressTimeoutRef.current) clearTimeout(pressTimeoutRef.current);
     setPressBoundary(boundary);
     setPressOpacity(0);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setPressOpacity(1));
-    });
     pressTimeoutRef.current = setTimeout(() => {
       setPressOpacity(0);
       pressTimeoutRef.current = setTimeout(() => {
         setPressBoundary(null);
         pressTimeoutRef.current = null;
-      }, 220);
-    }, 380);
+      }, 280);
+    }, 400);
   };
+
+  /* Fade-in starten, sobald Overlay im DOM ist (Animation sichtbar) */
+  useEffect(() => {
+    if (!pressBoundary) return;
+    const t = setTimeout(() => setPressOpacity(1), 20);
+    return () => clearTimeout(t);
+  }, [pressBoundary]);
 
   useEffect(() => {
     if (!imgSrc || typeof window === 'undefined') {
@@ -248,7 +252,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 pointerEvents: 'none',
                 zIndex: 2.5,
                 opacity: pressOpacity,
-                transition: 'opacity 0.22s ease-in-out',
+                transition: 'opacity 0.28s ease-in-out',
               }}
               aria-hidden
             />

@@ -64,11 +64,11 @@ export function EntityBadge(props: EntityBadgeProps) {
     double_tap_action: doubleTapAction,
   };
 
-  const onTap = () => {
+  const onTap = () => handleAction(host, hass, actionConfig, 'tap');
+  const onPointerDown = () => {
     if (ent.preset === 'temperature' && ent.room_boundary && onRoomPress) {
       onRoomPress(ent.room_boundary);
     }
-    handleAction(host, hass, actionConfig, 'tap');
   };
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
@@ -115,6 +115,7 @@ export function EntityBadge(props: EntityBadgeProps) {
       role="button"
       tabIndex={0}
       onClick={onTap}
+      onPointerDown={onPointerDown}
       onDblClick={onDbl}
       onContextMenu={(e) => { e.preventDefault(); onHold(); }}
       onMouseEnter={(e) => {
