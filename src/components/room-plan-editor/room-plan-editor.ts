@@ -397,9 +397,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       this._closePicker();
       return;
     }
-    /* Polygon: jeder Klick fügt einen Punkt hinzu (Fertig-Button schließt) */
+    /* Polygon: nur beim Neu-Zeichnen (polygonNew) fügt ein Klick einen Punkt hinzu; beim Bearbeiten nur Verschieben */
     if (this._pickerFor.type === 'polygon' || this._pickerFor.type === 'polygonNew') {
-      this._pickerPolygonPoints = [...this._pickerPolygonPoints, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 }];
+      if (this._pickerFor.type === 'polygonNew') {
+        this._pickerPolygonPoints = [...this._pickerPolygonPoints, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 }];
+      }
       return;
     }
     /* Linie und Rechteck: zwei Klicks (Punkt – Punkt, Linie verbunden) */
@@ -528,7 +530,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
               <span class="picker-title">
                 ${this._pickerFor.type === 'position' ? 'Position: einen Punkt klicken' : ''}
                 ${this._pickerFor.type === 'rect' || this._pickerFor.type === 'rectNew' ? 'Zone: zwei Punkte klicken (Ecke – gegenüberliegende Ecke)' : ''}
-                ${this._pickerFor.type === 'polygon' || this._pickerFor.type === 'polygonNew' ? 'Polygon: Klicks setzen Punkte (mind. 3), dann Fertig' : ''}
+                ${this._pickerFor.type === 'polygonNew' ? 'Polygon: Klicks setzen Punkte (mind. 3), dann Fertig' : ''}
+                ${this._pickerFor.type === 'polygon' ? 'Polygon bearbeiten: Punkte verschieben, dann Fertig' : ''}
                 ${this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew' ? 'Linie: zwei Punkte klicken (Start – Ende)' : ''}
               </span>
               ${this._pickerFor?.type === 'polygon' || this._pickerFor?.type === 'polygonNew'
@@ -558,7 +561,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 : 'left:0;top:0;width:100%;height:100%'}
                 @click=${(e: MouseEvent) => {
                   if (e.target === e.currentTarget) this._onPickerImageClick(e);
-                  else if (this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygon' || this._pickerFor?.type === 'polygonNew') this._onPickerImageClick(e);
+                  else if (this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygonNew') this._onPickerImageClick(e);
                 }}>
                 ${(this._pickerFor?.type === 'polygon' || this._pickerFor?.type === 'polygonNew') && this._pickerPolygonPoints.length > 0 ? (() => {
                   const pts = this._pickerPolygonPoints;

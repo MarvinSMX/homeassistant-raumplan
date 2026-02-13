@@ -25,7 +25,17 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
   const gradientBg = `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, ${bg} 100%)`;
 
   if (isZonePolygon(zone)) {
-    const pts = zone.points.map((p) => `${Math.min(100, Math.max(0, p.x))}% ${Math.min(100, Math.max(0, p.y))}%`).join(', ');
+    const pts = zone.points.map((p) => ({ x: Math.min(100, Math.max(0, p.x)), y: Math.min(100, Math.max(0, p.y)) }));
+    const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+    const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+    let r = 0;
+    for (const p of pts) {
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      if (d > r) r = d;
+    }
+    r = Math.max(r, 1);
+    const polygonGradient = `radial-gradient(ellipse ${r * 2}% ${r * 2}% at ${cx}% ${cy}%, transparent 0%, ${bg} 100%)`;
+    const ptsStr = pts.map((p) => `${p.x}% ${p.y}%`).join(', ');
     return (
       <div
         className="absolute pointer-events-none z-0 rounded-none"
@@ -36,8 +46,8 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
           height: '100%',
           opacity: dimmed ? 0 : 1,
           transition: `opacity ${DIM_DURATION}s ease-in-out`,
-          background: gradientBg,
-          clipPath: `polygon(${pts})`,
+          background: polygonGradient,
+          clipPath: `polygon(${ptsStr})`,
         }}
         title={`${zone.entity}: ${state ?? '?'}`}
       />
