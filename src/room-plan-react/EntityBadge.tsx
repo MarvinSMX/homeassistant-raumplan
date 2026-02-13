@@ -120,10 +120,11 @@ export function EntityBadge(props: EntityBadgeProps) {
         ...(isIconOnly
           ? {
               background: '#fff',
-              justifyContent: 'center',
-              padding: `calc(8px * ${scale}) calc(14px * ${scale})`,
-              minWidth: `calc(36px * ${scale})`,
-              minHeight: `calc(36px * ${scale})`,
+              padding: `calc(10px * ${scale}) calc(18px * ${scale})`,
+              minWidth: `calc(48px * ${scale})`,
+              minHeight: `calc(32px * ${scale})`,
+              borderRadius: 9999,
+              position: 'relative',
             }
           : {}),
       }}
@@ -144,11 +145,15 @@ export function EntityBadge(props: EntityBadgeProps) {
       {showIcon && (isIconOnly ? (
         <span
           style={{
-            display: 'inline-flex',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: `calc(24px * ${scale})`,
-            height: `calc(24px * ${scale})`,
+            width: `calc(22px * ${scale})`,
+            height: `calc(22px * ${scale})`,
           }}
         >
           <ha-icon
