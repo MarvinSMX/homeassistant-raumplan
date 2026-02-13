@@ -27,6 +27,7 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
     type: config?.type ?? 'custom:room-plan-card',
     image: img,
     entities: Array.isArray(config?.entities) ? config.entities : [],
+    rooms: Array.isArray(config?.rooms) ? config.rooms : undefined,
     title: config?.title ?? '',
     rotation: Number(config?.rotation) ?? 0,
     full_height: config?.full_height ?? false,
