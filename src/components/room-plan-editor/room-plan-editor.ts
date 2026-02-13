@@ -301,51 +301,85 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const entities = this._config.entities ?? [];
     const entityIds = this.hass?.states ? Object.keys(this.hass.states).sort() : [];
 
+    const pickerEntity = this._pickerFor ? this._config.entities?.[this._pickerFor.entityIndex] : null;
+    const pickerBoundaries = pickerEntity ? getEntityBoundaries(pickerEntity) : [];
+
     return html`
       <div class="editor">
         ${this._pickerFor && img ? html`
-        <section class="editor-section picker-panel">
-          <div class="picker-header">
-            <span class="picker-title">
-              ${this._pickerFor.type === 'position' ? 'Position auf Plan klicken' : ''}
-              ${this._pickerFor.type === 'rect' || this._pickerFor.type === 'rectNew' ? 'Rechteck auf Plan ziehen (Zone)' : ''}
-              ${this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew' ? 'Zwei Punkte für Linie klicken' : ''}
-            </span>
-            <button type="button" class="btn-cancel" @click=${() => this._closePicker()}>Abbrechen</button>
+        <div class="picker-modal-backdrop" @click=${(e: MouseEvent) => e.target === e.currentTarget && this._closePicker()}>
+          <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
+            <div class="picker-header">
+              <span class="picker-title">
+                ${this._pickerFor.type === 'position' ? 'Position auf Plan klicken' : ''}
+                ${this._pickerFor.type === 'rect' || this._pickerFor.type === 'rectNew' ? 'Rechteck auf Plan ziehen (Zone)' : ''}
+                ${this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew' ? 'Zwei Punkte für Linie klicken' : ''}
+              </span>
+              <button type="button" class="btn-cancel" @click=${() => this._closePicker()}>Abbrechen</button>
+            </div>
+            <div
+              class="picker-image-wrap"
+              @mousedown=${(e: MouseEvent) => (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') ? this._onPickerImageMouseDown(e) : null}
+              @mousemove=${(e: MouseEvent) => this._onPickerImageMouseMove(e)}
+              @mouseup=${(e: MouseEvent) => (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') ? this._onPickerImageMouseUp(e) : null}
+              @mouseleave=${() => { if (this._pickerFor?.type !== 'position' && this._pickerFor?.type !== 'line' && this._pickerFor?.type !== 'lineNew') { this._drawStart = null; this._drawCurrent = null; } }}
+            >
+              <img
+                class="picker-image"
+                src=${img}
+                alt="Plan"
+                @load=${(e: Event) => this._onPickerImageLoad(e)}
+                @click=${(e: MouseEvent) => this._pickerFor?.type === 'position' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew' ? this._onPickerImageClick(e) : null}
+              />
+              ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null ? html`
+                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <circle cx=${Number(pickerEntity.x) ?? 50} cy=${Number(pickerEntity.y) ?? 50} r="2" fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="0.6" />
+                </svg>
+              ` : ''}
+              ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') && pickerBoundaries.length > 0 ? html`
+                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  ${pickerBoundaries.map((b, bi) => {
+                    const isEditing = this._pickerFor?.type === 'rect' && this._pickerFor.boundaryIndex === bi
+                      || this._pickerFor?.type === 'line' && this._pickerFor.lineIndex === bi;
+                    if (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') {
+                      return html`<line x1=${b.x1} y1=${b.y1} x2=${b.x2} y2=${b.y2}
+                        stroke=${isEditing ? 'var(--primary-color, #03a9f4)' : 'rgba(255,255,255,0.5)'}
+                        stroke-width=${isEditing ? 1.2 : 0.8}
+                        stroke-dasharray=${isEditing ? 'none' : '2,2'}
+                      />`;
+                    }
+                    const left = Math.min(b.x1, b.x2);
+                    const top = Math.min(b.y1, b.y2);
+                    const w = Math.abs((b.x2 ?? 100) - (b.x1 ?? 0)) || 1;
+                    const h = Math.abs((b.y2 ?? 100) - (b.y1 ?? 0)) || 1;
+                    return html`<rect x=${left} y=${top} width=${w} height=${h}
+                      fill="rgba(255,255,255,0.08)" stroke=${isEditing ? 'var(--primary-color, #03a9f4)' : 'rgba(255,255,255,0.45)'}
+                      stroke-width=${isEditing ? 0.8 : 0.5}
+                      stroke-dasharray=${isEditing ? 'none' : '2,2'}
+                    />`;
+                  })}
+                </svg>
+              ` : ''}
+              ${this._drawStart && this._drawCurrent ? html`
+                <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  ${this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
+                    ? html`<rect
+                        x=${Math.min(this._drawStart.x, this._drawCurrent.x)}
+                        y=${Math.min(this._drawStart.y, this._drawCurrent.y)}
+                        width=${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}
+                        height=${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}
+                        fill="rgba(3,169,244,0.25)"
+                        stroke="var(--primary-color, #03a9f4)"
+                        stroke-width="0.5"
+                      />`
+                    : (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew')
+                      ? html`<line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="var(--primary-color, #03a9f4)" stroke-width="1" />`
+                      : ''}
+                </svg>
+              ` : ''}
+            </div>
           </div>
-          <div
-            class="picker-image-wrap"
-            @mousedown=${(e: MouseEvent) => (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') ? this._onPickerImageMouseDown(e) : null}
-            @mousemove=${(e: MouseEvent) => this._onPickerImageMouseMove(e)}
-            @mouseup=${(e: MouseEvent) => (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') ? this._onPickerImageMouseUp(e) : null}
-            @mouseleave=${() => { if (this._pickerFor?.type !== 'position' && this._pickerFor?.type !== 'line' && this._pickerFor?.type !== 'lineNew') { this._drawStart = null; this._drawCurrent = null; } }}
-          >
-            <img
-              class="picker-image"
-              src=${img}
-              alt="Plan"
-              @load=${(e: Event) => this._onPickerImageLoad(e)}
-              @click=${(e: MouseEvent) => this._pickerFor?.type === 'position' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew' ? this._onPickerImageClick(e) : null}
-            />
-            ${this._drawStart && this._drawCurrent ? html`
-              <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
-                ${this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
-                  ? html`<rect
-                      x=${Math.min(this._drawStart.x, this._drawCurrent.x)}
-                      y=${Math.min(this._drawStart.y, this._drawCurrent.y)}
-                      width=${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}
-                      height=${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}
-                      fill="rgba(3,169,244,0.25)"
-                      stroke="var(--primary-color, #03a9f4)"
-                      stroke-width="0.5"
-                    />`
-                  : (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew')
-                    ? html`<line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="var(--primary-color, #03a9f4)" stroke-width="1" />`
-                    : ''}
-              </svg>
-            ` : ''}
-          </div>
-        </section>
+        </div>
         ` : ''}
         <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:image"></ha-icon> Bild</h4>
@@ -749,24 +783,38 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       .editor-section.heatmap-legacy {
         opacity: 0.9;
       }
-      .picker-panel {
-        background: var(--ha-card-background);
+      .picker-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .picker-modal {
+        background: var(--ha-card-background, #1e1e1e);
         border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
-        border-radius: 12px;
-        padding: 12px;
+        border-radius: 16px;
+        padding: 20px;
+        max-width: min(96vw, 520px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       }
       .picker-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
       }
       .picker-title {
-        font-size: 0.9rem;
+        font-size: 1rem;
+        font-weight: 500;
         color: var(--primary-text-color);
       }
       .btn-cancel {
-        padding: 6px 12px;
+        padding: 8px 14px;
         border: 1px solid var(--divider-color);
         border-radius: 8px;
         background: transparent;
@@ -780,27 +828,35 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       .picker-image-wrap {
         position: relative;
         max-width: 100%;
-        width: 320px;
+        width: 100%;
+        min-width: 280px;
         aspect-ratio: 16 / 10;
-        max-height: 220px;
-        border-radius: 8px;
+        max-height: min(60vh, 320px);
+        border-radius: 10px;
         overflow: hidden;
         cursor: crosshair;
+        background: var(--secondary-background-color, #2a2a2a);
       }
       .picker-image {
         width: 100%;
         height: 100%;
         object-fit: contain;
         display: block;
-        background: var(--secondary-background-color, #2a2a2a);
       }
-      .picker-overlay {
+      .picker-overlay,
+      .picker-overlay-existing {
         position: absolute;
         left: 0;
         top: 0;
         width: 100%;
         height: 100%;
         pointer-events: none;
+      }
+      .picker-overlay-existing {
+        z-index: 1;
+      }
+      .picker-overlay {
+        z-index: 2;
       }
       .btn-draw {
         padding: 6px 10px;
