@@ -81,6 +81,9 @@ export function EntityBadge(props: EntityBadgeProps) {
   const r = (basePx: number, minPx = 4, maxPx = 32) =>
     `calc(${scale} * clamp(${minPx}px, ${basePx}px + 1vw, ${maxPx}px))`;
   const rFont = () => `calc(${scale} * clamp(0.7rem, 0.8125rem + 0.3vw, 0.9375rem))`;
+  /* Icon-Größe direkt aus scale (px), damit ha-icon zuverlässig mitskaliert */
+  const iconSizePx = Math.round(18 * scale);
+  const iconSizeIconOnlyPx = Math.round(20 * scale);
 
   /* Chip: immer weißer Hintergrund (Badge-Style), nur Icons in Farbe; Text standardmäßig dunkel */
   const chipStyle: Record<string, string | number> = {
@@ -161,10 +164,10 @@ export function EntityBadge(props: EntityBadgeProps) {
             <ha-icon
               icon={displayIcon}
               style={{
-                width: r(20, 18, 26),
-                height: r(20, 18, 26),
-                minWidth: r(20, 18, 26),
-                minHeight: r(20, 18, 26),
+                width: `${iconSizeIconOnlyPx}px`,
+                height: `${iconSizeIconOnlyPx}px`,
+                minWidth: `${iconSizeIconOnlyPx}px`,
+                minHeight: `${iconSizeIconOnlyPx}px`,
                 color: iconColor,
                 display: 'block',
               }}
@@ -175,8 +178,8 @@ export function EntityBadge(props: EntityBadgeProps) {
         <ha-icon
           icon={displayIcon}
           style={{
-            width: r(18, 16, 24),
-            height: r(18, 16, 24),
+            width: `${iconSizePx}px`,
+            height: `${iconSizePx}px`,
             flexShrink: 0,
             color: iconColor,
           }}
