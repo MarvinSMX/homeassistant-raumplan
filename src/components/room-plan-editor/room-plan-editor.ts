@@ -187,6 +187,24 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
                 </div>
                 ` : ''}
+                ${(ent.preset === 'window_contact') ? html`
+                <div class="entity-coords room-boundary" title="Linie von (x1,y1) nach (x2,y2) in %">
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
+                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
+                </div>
+                <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
+                  @change=${(e: Event) => this._updateEntity(i, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
+                <input type="color" .value=${ent.line_color_open ?? '#f44336'} title="Farbe wenn offen"
+                  @change=${(e: Event) => this._updateEntity(i, { line_color_open: (e.target as HTMLInputElement).value })} />
+                <input type="color" .value=${ent.line_color_closed ?? '#9e9e9e'} title="Farbe wenn zu"
+                  @change=${(e: Event) => this._updateEntity(i, { line_color_closed: (e.target as HTMLInputElement).value })} />
+                ` : ''}
                 <div class="entity-coords">
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
                     @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 50)) })} />

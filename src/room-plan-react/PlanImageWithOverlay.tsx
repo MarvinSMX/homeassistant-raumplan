@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { RoomPlanCardConfig, RoomPlanEntity } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
+import { handleAction } from 'custom-card-helpers';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone } from './HeatmapZone';
 import { getEntityDomain } from './utils';
@@ -142,6 +143,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     selectedTabs.has(getEntityDomain(e.entity)) ||
     (selectedTabs.has(HEATMAP_TAB) && e.preset === 'temperature')
   );
+  const badgeEntities = filteredEntities.filter((e) => e.preset !== 'window_contact');
+  const windowLineEntities = filteredEntities.filter(
+    (e) => e.preset === 'window_contact' && e.room_boundary
+  );
 
   const zones = config?.temperature_zones ?? [];
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
@@ -257,9 +262,55 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               aria-hidden
             />
           )}
+          {windowLineEntities.length > 0 && (
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              style={{
+                ...overlayBoxStyle,
+                zIndex: 2.6,
+                pointerEvents: 'none',
+              }}
+              aria-hidden
+            >
+              {windowLineEntities.map((ent) => {
+                const b = ent.room_boundary!;
+                const state = hass?.states?.[ent.entity]?.state ?? '';
+                const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
+                const stroke = isOpen
+                  ? (ent.line_color_open ?? 'var(--error-color, #f44336)')
+                  : (ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)');
+                const thickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
+                const actionConfig = {
+                  entity: ent.entity,
+                  tap_action: ent.tap_action ?? config?.tap_action ?? defTap,
+                  hold_action: ent.hold_action ?? config?.hold_action,
+                  double_tap_action: ent.double_tap_action ?? config?.double_tap_action,
+                };
+                return (
+                  <g
+                    key={ent.entity}
+                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                    onClick={() => handleAction(host, hass, actionConfig, 'tap')}
+                    onPointerDown={(ev) => ev.stopPropagation()}
+                  >
+                    <line
+                      x1={b.x1}
+                      y1={b.y1}
+                      x2={b.x2}
+                      y2={b.y2}
+                      stroke={stroke}
+                      strokeWidth={thickness}
+                      strokeLinecap="round"
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+          )}
           <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto' }}>
-              {filteredEntities.map((ent, i) => (
+              {badgeEntities.map((ent, i) => (
                 <EntityBadge
                   key={`${ent.entity}-${i}`}
                   ent={ent}

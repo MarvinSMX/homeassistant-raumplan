@@ -106,15 +106,13 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           <div
             style={{
               position: 'absolute',
-              bottom: 0,
-              right: 0,
+              bottom: 10,
+              right: 10,
               padding: '8px 12px',
               borderRadius: 8,
               background: 'var(--ha-card-background)',
               border: '1px solid var(--divider-color)',
-              borderBottom: 'none',
-              borderRight: 'none',
-              boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
               pointerEvents: 'auto',
             }}
           >

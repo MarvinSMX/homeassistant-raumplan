@@ -18,10 +18,16 @@ export interface RoomPlanEntity {
   icon?: string;
   /** Wenn true: Wert/State der Entität statt Icon anzeigen */
   show_value?: boolean;
-  /** Preset: temperature = Wert + Farbe nach Temperatur; binary_sensor = State symbolisieren; window_contact = Fenster-Icon, Rot bei offen */
+  /** Preset: temperature = Wert + Farbe; binary_sensor = State; window_contact = Linie zwischen 2 Punkten (nicht Badge) */
   preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact';
-  /** Bei Temperatur-Preset: Raumgrenze in % (wie Heatmap). Klick auf Badge dunkelt diesen Bereich kurz ab (Press-Effekt). */
+  /** Temperatur: Raumgrenze in %. Fensterkontakt: Linie von (x1,y1) nach (x2,y2) in %. */
   room_boundary?: { x1: number; y1: number; x2: number; y2: number };
+  /** Nur Fensterkontakt: Dicke der Linie (viewBox-Einheiten, z. B. 0.5–2). */
+  line_thickness?: number;
+  /** Nur Fensterkontakt: Farbe wenn offen (Standard Rot). */
+  line_color_open?: string;
+  /** Nur Fensterkontakt: Farbe wenn zu (Standard Grau). */
+  line_color_closed?: string;
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */
