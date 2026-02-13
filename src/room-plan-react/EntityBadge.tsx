@@ -66,7 +66,7 @@ export function EntityBadge(props: EntityBadgeProps) {
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
 
-  /* HA-Style Chip: Pill-Form, Hintergrund/Border aus Theme, Icon + Text */
+  /* Chip: immer weißer Hintergrund (nicht transparent), nur Icons in Farbe; Text standardmäßig dunkel */
   const chipStyle: Record<string, string | number> = {
     position: 'absolute',
     left: `${x}%`,
@@ -79,20 +79,26 @@ export function EntityBadge(props: EntityBadgeProps) {
     minHeight: `calc(28px * ${scale})`,
     borderRadius: 16,
     border: '1px solid var(--divider-color)',
-    background: accentColor ? hexToRgba(accentColor, opacity * 0.25) : 'var(--ha-card-background)',
-    color: 'var(--primary-text-color)',
+    background: '#fff',
+    color: 'var(--primary-text-color, #212121)',
     fontSize: `calc(clamp(0.7rem, 2vw, 0.8125rem) * ${scale})`,
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
     boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-    transition: 'background-color 0.2s, box-shadow 0.2s',
+    transition: 'box-shadow 0.2s',
     zIndex: 2,
     maxWidth: 'min(90vw, 160px)',
     boxSizing: 'border-box',
   };
 
   const iconColor = iconColorOverride ?? accentColor ?? (isOn ? 'var(--state-icon-active-color, var(--state-icon-on-color))' : 'var(--primary-text-color)');
+
+  /* Temperatur-Preset: nur Text mit „°C“ in Temperaturfarbe, kein Icon */
+  const tempNum = preset === 'temperature' && typeof state === 'string' ? parseFloat(state.replace(',', '.')) : NaN;
+  const tempDisplay = Number.isFinite(tempNum) ? `${tempNum} °C` : stateDisplay;
+  const showIcon = preset !== 'temperature';
+  const textColor = preset === 'temperature' && accentColor ? accentColor : undefined;
 
   return (
     <div
@@ -111,24 +117,27 @@ export function EntityBadge(props: EntityBadgeProps) {
         e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
       }}
     >
-      <ha-icon
-        icon={displayIcon}
-        style={{
-          width: `calc(18px * ${scale})`,
-          height: `calc(18px * ${scale})`,
-          flexShrink: 0,
-          color: iconColor,
-        }}
-      />
+      {showIcon && (
+        <ha-icon
+          icon={displayIcon}
+          style={{
+            width: `calc(18px * ${scale})`,
+            height: `calc(18px * ${scale})`,
+            flexShrink: 0,
+            color: iconColor,
+          }}
+        />
+      )}
       <span
         style={{
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
           minWidth: 0,
+          ...(textColor ? { color: textColor } : {}),
         }}
       >
-        {showValue ? stateDisplay : friendlyName}
+        {preset === 'temperature' ? tempDisplay : (showValue ? stateDisplay : friendlyName)}
       </span>
     </div>
   );

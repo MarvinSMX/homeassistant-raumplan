@@ -40,22 +40,23 @@ export function FilterTabs(props: FilterTabsProps) {
 
   if (!showBar) return null;
 
-  /* Theme-aware: Light/Dark nutzen HA-Variablen; Fallbacks für beide Modi */
+  /* Tab-Styles mit sichtbaren Fallbacks (Active / Inactive / Hover) */
   const tabBarStyle = {
     padding: '10px 16px 12px',
     background: 'var(--ha-card-background)',
     borderBottom: '1px solid var(--divider-color)',
   };
   const tabActiveStyle = {
-    background: 'var(--primary-color)',
+    background: 'var(--primary-color, #03a9f4)',
     color: '#fff',
   };
+  const tabInactiveBg = 'var(--secondary-background-color, rgba(0, 0, 0, 0.08))';
   const tabInactiveStyle = {
-    background: 'var(--secondary-background-color)',
-    color: 'var(--secondary-text-color)',
+    background: tabInactiveBg,
+    color: 'var(--secondary-text-color, rgba(255, 255, 255, 0.7))',
   };
-  const tabInactiveHoverBg = 'var(--secondary-background-color)';
-  const tabInactiveHoverFg = 'var(--primary-text-color)';
+  const tabInactiveHoverBg = 'var(--secondary-background-color, rgba(0, 0, 0, 0.14))';
+  const tabInactiveHoverFg = 'var(--primary-text-color, rgba(255, 255, 255, 0.9))';
 
   return (
     <div
@@ -88,7 +89,7 @@ export function FilterTabs(props: FilterTabsProps) {
             }}
             onMouseLeave={(e) => {
               if (activeTab !== id) {
-                e.currentTarget.style.background = tabInactiveStyle.background;
+                e.currentTarget.style.background = tabInactiveBg;
                 e.currentTarget.style.color = tabInactiveStyle.color;
               }
             }}
@@ -129,7 +130,7 @@ export function FilterTabs(props: FilterTabsProps) {
           }}
           onMouseLeave={(e) => {
             if (alertCount === 0) {
-              e.currentTarget.style.background = tabInactiveStyle.background;
+              e.currentTarget.style.background = tabInactiveBg;
               e.currentTarget.style.color = tabInactiveStyle.color;
             } else {
               e.currentTarget.style.opacity = '1';
