@@ -251,12 +251,16 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const showAllByTab = selectedTabs.size === 0;
   const filteredEntities = showAllByTab
     ? flattened
-    : flattened.filter(
-        (f) =>
-          selectedTabs.has(getEntityDomain(f.entity.entity)) ||
-          (selectedTabs.has(HEATMAP_TAB) && f.entity.preset === 'temperature')
-      );
-  const badgeEntities = flattened.filter((f) => f.entity.preset !== 'window_contact');
+    : flattened.filter((f) => {
+        const domain = getEntityDomain(f.entity.entity);
+        return (
+          selectedTabs.has(domain) ||
+          (selectedTabs.has(HEATMAP_TAB) && f.entity.preset === 'temperature') ||
+          !domain
+        );
+      });
+  /* Badges: gleiche Filter wie Tabs (filteredEntities), ohne Fensterkontakt (nur Linien). */
+  const badgeEntities = filteredEntities.filter((f) => f.entity.preset !== 'window_contact');
   const windowLineEntities = filteredEntities.filter(
     (f) => f.entity.preset === 'window_contact' && getEntityBoundaries(f.entity).length > 0
   );

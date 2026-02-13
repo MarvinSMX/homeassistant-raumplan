@@ -20,17 +20,22 @@ interface EntityBadgeProps {
   onRoomPressEnd?: () => void;
 }
 
+function toNum(val: unknown, fallback: number): number {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export function EntityBadge(props: EntityBadgeProps) {
   const { ent, hass, host, tapAction, holdAction, doubleTapAction, onRoomPressStart, onRoomPressEnd } = props;
-  const x = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
-  const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
-  const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
+  const x = Math.min(100, Math.max(0, toNum(ent.x, 50)));
+  const y = Math.min(100, Math.max(0, toNum(ent.y, 50)));
+  const scale = Math.min(2, Math.max(0.3, toNum(ent.scale, 1)));
   const isOn = hass?.states?.[ent.entity]?.state === 'on';
   const icon = ent.icon || getEntityIcon(hass, ent.entity);
   const stateDisplay = getStateDisplay(hass, ent.entity);
   const friendlyName = getFriendlyName(hass, ent.entity);
   const title = `${friendlyName}: ${stateDisplay}`;
-  const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
+  const opacity = Math.min(1, Math.max(0, toNum(ent.background_opacity, 1)));
 
   const preset = ent.preset ?? 'default';
   const state = hass?.states?.[ent.entity]?.state ?? '';
