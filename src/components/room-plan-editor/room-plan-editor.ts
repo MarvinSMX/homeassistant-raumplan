@@ -31,6 +31,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   @state() private _drawCurrent: { x: number; y: number } | null = null;
   private _pickerImageNatural: { w: number; h: number } | null = null;
   @state() private _pickerImageAspect: number | null = null;
+  /** Overlay-Ausschnitt in % der Wrap-Breite/Höhe, damit 0–100 % exakt wie in der Card (Bildinhalt object-fit: contain) */
+  @state() private _pickerContentRect: { left: number; top: number; width: number; height: number } | null = null;
 
   public setConfig(config: RoomPlanCardConfig): void {
     const base = config ?? { type: '', image: '', entities: [] };
@@ -172,14 +174,39 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._drawStart = null;
     this._drawCurrent = null;
     this._pickerImageAspect = null;
+    this._pickerContentRect = null;
   }
 
   private _onPickerImageLoad(e: Event): void {
     const img = e.target as HTMLImageElement;
-    if (img?.naturalWidth && img?.naturalHeight) {
-      this._pickerImageNatural = { w: img.naturalWidth, h: img.naturalHeight };
-      this._pickerImageAspect = img.naturalWidth / img.naturalHeight;
-    }
+    if (!img?.naturalWidth || !img?.naturalHeight) return;
+    this._pickerImageNatural = { w: img.naturalWidth, h: img.naturalHeight };
+    this._pickerImageAspect = img.naturalWidth / img.naturalHeight;
+    this._pickerContentRect = null;
+    const nw = img.naturalWidth;
+    const nh = img.naturalHeight;
+    const wrap = (img.closest && img.closest('.picker-image-wrap')) as HTMLElement | null;
+    const measure = (): void => {
+      if (!wrap || !this._pickerImageNatural) return;
+      const wrapRect = wrap.getBoundingClientRect();
+      const imgRect = img.getBoundingClientRect();
+      const rw = imgRect.width;
+      const rh = imgRect.height;
+      const scale = Math.min(rw / nw, rh / nh);
+      const contentW = nw * scale;
+      const contentH = nh * scale;
+      const contentLeft = imgRect.left + (rw - contentW) / 2;
+      const contentTop = imgRect.top + (rh - contentH) / 2;
+      const left = ((contentLeft - wrapRect.left) / wrapRect.width) * 100;
+      const top = ((contentTop - wrapRect.top) / wrapRect.height) * 100;
+      const width = (contentW / wrapRect.width) * 100;
+      const height = (contentH / wrapRect.height) * 100;
+      this._pickerContentRect = { left, top, width, height };
+    };
+    requestAnimationFrame(() => {
+      measure();
+      this.requestUpdate();
+    });
   }
 
   private _onPickerImageClick(e: MouseEvent): void {
@@ -338,7 +365,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   @load=${(e: Event) => this._onPickerImageLoad(e)}
                 />
               </div>
-              <div class="picker-overlay-layer">
+              <div class="picker-overlay-layer" style=${this._pickerContentRect
+                ? `left:${this._pickerContentRect.left}%;top:${this._pickerContentRect.top}%;width:${this._pickerContentRect.width}%;height:${this._pickerContentRect.height}%`
+                : 'left:0;top:0;width:100%;height:100%'}>
                 ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null
                   ? html`<div class="picker-point" style="left:${Number(pickerEntity.x) ?? 50}%;top:${Number(pickerEntity.y) ?? 50}%"></div>`
                   : ''}
@@ -864,14 +893,10 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .picker-overlay-layer {
         position: absolute;
-        left: 0;
-        top: 0;
-        right: 0;
-        bottom: 0;
         z-index: 10;
         pointer-events: none;
         box-sizing: border-box;
-        border: 3px solid #00bcd4;
+        outline: 3px solid #00bcd4;
       }
       .picker-point {
         position: absolute;
