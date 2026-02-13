@@ -246,11 +246,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const flattened = getFlattenedEntities(config);
   const entities = flattened.map((f) => f.entity);
-  const filteredEntities = flattened.filter(
-    (f) =>
-      selectedTabs.has(getEntityDomain(f.entity.entity)) ||
-      (selectedTabs.has(HEATMAP_TAB) && f.entity.preset === 'temperature')
-  );
+  /* Kein Tab-Filter = alle anzeigen (vermeidet leere Badges vor useEffect); sonst nach Domain/Heatmap-Tab filtern */
+  const showAllByTab = selectedTabs.size === 0;
+  const filteredEntities = showAllByTab
+    ? flattened
+    : flattened.filter(
+        (f) =>
+          selectedTabs.has(getEntityDomain(f.entity.entity)) ||
+          (selectedTabs.has(HEATMAP_TAB) && f.entity.preset === 'temperature')
+      );
   const badgeEntities = filteredEntities.filter((f) => f.entity.preset !== 'window_contact');
   const windowLineEntities = filteredEntities.filter(
     (f) => f.entity.preset === 'window_contact' && getEntityBoundaries(f.entity).length > 0
