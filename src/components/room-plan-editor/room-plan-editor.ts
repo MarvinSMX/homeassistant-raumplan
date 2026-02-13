@@ -337,24 +337,24 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 @load=${(e: Event) => this._onPickerImageLoad(e)}
               />
               ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null ? html`
-                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-                  <circle cx=${Number(pickerEntity.x) ?? 50} cy=${Number(pickerEntity.y) ?? 50} r="1.5" fill="var(--primary-color, #03a9f4)" stroke="white" stroke-width="0.4" />
+                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
+                  <circle cx=${Number(pickerEntity.x) ?? 50} cy=${Number(pickerEntity.y) ?? 50} r="3" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
                 </svg>
               ` : ''}
-              ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') && pickerBoundaries.length > 0 ? html`
-                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+              ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? html`
+                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
                   ${pickerBoundaries.map((b, bi) => {
                     const isEditing = this._pickerFor?.type === 'rect' && this._pickerFor.boundaryIndex === bi
                       || this._pickerFor?.type === 'line' && this._pickerFor.lineIndex === bi;
                     if (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') {
                       return html`
                         <line x1=${b.x1} y1=${b.y1} x2=${b.x2} y2=${b.y2}
-                          stroke=${isEditing ? 'var(--primary-color, #03a9f4)' : 'rgba(255,255,255,0.7)'}
-                          stroke-width=${isEditing ? 1.5 : 1}
-                          stroke-dasharray=${isEditing ? 'none' : '3,3'}
+                          stroke=${isEditing ? '#00bcd4' : 'rgba(255,255,255,0.85)'}
+                          stroke-width=${isEditing ? 3 : 2}
+                          stroke-dasharray=${isEditing ? 'none' : '5,5'}
                         />
-                        <circle cx=${b.x1} cy=${b.y1} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />
-                        <circle cx=${b.x2} cy=${b.y2} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />`;
+                        <circle cx=${b.x1} cy=${b.y1} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />
+                        <circle cx=${b.x2} cy=${b.y2} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />`;
                     }
                     const left = Math.min(b.x1, b.x2);
                     const top = Math.min(b.y1, b.y2);
@@ -362,17 +362,17 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     const h = Math.abs((b.y2 ?? 100) - (b.y1 ?? 0)) || 1;
                     return html`
                       <rect x=${left} y=${top} width=${w} height=${h}
-                        fill="rgba(3,169,244,0.15)" stroke=${isEditing ? 'var(--primary-color, #03a9f4)' : 'rgba(255,255,255,0.8)'}
-                        stroke-width=${isEditing ? 1 : 0.6}
-                        stroke-dasharray=${isEditing ? 'none' : '4,4'}
+                        fill="rgba(0,188,212,0.2)" stroke=${isEditing ? '#00bcd4' : 'rgba(255,255,255,0.9)'}
+                        stroke-width=${isEditing ? 2.5 : 2}
+                        stroke-dasharray=${isEditing ? 'none' : '6,6'}
                       />
-                      <circle cx=${left} cy=${top} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />
-                      <circle cx=${left + w} cy=${top + h} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />`;
+                      <circle cx=${left} cy=${top} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />
+                      <circle cx=${left + w} cy=${top + h} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />`;
                   })}
                 </svg>
               ` : ''}
               ${this._drawStart && this._drawCurrent ? html`
-                <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
                   ${this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
                     ? html`
                         <rect
@@ -380,17 +380,17 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                           y=${Math.min(this._drawStart.y, this._drawCurrent.y)}
                           width=${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}
                           height=${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}
-                          fill="rgba(3,169,244,0.3)"
-                          stroke="var(--primary-color, #03a9f4)"
-                          stroke-width="1"
+                          fill="rgba(0,188,212,0.35)"
+                          stroke="#00bcd4"
+                          stroke-width="2.5"
                         />
-                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />
-                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />`
+                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
+                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />`
                     : (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew')
                       ? html`
-                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="var(--primary-color, #03a9f4)" stroke-width="1.5" />
-                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />
-                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />`
+                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="#00bcd4" stroke-width="3" />
+                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
+                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />`
                       : ''}
                 </svg>
               ` : ''}
@@ -869,15 +869,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         position: absolute;
         left: 0;
         top: 0;
+        right: 0;
+        bottom: 0;
         width: 100%;
         height: 100%;
         pointer-events: none;
+        display: block;
       }
       .picker-overlay-existing {
-        z-index: 1;
+        z-index: 10;
       }
       .picker-overlay {
-        z-index: 2;
+        z-index: 11;
       }
       .btn-draw {
         padding: 6px 10px;

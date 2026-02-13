@@ -66,46 +66,46 @@ function ut(t){return ct({...t,state:!0})}var ht;
                 @load=${t=>this._onPickerImageLoad(t)}
               />
               ${"position"===this._pickerFor?.type&&o&&null!=Number(o.x)&&null!=Number(o.y)?H`
-                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-                  <circle cx=${Number(o.x)??50} cy=${Number(o.y)??50} r="1.5" fill="var(--primary-color, #03a9f4)" stroke="white" stroke-width="0.4" />
+                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
+                  <circle cx=${Number(o.x)??50} cy=${Number(o.y)??50} r="3" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
                 </svg>
               `:""}
-              ${("rect"===this._pickerFor?.type||"rectNew"===this._pickerFor?.type||"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type)&&a.length>0?H`
-                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+              ${"rect"===this._pickerFor?.type||"rectNew"===this._pickerFor?.type||"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type?H`
+                <svg class="picker-overlay picker-overlay-existing" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
                   ${a.map((t,e)=>{const n="rect"===this._pickerFor?.type&&this._pickerFor.boundaryIndex===e||"line"===this._pickerFor?.type&&this._pickerFor.lineIndex===e;if("line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type)return H`
                         <line x1=${t.x1} y1=${t.y1} x2=${t.x2} y2=${t.y2}
-                          stroke=${n?"var(--primary-color, #03a9f4)":"rgba(255,255,255,0.7)"}
-                          stroke-width=${n?1.5:1}
-                          stroke-dasharray=${n?"none":"3,3"}
+                          stroke=${n?"#00bcd4":"rgba(255,255,255,0.85)"}
+                          stroke-width=${n?3:2}
+                          stroke-dasharray=${n?"none":"5,5"}
                         />
-                        <circle cx=${t.x1} cy=${t.y1} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />
-                        <circle cx=${t.x2} cy=${t.y2} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />`;const i=Math.min(t.x1,t.x2),r=Math.min(t.y1,t.y2),o=Math.abs((t.x2??100)-(t.x1??0))||1,a=Math.abs((t.y2??100)-(t.y1??0))||1;return H`
+                        <circle cx=${t.x1} cy=${t.y1} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />
+                        <circle cx=${t.x2} cy=${t.y2} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />`;const i=Math.min(t.x1,t.x2),r=Math.min(t.y1,t.y2),o=Math.abs((t.x2??100)-(t.x1??0))||1,a=Math.abs((t.y2??100)-(t.y1??0))||1;return H`
                       <rect x=${i} y=${r} width=${o} height=${a}
-                        fill="rgba(3,169,244,0.15)" stroke=${n?"var(--primary-color, #03a9f4)":"rgba(255,255,255,0.8)"}
-                        stroke-width=${n?1:.6}
-                        stroke-dasharray=${n?"none":"4,4"}
+                        fill="rgba(0,188,212,0.2)" stroke=${n?"#00bcd4":"rgba(255,255,255,0.9)"}
+                        stroke-width=${n?2.5:2}
+                        stroke-dasharray=${n?"none":"6,6"}
                       />
-                      <circle cx=${i} cy=${r} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />
-                      <circle cx=${i+o} cy=${r+a} r="1" fill="white" stroke="var(--primary-color)" stroke-width="0.3" />`})}
+                      <circle cx=${i} cy=${r} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />
+                      <circle cx=${i+o} cy=${r+a} r="4" fill="#fff" stroke="#00bcd4" stroke-width="1.5" />`})}
                 </svg>
               `:""}
               ${this._drawStart&&this._drawCurrent?H`
-                <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">
                   ${"rect"===this._pickerFor?.type||"rectNew"===this._pickerFor?.type?H`
                         <rect
                           x=${Math.min(this._drawStart.x,this._drawCurrent.x)}
                           y=${Math.min(this._drawStart.y,this._drawCurrent.y)}
                           width=${Math.abs(this._drawCurrent.x-this._drawStart.x)||1}
                           height=${Math.abs(this._drawCurrent.y-this._drawStart.y)||1}
-                          fill="rgba(3,169,244,0.3)"
-                          stroke="var(--primary-color, #03a9f4)"
-                          stroke-width="1"
+                          fill="rgba(0,188,212,0.35)"
+                          stroke="#00bcd4"
+                          stroke-width="2.5"
                         />
-                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />
-                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />`:"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type?H`
-                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="var(--primary-color, #03a9f4)" stroke-width="1.5" />
-                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />
-                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="1.2" fill="var(--primary-color)" stroke="white" stroke-width="0.4" />`:""}
+                        <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
+                        <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />`:"line"===this._pickerFor?.type||"lineNew"===this._pickerFor?.type?H`
+                          <line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="#00bcd4" stroke-width="3" />
+                          <circle cx=${this._drawStart.x} cy=${this._drawStart.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />
+                          <circle cx=${this._drawCurrent.x} cy=${this._drawCurrent.y} r="4" fill="#00bcd4" stroke="#fff" stroke-width="1.5" />`:""}
                 </svg>
               `:""}
             </div>
@@ -573,15 +573,18 @@ function ut(t){return ct({...t,state:!0})}var ht;
         position: absolute;
         left: 0;
         top: 0;
+        right: 0;
+        bottom: 0;
         width: 100%;
         height: 100%;
         pointer-events: none;
+        display: block;
       }
       .picker-overlay-existing {
-        z-index: 1;
+        z-index: 10;
       }
       .picker-overlay {
-        z-index: 2;
+        z-index: 11;
       }
       .btn-draw {
         padding: 6px 10px;
