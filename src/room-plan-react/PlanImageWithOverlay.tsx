@@ -4,7 +4,7 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { getEntityDomain, hexToRgba, temperatureColor } from './utils';
@@ -111,6 +111,7 @@ function svgWithFontFallback(svgText: string): string {
 
 interface PlanImageWithOverlayProps {
   config: RoomPlanCardConfig;
+  flattenedEntities: import('../lib/utils').FlattenedEntity[];
   hass: HomeAssistant;
   host: HTMLElement;
   selectedTabs: Set<string>;
@@ -125,6 +126,7 @@ interface PlanImageWithOverlayProps {
 export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const {
     config,
+    flattenedEntities,
     hass,
     host,
     selectedTabs,
@@ -244,9 +246,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const rotation = Number(config.rotation) ?? 0;
 
-  const flattened = getFlattenedEntities(config);
+  const flattened = flattenedEntities;
   const entities = flattened.map((f) => f.entity);
-  /* Tab-Filter nur für Heatmap-Anzeige und Fensterkontakt-Linien; Badges immer alle anzeigen (außer Fensterkontakt) */
   const showAllByTab = selectedTabs.size === 0;
   const filteredEntities = showAllByTab
     ? flattened

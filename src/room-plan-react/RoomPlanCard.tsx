@@ -4,25 +4,27 @@ import type { HomeAssistant } from 'custom-card-helpers';
 import { FilterTabs, HEATMAP_TAB } from './FilterTabs';
 import { PlanImageWithOverlay } from './PlanImageWithOverlay';
 import { getEntityDomain } from './utils';
+import type { FlattenedEntity } from '../lib/utils';
 import { getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;
   config: RoomPlanCardConfig;
+  flattenedEntities: FlattenedEntity[];
   host: HTMLElement;
   cssString: string;
 }
 
-export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProps) {
+export function RoomPlanCard({ hass, config, flattenedEntities, host, cssString }: RoomPlanCardProps) {
   const allTabIds = useMemo(() => {
-    const flattened = getFlattenedEntities(config);
+    const flattened = flattenedEntities;
     const entities = flattened.map((f) => f.entity);
     const domains = Array.from(new Set(entities.map((e) => getEntityDomain(e.entity)).filter(Boolean))).sort();
     const hasHeatmap = flattened.some(
       (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0
     );
     return [...(hasHeatmap ? [HEATMAP_TAB] : []), ...domains];
-  }, [config]);
+  }, [config, flattenedEntities]);
 
   const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -49,9 +51,8 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   const [imageError, setImageError] = useState(false);
   const [showHeatmapOverlay, setShowHeatmapOverlay] = useState(true);
   const hasHeatmapZones = useMemo(() => {
-    const flattened = getFlattenedEntities(config);
-    return flattened.some((f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0);
-  }, [config]);
+    return flattenedEntities.some((f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0);
+  }, [config, flattenedEntities]);
   const isTemperaturTabSelected = selectedTabs.has(HEATMAP_TAB);
 
   const onImageLoad = useCallback((e: Event) => {
@@ -99,6 +100,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
         />
         <PlanImageWithOverlay
           config={config}
+          flattenedEntities={flattenedEntities}
           hass={hass}
           host={host}
           selectedTabs={selectedTabs}

@@ -5,6 +5,8 @@
 import { render } from 'preact/compat';
 import { RoomPlanCard } from './RoomPlanCard';
 import type { RoomPlanCardConfig } from '../lib/types';
+import type { FlattenedEntity } from '../lib/utils';
+import { getFlattenedEntities } from '../lib/utils';
 
 // Tailwind-Build wird vor Webpack ausgeführt; Webpack lädt diese Datei als String
 import tailwindCss from './tailwind-built.css';
@@ -24,13 +26,10 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
     ? config.image
     : (config?.image as { location?: string })?.location ?? '';
   const rooms = Array.isArray(config?.rooms) ? config.rooms : undefined;
-  const rootEntities = Array.isArray(config?.entities) ? config.entities : [];
-  const entitiesFromRooms = rooms?.flatMap((r) => r.entities ?? []) ?? [];
-  const entities = entitiesFromRooms.length > 0 ? entitiesFromRooms : rootEntities;
   return {
     type: config?.type ?? 'custom:room-plan-card',
     image: img,
-    entities,
+    entities: Array.isArray(config?.entities) ? config.entities : [],
     rooms,
     title: config?.title ?? '',
     rotation: Number(config?.rotation) ?? 0,
@@ -109,11 +108,13 @@ export class RoomPlanCardWrapper extends HTMLElement {
 
     const cssString = typeof tailwindCss === 'string' ? tailwindCss : '';
 
+    const flattenedEntities: FlattenedEntity[] = getFlattenedEntities(this._config);
     const root = this.shadowRoot!;
     render(
       <RoomPlanCard
         hass={this._hass}
         config={this._config}
+        flattenedEntities={flattenedEntities}
         host={this}
         cssString={cssString}
       />,
