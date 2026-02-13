@@ -7,8 +7,98 @@ import { gsap } from 'gsap';
 import { getEntityBoundaries } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
-import { getEntityDomain } from './utils';
+import { getEntityDomain, hexToRgba, temperatureColor } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
+
+const HEATMAP_DIM_DURATION = 0.28;
+
+/** Eine Entity mit mehreren Boundaries als ein SVG-Shape (ein gemeinsamer radialer Verlauf). */
+function HeatmapEntityShape({
+  entityId,
+  zones,
+  hass,
+  dimmed,
+  overlayBoxStyle,
+}: {
+  entityId: string;
+  zones: HeatmapZone[];
+  hass: HomeAssistant;
+  dimmed: boolean;
+  overlayBoxStyle: Record<string, string>;
+}) {
+  const state = hass?.states?.[entityId]?.state;
+  const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
+  const temp = Number.isFinite(num) ? num : 20;
+  const color = temperatureColor(temp);
+  const opacity = Math.min(1, Math.max(0, Number(zones[0]?.opacity) ?? 0.4));
+  const fillColor = hexToRgba(color, opacity);
+
+  let minX = 100;
+  let minY = 100;
+  let maxX = 0;
+  let maxY = 0;
+  for (const z of zones) {
+    const x1 = Math.min(100, Math.max(0, Number(z.x1) ?? 0));
+    const y1 = Math.min(100, Math.max(0, Number(z.y1) ?? 0));
+    const x2 = Math.min(100, Math.max(0, Number(z.x2) ?? 100));
+    const y2 = Math.min(100, Math.max(0, Number(z.y2) ?? 100));
+    minX = Math.min(minX, x1, x2);
+    minY = Math.min(minY, y1, y2);
+    maxX = Math.max(maxX, x1, x2);
+    maxY = Math.max(maxY, y1, y2);
+  }
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  let r = 0;
+  for (const z of zones) {
+    const x1 = Math.min(100, Math.max(0, Number(z.x1) ?? 0));
+    const y1 = Math.min(100, Math.max(0, Number(z.y1) ?? 0));
+    const x2 = Math.min(100, Math.max(0, Number(z.x2) ?? 100));
+    const y2 = Math.min(100, Math.max(0, Number(z.y2) ?? 100));
+    for (const [px, py] of [[x1, y1], [x2, y1], [x1, y2], [x2, y2]]) {
+      const d = Math.hypot(px - cx, py - cy);
+      if (d > r) r = d;
+    }
+  }
+  r = Math.max(r, 1);
+  const gradId = `heat-${entityId.replace(/\./g, '-')}`;
+
+  return (
+    <div
+      style={{
+        ...overlayBoxStyle,
+        opacity: dimmed ? 0 : 1,
+        transition: `opacity ${HEATMAP_DIM_DURATION}s ease-in-out`,
+      }}
+      title={`${entityId}: ${state ?? '?'}`}
+    >
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+        aria-hidden
+      >
+        <defs>
+          <radialGradient id={gradId} gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={r}>
+            <stop offset="0%" stopColor="transparent" />
+            <stop offset="100%" stopColor={fillColor} />
+          </radialGradient>
+        </defs>
+        {zones.map((z, i) => {
+          const x1 = Math.min(100, Math.max(0, Number(z.x1) ?? 0));
+          const y1 = Math.min(100, Math.max(0, Number(z.y1) ?? 0));
+          const x2 = Math.min(100, Math.max(0, Number(z.x2) ?? 100));
+          const y2 = Math.min(100, Math.max(0, Number(z.y2) ?? 100));
+          const left = Math.min(x1, x2);
+          const top = Math.min(y1, y2);
+          const w = Math.abs(x2 - x1) || 1;
+          const h = Math.abs(y2 - y1) || 1;
+          return <rect key={i} x={left} y={top} width={w} height={h} fill={`url(#${gradId})`} />;
+        })}
+      </svg>
+    </div>
+  );
+}
 
 /** SVG-Text mit Font-Fallback für Mobilgeräte: sans-serif in die SVG einfügen. */
 function svgWithFontFallback(svgText: string): string {
@@ -263,19 +353,38 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               Bild konnte nicht geladen werden
             </div>
           )}
-          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an */}
-          {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (
-            <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
-              {zones.map((zone, i) => (
-                <HeatmapZoneComponent
-                  key={i}
-                  zone={zone}
-                  hass={hass}
-                  dimmed={hoveredEntityId === zone.entity}
-                />
-              ))}
-            </div>
-          )}
+          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an; pro Entity ein Shape (bei mehreren Boundaries ein gemeinsames SVG) */}
+          {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (() => {
+            const byEntity = new Map<string, HeatmapZone[]>();
+            for (const z of zones) {
+              const list = byEntity.get(z.entity) ?? [];
+              list.push(z);
+              byEntity.set(z.entity, list);
+            }
+            return (
+              <div style={{ ...overlayBoxStyle, zIndex: 2, pointerEvents: 'none' }}>
+                {Array.from(byEntity.entries()).map(([entityId, entityZones]) =>
+                  entityZones.length === 1 ? (
+                    <HeatmapZoneComponent
+                      key={entityId}
+                      zone={entityZones[0]}
+                      hass={hass}
+                      dimmed={hoveredEntityId === entityId}
+                    />
+                  ) : (
+                    <HeatmapEntityShape
+                      key={entityId}
+                      entityId={entityId}
+                      zones={entityZones}
+                      hass={hass}
+                      dimmed={hoveredEntityId === entityId}
+                      overlayBoxStyle={overlayBoxStyle}
+                    />
+                  )
+                )}
+              </div>
+            );
+          })()}
           {/* Press/Hover-Effekt: Temperatur-Badge → Raumgrenzen abdunkeln (GSAP) */}
           {pressBoundaries.map((boundary, idx) => (
             <div

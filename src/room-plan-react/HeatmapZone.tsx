@@ -27,6 +27,7 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
   const temp = Number.isFinite(num) ? num : 20;
   const color = temperatureColor(temp);
   const bg = hexToRgba(color, opacity);
+  const gradientBg = `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, ${bg} 100%)`;
 
   return (
     <div
@@ -38,7 +39,7 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
         height: `${height}%`,
         opacity: dimmed ? 0 : 1,
         transition: `opacity ${DIM_DURATION}s ease-in-out`,
-        background: bg,
+        background: gradientBg,
       }}
       title={`${zone.entity}: ${state ?? '?'}`}
     />
