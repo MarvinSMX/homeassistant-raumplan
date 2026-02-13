@@ -83,6 +83,11 @@ export function EntityBadge(props: EntityBadgeProps) {
       onRoomPress(ent.room_boundary);
     }
   };
+  const onRoomHover = () => {
+    if (ent.preset === 'temperature' && ent.room_boundary && onRoomPress) {
+      onRoomPress(ent.room_boundary);
+    }
+  };
   const onHold = () => hasAction(holdAction) && handleAction(host, hass, actionConfig, 'hold');
   const onDbl = () => hasAction(doubleTapAction) && handleAction(host, hass, actionConfig, 'double_tap');
 
@@ -118,7 +123,7 @@ export function EntityBadge(props: EntityBadgeProps) {
     boxSizing: 'border-box',
   };
 
-  const iconColor = iconColorOverride ?? accentColor ?? (isOn ? 'var(--state-icon-active-color, var(--state-icon-on-color))' : 'var(--primary-text-color)');
+  const iconColor = ent.color ?? iconColorOverride ?? accentColor ?? (isOn ? 'var(--state-icon-active-color, var(--state-icon-on-color))' : 'var(--primary-text-color)');
 
   /* Temperatur-Preset: nur Text mit „°C“ in Temperaturfarbe, kein Icon */
   const tempNum = preset === 'temperature' && typeof state === 'string' ? parseFloat(state.replace(',', '.')) : NaN;
@@ -188,6 +193,7 @@ export function EntityBadge(props: EntityBadgeProps) {
       onContextMenu={(e) => { e.preventDefault(); onHold(); }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+        onRoomHover();
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';

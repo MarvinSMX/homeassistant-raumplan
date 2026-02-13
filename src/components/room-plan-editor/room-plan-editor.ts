@@ -231,11 +231,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     @change=${(e: Event) => this._updateEntity(i, { show_name: (e.target as HTMLInputElement).checked })} />
                   Text
                 </label>
-                <label class="entity-check">
-                  <input type="checkbox" .checked=${ent.show_name !== false} title="Text (Name) anzeigen"
-                    @change=${(e: Event) => this._updateEntity(i, { show_name: (e.target as HTMLInputElement).checked })} />
-                  Text
-                </label>
                 <button type="button" class="btn-remove" @click=${() => this._removeEntity(i)} title="Entfernen">
                   <ha-icon icon="mdi:delete-outline"></ha-icon>
                 </button>

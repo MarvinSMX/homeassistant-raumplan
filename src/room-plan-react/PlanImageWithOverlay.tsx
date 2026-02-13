@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import type { RoomPlanCardConfig, RoomPlanEntity } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
+import { gsap } from 'gsap';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone } from './HeatmapZone';
 import { getEntityDomain } from './utils';
@@ -48,27 +49,36 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const [resolvedSrc, setResolvedSrc] = useState(imgSrc);
   const blobUrlRef = useRef<string | null>(null);
   const [pressBoundary, setPressBoundary] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
-  const [pressOpacity, setPressOpacity] = useState(0);
-  const pressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressOverlayRef = useRef<HTMLDivElement>(null);
 
   const onRoomPress = (boundary: { x1: number; y1: number; x2: number; y2: number }) => {
-    if (pressTimeoutRef.current) clearTimeout(pressTimeoutRef.current);
+    gsap.killTweensOf(pressOverlayRef.current);
     setPressBoundary(boundary);
-    setPressOpacity(0);
-    pressTimeoutRef.current = setTimeout(() => {
-      setPressOpacity(0);
-      pressTimeoutRef.current = setTimeout(() => {
-        setPressBoundary(null);
-        pressTimeoutRef.current = null;
-      }, 280);
-    }, 400);
   };
 
-  /* Fade-in starten, sobald Overlay im DOM ist (Animation sichtbar) */
+  /* Raum abdunkeln: GSAP Fade-in, Haltephase, Fade-out */
   useEffect(() => {
     if (!pressBoundary) return;
-    const t = setTimeout(() => setPressOpacity(1), 20);
-    return () => clearTimeout(t);
+    const run = () => {
+      const el = pressOverlayRef.current;
+      if (!el) return;
+      gsap.killTweensOf(el);
+      gsap.set(el, { opacity: 0 });
+      gsap.to(el, { opacity: 1, duration: 0.28, ease: 'power2.inOut' }).then(() => {
+        gsap.to(el, {
+          opacity: 0,
+          duration: 0.28,
+          delay: 0.36,
+          ease: 'power2.inOut',
+          onComplete: () => setPressBoundary(null),
+        });
+      });
+    };
+    const id = requestAnimationFrame(run);
+    return () => {
+      cancelAnimationFrame(id);
+      if (pressOverlayRef.current) gsap.killTweensOf(pressOverlayRef.current);
+    };
   }, [pressBoundary]);
 
   useEffect(() => {
@@ -132,9 +142,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     return revokePrevious;
   }, [imgSrc]);
 
-  useEffect(() => () => {
-    if (pressTimeoutRef.current) clearTimeout(pressTimeoutRef.current);
-  }, []);
 
   const rotation = Number(config.rotation) ?? 0;
 
@@ -244,9 +251,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               ))}
             </div>
           )}
-          {/* Press-Effekt: Temperatur-Badge geklickt → Raumgrenze kurz abdunkeln */}
+          {/* Press/Hover-Effekt: Temperatur-Badge → Raumgrenze abdunkeln (GSAP) */}
           {pressBoundary && (
             <div
+              ref={pressOverlayRef}
               style={{
                 position: 'absolute',
                 left: `${Math.min(pressBoundary.x1, pressBoundary.x2)}%`,
@@ -256,8 +264,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 background: 'rgba(0, 0, 0, 0.4)',
                 pointerEvents: 'none',
                 zIndex: 2.5,
-                opacity: pressOpacity,
-                transition: 'opacity 0.28s ease-in-out',
               }}
               aria-hidden
             />
