@@ -83,9 +83,9 @@ export function EntityBadge(props: EntityBadgeProps) {
     `calc(${scale} * clamp(${minPx}px, ${basePx}px + 1vw, ${maxPx}px))`;
   const rFont = () => `calc(${scale} * clamp(0.7rem, 0.8125rem + 0.3vw, 0.9375rem))`;
 
-  /* Icon: responsive (clamp), ohne Entity-Scale – siehe MdiIcon */
-  const iconStyle = { width: 'clamp(14px, 3.5vw, 22px)', height: 'clamp(14px, 3.5vw, 22px)', minWidth: 'clamp(14px, 3.5vw, 22px)', minHeight: 'clamp(14px, 3.5vw, 22px)' };
-  const iconStyleIconOnly = { width: 'clamp(18px, 4.5vw, 26px)', height: 'clamp(18px, 4.5vw, 26px)', minWidth: 'clamp(18px, 4.5vw, 26px)', minHeight: 'clamp(18px, 4.5vw, 26px)' };
+  /* Icon: Größe in em → skaliert automatisch mit Badge (fontSize/Chip-Größe) */
+  const iconStyle = { width: '1.2em', height: '1.2em', minWidth: '1.2em', minHeight: '1.2em' };
+  const iconStyleIconOnly = { width: '1.4em', height: '1.4em', minWidth: '1.4em', minHeight: '1.4em' };
 
   /* Chip: immer weißer Hintergrund (Badge-Style), nur Icons in Farbe; Text standardmäßig dunkel */
   const chipStyle: Record<string, string | number> = {
