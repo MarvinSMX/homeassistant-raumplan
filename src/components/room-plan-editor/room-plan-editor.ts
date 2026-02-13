@@ -19,6 +19,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     entities: [],
   };
 
+  /** „Auf Plan einzeichnen“: wofür und Zeichen-Vorschau */
+  @state() private _pickerFor:
+    | { type: 'position'; entityIndex: number }
+    | { type: 'rect'; entityIndex: number; boundaryIndex: number }
+    | { type: 'rectNew'; entityIndex: number }
+    | { type: 'line'; entityIndex: number; lineIndex: number }
+    | { type: 'lineNew'; entityIndex: number }
+    | null = null;
+  @state() private _drawStart: { x: number; y: number } | null = null;
+  @state() private _drawCurrent: { x: number; y: number } | null = null;
+  private _pickerImageNatural: { w: number; h: number } | null = null;
+
   public setConfig(config: RoomPlanCardConfig): void {
     const base = config ?? { type: '', image: '', entities: [] };
     const img =
@@ -103,6 +115,151 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._updateConfig({ entities });
   }
 
+  /** Koordinaten in % aus Klick/Drag relativ zum Plan-Bild (object-fit: contain) */
+  private _getPercentFromEvent(e: MouseEvent): { x: number; y: number } | null {
+    const wrap = (e.currentTarget as HTMLElement)?.querySelector?.('img') as HTMLImageElement | null;
+    const img = wrap || (e.currentTarget as HTMLImageElement);
+    if (!img) return null;
+    if (!this._pickerImageNatural && img.naturalWidth && img.naturalHeight) {
+      this._pickerImageNatural = { w: img.naturalWidth, h: img.naturalHeight };
+    }
+    if (!this._pickerImageNatural) return null;
+    const rect = img.getBoundingClientRect();
+    const nw = this._pickerImageNatural.w;
+    const nh = this._pickerImageNatural.h;
+    const rw = rect.width;
+    const rh = rect.height;
+    const scale = Math.min(rw / nw, rh / nh);
+    const contentW = nw * scale;
+    const contentH = nh * scale;
+    const left = (rw - contentW) / 2;
+    const top = (rh - contentH) / 2;
+    const px = e.clientX - rect.left - left;
+    const py = e.clientY - rect.top - top;
+    if (px < 0 || py < 0 || px > contentW || py > contentH) return null;
+    const x = Math.min(100, Math.max(0, (px / contentW) * 100));
+    const y = Math.min(100, Math.max(0, (py / contentH) * 100));
+    return { x, y };
+  }
+
+  private _openPickerPosition(entityIndex: number): void {
+    this._pickerFor = { type: 'position', entityIndex };
+    this._drawStart = null;
+    this._drawCurrent = null;
+  }
+
+  private _openPickerRect(entityIndex: number, boundaryIndex?: number): void {
+    this._pickerFor =
+      boundaryIndex !== undefined
+        ? { type: 'rect', entityIndex, boundaryIndex }
+        : { type: 'rectNew', entityIndex };
+    this._drawStart = null;
+    this._drawCurrent = null;
+  }
+
+  private _openPickerLine(entityIndex: number, lineIndex?: number): void {
+    this._pickerFor =
+      lineIndex !== undefined
+        ? { type: 'line', entityIndex, lineIndex }
+        : { type: 'lineNew', entityIndex };
+    this._drawStart = null;
+    this._drawCurrent = null;
+  }
+
+  private _closePicker(): void {
+    this._pickerFor = null;
+    this._drawStart = null;
+    this._drawCurrent = null;
+  }
+
+  private _onPickerImageLoad(e: Event): void {
+    const img = e.target as HTMLImageElement;
+    if (img?.naturalWidth && img?.naturalHeight) {
+      this._pickerImageNatural = { w: img.naturalWidth, h: img.naturalHeight };
+    }
+  }
+
+  private _onPickerImageClick(e: MouseEvent): void {
+    const p = this._getPercentFromEvent(e);
+    if (!p || !this._pickerFor) return;
+    if (this._pickerFor.type === 'position') {
+      this._updateEntity(this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
+      this._closePicker();
+      return;
+    }
+    if (this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew') {
+      if (!this._drawStart) {
+        this._drawStart = p;
+        this._drawCurrent = p;
+        return;
+      }
+      const x1 = this._drawStart.x;
+      const y1 = this._drawStart.y;
+      const x2 = p.x;
+      const y2 = p.y;
+      if (this._pickerFor.type === 'line') {
+        this._updateEntityBoundary(this._pickerFor.entityIndex, this._pickerFor.lineIndex, { x1, y1, x2, y2 });
+      } else {
+        this._addEntityBoundary(this._pickerFor.entityIndex, false);
+        const ent = this._config.entities?.[this._pickerFor.entityIndex];
+        const list = ent ? getEntityBoundaries(ent) : [];
+        this._updateEntityBoundary(this._pickerFor.entityIndex, list.length - 1, { x1, y1, x2, y2 });
+      }
+      this._closePicker();
+    }
+  }
+
+  private _onPickerImageMouseDown(e: MouseEvent): void {
+    const p = this._getPercentFromEvent(e);
+    if (!p || !this._pickerFor) return;
+    if (this._pickerFor.type === 'rect' || this._pickerFor.type === 'rectNew') {
+      this._drawStart = p;
+      this._drawCurrent = p;
+    }
+  }
+
+  private _onPickerImageMouseMove(e: MouseEvent): void {
+    const p = this._getPercentFromEvent(e);
+    if (!this._pickerFor || (this._pickerFor.type !== 'rect' && this._pickerFor.type !== 'rectNew' && this._pickerFor.type !== 'line')) return;
+    if (this._pickerFor.type === 'line' && this._drawStart) {
+      this._drawCurrent = p ?? this._drawStart;
+      return;
+    }
+    if (this._drawStart) this._drawCurrent = p ?? this._drawStart;
+  }
+
+  private _onPickerImageMouseUp(e: MouseEvent): void {
+    const p = this._getPercentFromEvent(e);
+    if (!p || !this._pickerFor || (this._pickerFor.type !== 'rect' && this._pickerFor.type !== 'rectNew')) return;
+    if (!this._drawStart) return;
+    const x1 = Math.min(this._drawStart.x, p.x);
+    const y1 = Math.min(this._drawStart.y, p.y);
+    const x2 = Math.max(this._drawStart.x, p.x);
+    const y2 = Math.max(this._drawStart.y, p.y);
+    const w = x2 - x1 || 1;
+    const h = y2 - y1 || 1;
+    if (w < 2 && h < 2) {
+      this._drawStart = null;
+      this._drawCurrent = null;
+      return;
+    }
+    if (this._pickerFor.type === 'rect') {
+      this._updateEntityBoundary(this._pickerFor.entityIndex, this._pickerFor.boundaryIndex, {
+        x1,
+        y1,
+        x2,
+        y2,
+        opacity: 0.4,
+      });
+    } else {
+      this._addEntityBoundary(this._pickerFor.entityIndex, true);
+      const ent = this._config.entities?.[this._pickerFor.entityIndex];
+      const list = ent ? getEntityBoundaries(ent) : [];
+      this._updateEntityBoundary(this._pickerFor.entityIndex, list.length - 1, { x1, y1, x2, y2, opacity: 0.4 });
+    }
+    this._closePicker();
+  }
+
   private _updateHeatmapZone(index: number, updates: Partial<{ entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number }>): void {
     const zones = [...(this._config.temperature_zones ?? [])];
     zones[index] = { ...zones[index], ...updates };
@@ -146,6 +303,50 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
     return html`
       <div class="editor">
+        ${this._pickerFor && img ? html`
+        <section class="editor-section picker-panel">
+          <div class="picker-header">
+            <span class="picker-title">
+              ${this._pickerFor.type === 'position' ? 'Position auf Plan klicken' : ''}
+              ${this._pickerFor.type === 'rect' || this._pickerFor.type === 'rectNew' ? 'Rechteck auf Plan ziehen (Zone)' : ''}
+              ${this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew' ? 'Zwei Punkte für Linie klicken' : ''}
+            </span>
+            <button type="button" class="btn-cancel" @click=${() => this._closePicker()}>Abbrechen</button>
+          </div>
+          <div
+            class="picker-image-wrap"
+            @mousedown=${(e: MouseEvent) => (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') ? this._onPickerImageMouseDown(e) : null}
+            @mousemove=${(e: MouseEvent) => this._onPickerImageMouseMove(e)}
+            @mouseup=${(e: MouseEvent) => (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') ? this._onPickerImageMouseUp(e) : null}
+            @mouseleave=${() => { if (this._pickerFor?.type !== 'position' && this._pickerFor?.type !== 'line' && this._pickerFor?.type !== 'lineNew') { this._drawStart = null; this._drawCurrent = null; } }}
+          >
+            <img
+              class="picker-image"
+              src=${img}
+              alt="Plan"
+              @load=${(e: Event) => this._onPickerImageLoad(e)}
+              @click=${(e: MouseEvent) => this._pickerFor?.type === 'position' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew' ? this._onPickerImageClick(e) : null}
+            />
+            ${this._drawStart && this._drawCurrent ? html`
+              <svg class="picker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+                ${this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
+                  ? html`<rect
+                      x=${Math.min(this._drawStart.x, this._drawCurrent.x)}
+                      y=${Math.min(this._drawStart.y, this._drawCurrent.y)}
+                      width=${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}
+                      height=${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}
+                      fill="rgba(3,169,244,0.25)"
+                      stroke="var(--primary-color, #03a9f4)"
+                      stroke-width="0.5"
+                    />`
+                  : (this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew')
+                    ? html`<line x1=${this._drawStart.x} y1=${this._drawStart.y} x2=${this._drawCurrent.x} y2=${this._drawCurrent.y} stroke="var(--primary-color, #03a9f4)" stroke-width="1" />`
+                    : ''}
+              </svg>
+            ` : ''}
+          </div>
+        </section>
+        ` : ''}
         <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:image"></ha-icon> Bild</h4>
           <div class="field">
@@ -233,10 +434,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                         @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                       <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(b.opacity) ?? 0.4)))} title="Deckkraft"
                         @change=${(e: Event) => this._updateEntityBoundary(i, bi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerRect(i, bi)} title="Zone auf Plan einzeichnen"><ha-icon icon="mdi:draw"></ha-icon></button>
                       <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                     </div>
                   `)}
                   <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, true)} title="Zone hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerRect(i)} title="Neue Zone durch Zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Zeichnen</button>
                 </div>
                 ` : ''}
                 ${(ent.preset === 'window_contact') ? html`
@@ -252,10 +455,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                         @change=${(e: Event) => this._updateEntityBoundary(i, bi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                       <input type="number" min="0" max="100" step="0.01" .value=${String(Number(b.y2) ?? 100)} placeholder="y2"
                         @change=${(e: Event) => this._updateEntityBoundary(i, bi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerLine(i, bi)} title="Linie auf Plan einzeichnen"><ha-icon icon="mdi:draw"></ha-icon></button>
                       <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(i, bi)} title="Linie entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                     </div>
                   `)}
                   <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(i, false)} title="Linie hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerLine(i)} title="Neue Linie durch Zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Zeichnen</button>
                 </div>
                 <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
                   @change=${(e: Event) => this._updateEntity(i, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
@@ -269,6 +474,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
                     @change=${(e: Event) => this._updateEntity(i, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
+                  <button type="button" class="btn-draw" @click=${() => this._openPickerPosition(i)} title="Position auf Plan klicken"><ha-icon icon="mdi:crosshairs-gps"></ha-icon></button>
                 </div>
                 <input type="number" class="entity-scale" min="0.3" max="2" step="0.1" .value=${String(Math.min(2, Math.max(0.3, Number(ent.scale) || 1)))} title="Skalierung"
                   @change=${(e: Event) => this._updateEntity(i, { scale: Math.min(2, Math.max(0.3, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
@@ -542,6 +748,83 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .editor-section.heatmap-legacy {
         opacity: 0.9;
+      }
+      .picker-panel {
+        background: var(--ha-card-background);
+        border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .picker-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .picker-title {
+        font-size: 0.9rem;
+        color: var(--primary-text-color);
+      }
+      .btn-cancel {
+        padding: 6px 12px;
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--secondary-text-color);
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+      .btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .picker-image-wrap {
+        position: relative;
+        max-width: 100%;
+        width: 320px;
+        aspect-ratio: 16 / 10;
+        max-height: 220px;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: crosshair;
+      }
+      .picker-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        background: var(--secondary-background-color, #2a2a2a);
+      }
+      .picker-overlay {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .btn-draw {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--primary-color, #03a9f4);
+        background: rgba(3, 169, 244, 0.12);
+        color: var(--primary-color, #03a9f4);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .btn-draw:hover {
+        background: rgba(3, 169, 244, 0.2);
+      }
+      .btn-draw-small {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px dashed var(--primary-color, #03a9f4);
+        background: transparent;
+        color: var(--primary-color, #03a9f4);
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .btn-draw-small:hover {
+        background: rgba(3, 169, 244, 0.1);
       }
       .entity-row input.entity-scale {
         width: clamp(50px, 14vw, 60px);
