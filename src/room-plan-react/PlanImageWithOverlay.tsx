@@ -256,7 +256,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     (f) => f.entity.preset === 'window_contact' && getEntityBoundaries(f.entity).length > 0
   );
 
-  /* Heatmap-Zonen: aus Räumen (room.boundary) oder Entität (Legacy); Temperatur-Entities */
+  /* Heatmap-Zonen: aus Räumen (room.boundary); Temperatur-Entities */
   const zones: HeatmapZone[] = [];
   for (const { entity: ent, roomIndex } of flattened) {
     if (ent.preset !== 'temperature') continue;

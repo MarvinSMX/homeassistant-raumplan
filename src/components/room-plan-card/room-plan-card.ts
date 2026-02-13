@@ -88,7 +88,6 @@ export class RoomPlanCard extends LitElement {
       hold_action: config?.hold_action,
       double_tap_action: config?.double_tap_action,
       entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
-      temperature_zones: Array.isArray(config?.temperature_zones) ? config.temperature_zones : undefined,
       alert_entities: Array.isArray(config?.alert_entities) ? config.alert_entities : undefined,
       alert_badge_action: config?.alert_badge_action,
       image_dark: config?.image_dark,
@@ -126,15 +125,13 @@ export class RoomPlanCard extends LitElement {
     return Array.from(doms).sort();
   }
 
-  /** Zeile der Tab-Optionen: null = Alle, HEATMAP_TAB = Heatmap (wenn Zonen), dann Domains */
+  /** Zeile der Tab-Optionen: null = Alle, HEATMAP_TAB = Heatmap (wenn Zonen aus Räumen), dann Domains */
   private _filterTabIds(): (string | null)[] {
     const domains = this._availableDomains();
-    const legacyZones = (this.config?.temperature_zones ?? []).length > 0;
     const flattened = getFlattenedEntities(this.config);
-    const hasHeatmapFromRooms = flattened.some(
+    const hasHeatmap = flattened.some(
       (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
     );
-    const hasHeatmap = legacyZones || hasHeatmapFromRooms;
     const ids: (string | null)[] = [null];
     if (hasHeatmap) ids.push(HEATMAP_TAB);
     ids.push(...domains);
@@ -142,11 +139,9 @@ export class RoomPlanCard extends LitElement {
   }
 
   private _showFilterBar(): boolean {
-    const hasHeatmap =
-      (this.config?.temperature_zones ?? []).length > 0 ||
-      getFlattenedEntities(this.config).some(
-        (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
-      );
+    const hasHeatmap = getFlattenedEntities(this.config).some(
+      (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
+    );
     return (
       this._availableDomains().length > 0 ||
       hasHeatmap ||
@@ -439,12 +434,10 @@ export class RoomPlanCard extends LitElement {
                     }
                   }
                 }
-                const legacy = this.config?.temperature_zones ?? [];
-                const allZones = fromEntities.concat(legacy);
-                return allZones.length
+                return fromEntities.length
                   ? html`
                       <div class="heatmap-layer heatmap-layer-behind">
-                        ${allZones.map((zone) => this._renderHeatmapZone(zone))}
+                        ${fromEntities.map((zone) => this._renderHeatmapZone(zone))}
                       </div>
                     `
                   : '';
@@ -636,7 +629,7 @@ export class RoomPlanCard extends LitElement {
         z-index: 1;
       }
       .image-and-overlay .entities-overlay {
-        z-index: 2;
+        z-index: 3;
       }
       .plan-image {
         object-fit: fill;

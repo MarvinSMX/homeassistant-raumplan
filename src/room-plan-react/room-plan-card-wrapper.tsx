@@ -34,7 +34,6 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
     hold_action: config?.hold_action,
     double_tap_action: config?.double_tap_action,
     entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
-    temperature_zones: Array.isArray(config?.temperature_zones) ? config.temperature_zones : undefined,
     alert_entities: Array.isArray(config?.alert_entities) ? config.alert_entities : undefined,
     alert_badge_action: config?.alert_badge_action,
     image_dark: config?.image_dark,

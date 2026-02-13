@@ -18,9 +18,9 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
     const flattened = getFlattenedEntities(config);
     const entities = flattened.map((f) => f.entity);
     const domains = Array.from(new Set(entities.map((e) => getEntityDomain(e.entity)).filter(Boolean))).sort();
-    const hasHeatmap =
-      (config?.temperature_zones ?? []).length > 0 ||
-      flattened.some((f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0);
+    const hasHeatmap = flattened.some(
+      (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0
+    );
     return [...(hasHeatmap ? [HEATMAP_TAB] : []), ...domains];
   }, [config]);
 

@@ -55,9 +55,10 @@ export interface FlattenedEntity {
 export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): FlattenedEntity[] {
   const rooms = getRooms(config);
   if (rooms.length > 0) {
-    return rooms.flatMap((room, roomIndex) =>
+    const fromRooms = rooms.flatMap((room, roomIndex) =>
       (room.entities ?? []).map((entity, entityIndexInRoom) => ({ entity, roomIndex, entityIndexInRoom }))
     );
+    if (fromRooms.length > 0) return fromRooms;
   }
   if (!config || !Array.isArray(config.entities)) return [];
   return config.entities.map((entity, entityIndexInRoom) => ({ entity, roomIndex: null, entityIndexInRoom }));

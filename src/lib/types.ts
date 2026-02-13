@@ -81,8 +81,6 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   full_height?: boolean;
   /** Filter: nur Entitäten dieser Domains anzeigen (z.B. light, sensor). Leer = alle */
   entity_filter?: string[];
-  /** @deprecated Heatmap-Zonen liegen jetzt in der Temperatur-Entität (room_boundaries). */
-  temperature_zones?: HeatmapZone[];
   /** Entitäten für Meldungs-Badge (z. B. Rauchmelder) – Badge zeigt Anzahl aktiver Meldungen, rechts in der Tab-Leiste */
   alert_entities?: string[];
   /** Aktion beim Klick auf das Meldungs-Badge (optional) */

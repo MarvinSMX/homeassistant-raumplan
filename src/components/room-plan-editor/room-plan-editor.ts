@@ -70,7 +70,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       rooms,
       entities: undefined,
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
-      temperature_zones: Array.isArray(base.temperature_zones) ? [...base.temperature_zones] : undefined,
       alert_entities: Array.isArray(base.alert_entities) ? base.alert_entities : undefined,
       alert_badge_action: base.alert_badge_action,
       image_dark: base.image_dark,
@@ -585,23 +584,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     }
   }
 
-  private _updateHeatmapZone(index: number, updates: Partial<{ entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number }>): void {
-    const zones = [...(this._config.temperature_zones ?? [])];
-    zones[index] = { ...zones[index], ...updates };
-    this._updateConfig({ temperature_zones: zones });
-  }
-
-  private _removeHeatmapZone(index: number): void {
-    const zones = [...(this._config.temperature_zones ?? [])];
-    zones.splice(index, 1);
-    this._updateConfig({ temperature_zones: zones.length ? zones : undefined });
-  }
-
-  private _addHeatmapZone(): void {
-    const zones = [...(this._config.temperature_zones ?? []), { entity: '', x1: 10, y1: 10, x2: 40, y2: 40 }];
-    this._updateConfig({ temperature_zones: zones });
-  }
-
   private _updateAlertEntity(index: number, entityId: string): void {
     const list = [...(this._config.alert_entities ?? [])];
     list[index] = entityId.trim();
@@ -677,8 +659,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 ? `left:${this._pickerContentRect.left}%;top:${this._pickerContentRect.top}%;width:${this._pickerContentRect.width}%;height:${this._pickerContentRect.height}%`
                 : 'left:0;top:0;width:100%;height:100%'}
                 @click=${(e: MouseEvent) => {
-                  if (e.target === e.currentTarget) this._onPickerImageClick(e);
-                  else if (this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygonNew') this._onPickerImageClick(e);
+                  const handle = e.target === e.currentTarget ||
+                    this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygonNew';
+                  if (handle) {
+                    this._onPickerImageClick(e);
+                    e.stopPropagation();
+                  }
                 }}>
                 ${(this._pickerFor?.type === 'polygon' || this._pickerFor?.type === 'polygonNew') && this._pickerPolygonPoints.length > 0 ? (() => {
                   const pts = this._pickerPolygonPoints;
@@ -929,44 +915,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             <ha-icon icon="mdi:plus"></ha-icon> Raum hinzufügen
           </button>
         </section>
-        <section class="editor-section heatmap-legacy">
-          <h4 class="section-title"><ha-icon icon="mdi:thermometer"></ha-icon> Temperatur-Heatmap (Legacy)</h4>
-          <p class="section-hint">Heatmap-Zonen werden jetzt pro Temperatur-Entität unter „Raum-/Heatmap-Zonen“ (Zonen) gepflegt. Alte Einträge hier bleiben für Abwärtskompatibilität erhalten.</p>
-          <div class="entity-list">
-            ${(this._config.temperature_zones ?? []).map((zone, i) => {
-              const z = zone as { entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number };
-              return html`
-              <div class="entity-row heatmap-row">
-                <input type="text" list="rp-heatmap-${i}" .value=${z.entity} placeholder="sensor.temperatur_raum"
-                  @change=${(e: Event) => this._updateHeatmapZone(i, { entity: (e.target as HTMLInputElement).value.trim() })} />
-                <datalist id="rp-heatmap-${i}">
-                  ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass!, eid)}</option>`)}
-                </datalist>
-                <div class="entity-coords" title="Punkt 1 (x,y)">
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.x1) ?? 0)} placeholder="x1"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.y1) ?? 0)} placeholder="y1"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
-                </div>
-                <div class="entity-coords" title="Punkt 2 (x,y)">
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.x2) ?? 100)} placeholder="x2"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                  <input type="number" min="0" max="100" step="0.01" .value=${String(Number(z.y2) ?? 100)} placeholder="y2"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
-                </div>
-                <input type="number" class="entity-opacity" min="0" max="1" step="0.01" .value=${String(Math.min(1, Math.max(0, Number(z.opacity) ?? 0.4)))} title="Deckkraft"
-                  @change=${(e: Event) => this._updateHeatmapZone(i, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
-                <button type="button" class="btn-remove" @click=${() => this._removeHeatmapZone(i)} title="Zone entfernen">
-                  <ha-icon icon="mdi:delete-outline"></ha-icon>
-                </button>
-              </div>
-            `;
-            })}
-          </div>
-          <button type="button" class="btn-add" @click=${this._addHeatmapZone}>
-            <ha-icon icon="mdi:plus"></ha-icon> Legacy-Zone hinzufügen
-          </button>
-        </section>
         <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:bell-badge-outline"></ha-icon> Meldungen (Badge)</h4>
           <p class="section-hint">Entitäten für das Meldungs-Badge (z. B. Rauchmelder). Badge erscheint rechts in der Tab-Leiste, zeigt die Anzahl aktiver Meldungen (state on/triggered).</p>
@@ -1210,9 +1158,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .btn-add-small:hover {
         border-color: var(--primary-color, #03a9f4);
-      }
-      .editor-section.heatmap-legacy {
-        opacity: 0.9;
       }
       .picker-modal-backdrop {
         position: fixed;
