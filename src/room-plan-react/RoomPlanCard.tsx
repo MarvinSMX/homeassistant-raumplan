@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'preact/hooks';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'preact/hooks';
 import type { RoomPlanCardConfig } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { FilterTabs, HEATMAP_TAB } from './FilterTabs';
@@ -27,9 +27,17 @@ export function RoomPlanCard({ hass, config, flattenedEntities, host, cssString 
   }, [config, flattenedEntities]);
 
   const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());
+  const tabsInitialized = useRef(false);
   useEffect(() => {
-    setSelectedTabs(new Set(allTabIds));
+    if (allTabIds.length === 0) return;
+    if (!tabsInitialized.current) {
+      tabsInitialized.current = true;
+      setSelectedTabs(new Set(allTabIds));
+    }
   }, [allTabIds]);
+  useEffect(() => {
+    tabsInitialized.current = false;
+  }, [config]);
 
   const onSelectTab = useCallback((id: string | null) => {
     if (id === null) {
