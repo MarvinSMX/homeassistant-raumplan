@@ -504,7 +504,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               })}
             </svg>
           )}
-          <div style={{ ...overlayBoxStyle, zIndex: 10, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
+          <div style={{ ...overlayBoxStyle, zIndex: 3, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', minWidth: '100%', minHeight: '100%' }}>
               {badgeEntities.map((f, i) => {
                 const ent = f.entity;
