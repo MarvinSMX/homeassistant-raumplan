@@ -281,6 +281,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   ? (ent.line_color_open ?? 'var(--error-color, #f44336)')
                   : (ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)');
                 const thickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
+                const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
                 const actionConfig = {
                   entity: ent.entity,
                   tap_action: ent.tap_action ?? config?.tap_action ?? defTap,
@@ -302,6 +303,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                       stroke={stroke}
                       strokeWidth={thickness}
                       strokeLinecap="butt"
+                      strokeOpacity={opacity}
                     />
                   </g>
                 );

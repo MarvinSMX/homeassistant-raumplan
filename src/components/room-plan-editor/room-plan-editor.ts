@@ -177,26 +177,26 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 </select>
                 ${(ent.preset === 'temperature') ? html`
                 <div class="entity-coords room-boundary" title="Raumgrenze (%), Klick = Press-Effekt">
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
                 </div>
                 ` : ''}
                 ${(ent.preset === 'window_contact') ? html`
                 <div class="entity-coords room-boundary" title="Linie von (x1,y1) nach (x2,y2) in %">
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) }})} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
-                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x1) ?? 0)} placeholder="x1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y1) ?? 0)} placeholder="y1"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.x2) ?? 100)} placeholder="x2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.room_boundary?.y2) ?? 100)} placeholder="y2"
+                    @change=${(e: Event) => this._updateEntity(i, { room_boundary: { ...(ent.room_boundary ?? { x1: 0, y1: 0, x2: 100, y2: 100 }), y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) }})} />
                 </div>
                 <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
                   @change=${(e: Event) => this._updateEntity(i, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
@@ -207,16 +207,16 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 ` : ''}
                 <div class="entity-coords">
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
-                    @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 50)) })} />
+                    @change=${(e: Event) => this._updateEntity(i, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
                   <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
-                    @change=${(e: Event) => this._updateEntity(i, { y: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 50)) })} />
+                    @change=${(e: Event) => this._updateEntity(i, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
                 </div>
                 <input type="number" class="entity-scale" min="0.3" max="2" step="0.1" .value=${String(Math.min(2, Math.max(0.3, Number(ent.scale) || 1)))} title="Skalierung"
-                  @change=${(e: Event) => this._updateEntity(i, { scale: Math.min(2, Math.max(0.3, Number((e.target as HTMLInputElement).value) || 1)) })} />
+                  @change=${(e: Event) => this._updateEntity(i, { scale: Math.min(2, Math.max(0.3, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
                 <input type="color" .value=${ent.color || '#03a9f4'} title="Farbe"
                   @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value; this._updateEntity(i, { color: v === '#03a9f4' && !ent.color ? undefined : v }); }} />
-                <input type="number" class="entity-opacity" min="0" max="1" step="0.1" .value=${String(Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1)))} title="Deckkraft"
-                  @change=${(e: Event) => this._updateEntity(i, { background_opacity: Math.min(1, Math.max(0, Number((e.target as HTMLInputElement).value) || 1)) })} />
+                <input type="number" class="entity-opacity" min="0" max="1" step="0.01" .value=${String(Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1)))} title="Deckkraft"
+                  @change=${(e: Event) => this._updateEntity(i, { background_opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
                 <label class="entity-check">
                   <input type="checkbox" .checked=${!!ent.show_value} title="Wert anzeigen"
                     @change=${(e: Event) => this._updateEntity(i, { show_value: (e.target as HTMLInputElement).checked })} />
@@ -244,19 +244,19 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass!, eid)}</option>`)}
                 </datalist>
                 <div class="entity-coords" title="Punkt 1 (x,y)">
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.x1) ?? 0)} placeholder="x1"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { x1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) })} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.y1) ?? 0)} placeholder="y1"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { y1: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 0)) })} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.x1) ?? 0)} placeholder="x1"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.y1) ?? 0)} placeholder="y1"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
                 </div>
                 <div class="entity-coords" title="Punkt 2 (x,y)">
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.x2) ?? 100)} placeholder="x2"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { x2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) })} />
-                  <input type="number" min="0" max="100" step="1" .value=${String(Number(zone.y2) ?? 100)} placeholder="y2"
-                    @change=${(e: Event) => this._updateHeatmapZone(i, { y2: Math.min(100, Math.max(0, Number((e.target as HTMLInputElement).value) || 100)) })} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.x2) ?? 100)} placeholder="x2"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(zone.y2) ?? 100)} placeholder="y2"
+                    @change=${(e: Event) => this._updateHeatmapZone(i, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
                 </div>
-                <input type="number" class="entity-opacity" min="0" max="1" step="0.1" .value=${String(Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4)))} title="Deckkraft"
-                  @change=${(e: Event) => this._updateHeatmapZone(i, { opacity: Math.min(1, Math.max(0, Number((e.target as HTMLInputElement).value) || 0.4)) })} />
+                <input type="number" class="entity-opacity" min="0" max="1" step="0.01" .value=${String(Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4)))} title="Deckkraft"
+                  @change=${(e: Event) => this._updateHeatmapZone(i, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
                 <button type="button" class="btn-remove" @click=${() => this._removeHeatmapZone(i)} title="Zone entfernen">
                   <ha-icon icon="mdi:delete-outline"></ha-icon>
                 </button>
