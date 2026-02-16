@@ -4,7 +4,7 @@ import type { HomeAssistant } from 'custom-card-helpers';
 import { FilterTabs } from './FilterTabs';
 import { PlanImageWithOverlay } from './PlanImageWithOverlay';
 import type { FlattenedEntity } from '../lib/utils';
-import { getFlattenedEntities, getBoundariesForEntity, getEffectiveCategories, getEntityCategoryId } from '../lib/utils';
+import { getFlattenedEntities, getBoundariesForEntity, getEffectiveCategories } from '../lib/utils';
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;
@@ -21,14 +21,12 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   );
 
   const { allTabIds, categoryLabels } = useMemo(() => {
-    const flattened = flattenedEntities;
     const categories = getEffectiveCategories(config);
-    const usedCategoryIds = new Set(flattened.map((f) => getEntityCategoryId(f.entity)));
-    const tabIds = categories.filter((c) => usedCategoryIds.has(c.id)).map((c) => c.id);
+    const tabIds = categories.map((c) => c.id);
     const labels: Record<string, string> = {};
     for (const c of categories) labels[c.id] = c.label;
     return { allTabIds: tabIds, categoryLabels: labels };
-  }, [config, flattenedEntities]);
+  }, [config]);
 
   const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());
   const tabsInitialized = useRef(false);
@@ -116,6 +114,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           flattenedEntities={flattenedEntities}
           hass={hass}
           host={host}
+          allTabIds={allTabIds}
           selectedTabs={selectedTabs}
           showHeatmapOverlay={showHeatmapOverlay}
           imageAspect={imageAspect}

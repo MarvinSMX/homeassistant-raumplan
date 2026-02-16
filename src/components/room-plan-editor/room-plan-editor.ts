@@ -123,7 +123,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _removeCategory(categoryId: string): void {
     const list = Array.isArray(this._config.categories) ? [...this._config.categories] : [...DEFAULT_CATEGORIES];
     const next = list.filter((c) => c.id !== categoryId);
-    this._updateConfig({ categories: next.length ? next : undefined });
+    this._updateConfig({ categories: next });
   }
 
   private _addCategory(): void {

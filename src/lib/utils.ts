@@ -71,10 +71,10 @@ export const DEFAULT_CATEGORIES: { id: string; label: string }[] = [
   { id: 'smoke_detector', label: 'Rauchmelder' },
 ];
 
-/** Effektive Kategorien: config.categories falls gesetzt und nicht leer, sonst DEFAULT_CATEGORIES. */
+/** Effektive Kategorien: config.categories wenn gesetzt (auch []), sonst DEFAULT_CATEGORIES. */
 export function getEffectiveCategories(config: RoomPlanCardConfig | undefined): { id: string; label: string }[] {
   const list = config?.categories;
-  if (Array.isArray(list) && list.length > 0) return list;
+  if (Array.isArray(list)) return list;
   return DEFAULT_CATEGORIES;
 }
 

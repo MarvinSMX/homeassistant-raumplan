@@ -268,6 +268,7 @@ interface PlanImageWithOverlayProps {
   flattenedEntities: import('../lib/utils').FlattenedEntity[];
   hass: HomeAssistant;
   host: HTMLElement;
+  allTabIds: string[];
   selectedTabs: Set<string>;
   showHeatmapOverlay?: boolean;
   imageAspect: number;
@@ -283,6 +284,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     flattenedEntities,
     hass,
     host,
+    allTabIds,
     selectedTabs,
     showHeatmapOverlay = true,
     imageAspect,
@@ -402,11 +404,13 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const flattened = flattenedEntities;
   const entities = flattened.map((f) => f.entity);
-  /* Alle Tabs inaktiv = keine Entities anzeigen; sonst nach gewählten Preset-Tabs filtern. */
+  /* Keine Kategorien = alle Entities; alle Tabs inaktiv = keine; sonst nach gewählten Kategorien filtern. */
   const filteredEntities =
-    selectedTabs.size === 0
-      ? []
-      : flattened.filter((f) => selectedTabs.has(getEntityCategoryId(f.entity)));
+    allTabIds.length === 0
+      ? flattened
+      : selectedTabs.size === 0
+        ? []
+        : flattened.filter((f) => selectedTabs.has(getEntityCategoryId(f.entity)));
   /* Badges: ohne Fensterkontakt (nur Linie). Schiebetür nur mit optionaler Position (x,y) = frei platzierbares Icon-Badge. */
   const badgeEntities = filteredEntities.filter(
     (f) => f.entity.preset !== 'window_contact' && (f.entity.preset !== 'sliding_door' || hasEntityCoords(f.entity))
