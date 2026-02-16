@@ -14,6 +14,8 @@ interface EntityBadgeProps {
   tapAction: import('custom-card-helpers').ActionConfig;
   holdAction?: import('custom-card-helpers').ActionConfig;
   doubleTapAction?: import('custom-card-helpers').ActionConfig;
+  /** Anzeige-Position in Bild-% (0–100). Wenn gesetzt, wird sie statt ent.x/ent.y verwendet (gleiches Koordinatensystem wie Plan). */
+  displayPosition?: { x: number; y: number };
   /** Temperatur + room_boundaries: Start der Abdunkel-Animation (Hover/Press), mehrere Zonen möglich. entityId für Heatmap-Ausblendung. */
   onRoomPressStart?: (entityId: string, boundaries: RoomBoundaryItem[]) => void;
   /** Temperatur: Ende Hover/Press → Abdunkelung ausblenden. */
@@ -38,9 +40,13 @@ function climateModeIconAndColor(mode: string): { icon: string; color: string } 
 }
 
 export function EntityBadge(props: EntityBadgeProps) {
-  const { ent, hass, host, tapAction, holdAction, doubleTapAction, onRoomPressStart, onRoomPressEnd } = props;
-  const x = Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? toNum(ent.x, 50)));
-  const y = Math.min(100, Math.max(0, getEntityCoord(ent, 'y') ?? toNum(ent.y, 50)));
+  const { ent, hass, host, tapAction, holdAction, doubleTapAction, displayPosition, onRoomPressStart, onRoomPressEnd } = props;
+  const x = displayPosition
+    ? Math.min(100, Math.max(0, displayPosition.x))
+    : Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? toNum(ent.x, 50)));
+  const y = displayPosition
+    ? Math.min(100, Math.max(0, displayPosition.y))
+    : Math.min(100, Math.max(0, getEntityCoord(ent, 'y') ?? toNum(ent.y, 50)));
   const scale = Math.min(2, Math.max(0.3, toNum(ent.scale, 1)));
   const isOn = hass?.states?.[ent.entity]?.state === 'on';
   const icon = ent.icon || getEntityIcon(hass, ent.entity);

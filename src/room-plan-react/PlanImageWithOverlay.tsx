@@ -4,7 +4,7 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, hasEntityCoords } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, hasEntityCoords, getEntityDisplayPosition } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { hexToRgba, temperatureColor, intensityForArea } from './utils';
@@ -627,12 +627,14 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 const ent = f.entity;
                 const bounds = getBoundariesForEntity(config, f.roomIndex, ent);
                 const hasBounds = bounds.length > 0;
+                const displayPosition = getEntityDisplayPosition(f.room ?? null, ent);
                 return (
                   <EntityBadge
                     key={`${ent.entity}-${f.roomIndex ?? -1}-${f.entityIndexInRoom}-${i}`}
                     ent={ent}
                     hass={hass}
                     host={host}
+                    displayPosition={displayPosition}
                     tapAction={ent.tap_action ?? config?.tap_action ?? defTap}
                     holdAction={ent.hold_action ?? config?.hold_action}
                     doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
