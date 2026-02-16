@@ -50,6 +50,8 @@ export class RoomPlanCard extends LitElement {
   @state() private _imageError = false;
   /** Seitenverhältnis des Bildes (width/height), damit Overlay exakt aligned */
   @state() private _imageAspect = 16 / 9;
+  /** Overlay-Ausschnitt in % der Container-Breite/Höhe (object-fit: contain) – wie im Editor, damit Position 1:1 stimmt */
+  @state() private _contentRect: { left: number; top: number; width: number; height: number } | null = null;
   /** Aktiver Tab: null = Alle, HEATMAP_TAB oder Preset-ID (z. B. smoke_detector) */
   @state() private _activeFilter: string | null = null;
   /** Eindeutiger Key der gerade gehoverten Badge (nur diese bekommt Hover-Effekt). */
@@ -58,6 +60,8 @@ export class RoomPlanCard extends LitElement {
   @state() private _darkMode = false;
 
   private _darkModeMedia: MediaQueryList | null = null;
+  private _resizeObserver: ResizeObserver | null = null;
+  private _imageAndOverlayRef: HTMLElement | null = null;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     return document.createElement(EDITOR_TAG);
@@ -109,6 +113,7 @@ export class RoomPlanCard extends LitElement {
     this._imageLoaded = false;
     this._imageError = false;
     this._imageAspect = 16 / 9;
+    this._contentRect = null;
   }
 
   /** Preset-ID → Anzeigename für Tabs */
@@ -219,6 +224,7 @@ export class RoomPlanCard extends LitElement {
       changedProps.has('_imageLoaded') ||
       changedProps.has('_imageError') ||
       changedProps.has('_imageAspect') ||
+      changedProps.has('_contentRect') ||
       changedProps.has('_darkMode') ||
       changedProps.has('_hoveredBadgeKey')
     )
@@ -237,12 +243,38 @@ export class RoomPlanCard extends LitElement {
     this._darkModeMedia.addEventListener('change', this._onDarkModeChange);
   }
 
+  firstUpdated(): void {
+    if (!this.config?.image) return;
+    requestAnimationFrame(() => {
+      const wrap = this.renderRoot?.querySelector?.('.image-and-overlay') as HTMLElement | null;
+      if (wrap && !this._resizeObserver) {
+        this._imageAndOverlayRef = wrap;
+        this._resizeObserver = new ResizeObserver(() => this._measureContentRect());
+        this._resizeObserver.observe(wrap);
+      }
+      if (this._imageLoaded) this._measureContentRect();
+    });
+  }
+
+  updated(changedProps: Map<string, unknown>): void {
+    super.updated?.(changedProps);
+    if (this._imageLoaded && this.config?.image && !this._contentRect) {
+      requestAnimationFrame(() => this._measureContentRect());
+    }
+  }
+
   disconnectedCallback(): void {
-    super.disconnectedCallback?.();
+    if (this._resizeObserver && this._imageAndOverlayRef) {
+      this._resizeObserver.unobserve(this._imageAndOverlayRef);
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+      this._imageAndOverlayRef = null;
+    }
     if (this._darkModeMedia) {
       this._darkModeMedia.removeEventListener('change', this._onDarkModeChange);
       this._darkModeMedia = null;
     }
+    super.disconnectedCallback?.();
   }
 
   private _onDarkModeChange = (ev: MediaQueryListEvent): void => {
@@ -410,6 +442,37 @@ export class RoomPlanCard extends LitElement {
     }
     this._imageLoaded = true;
     this._imageError = false;
+    requestAnimationFrame(() => this._measureContentRect());
+  }
+
+  /** Misst den sichtbaren Bildinhalt (object-fit: contain) in % des Containers – wie im Editor für 1:1-Position. */
+  private _measureContentRect(): void {
+    const wrap = this._imageAndOverlayRef ?? this.renderRoot?.querySelector?.('.image-and-overlay');
+    const img = wrap?.querySelector?.('.plan-image') as HTMLImageElement | null;
+    if (!wrap || !img?.naturalWidth || !img.naturalHeight) {
+      this._contentRect = null;
+      return;
+    }
+    const wrapRect = wrap.getBoundingClientRect();
+    const rw = wrapRect.width;
+    const rh = wrapRect.height;
+    if (rw <= 0 || rh <= 0) {
+      this._contentRect = null;
+      return;
+    }
+    const nw = img.naturalWidth;
+    const nh = img.naturalHeight;
+    const scale = Math.min(rw / nw, rh / nh);
+    const contentW = nw * scale;
+    const contentH = nh * scale;
+    const contentLeft = (rw - contentW) / 2;
+    const contentTop = (rh - contentH) / 2;
+    this._contentRect = {
+      left: (contentLeft / rw) * 100,
+      top: (contentTop / rh) * 100,
+      width: (contentW / rw) * 100,
+      height: (contentH / rh) * 100,
+    };
   }
 
   private _onImageError(): void {
@@ -478,34 +541,47 @@ export class RoomPlanCard extends LitElement {
             const useDark = this.config?.dark_mode !== undefined ? !!this.config.dark_mode : this._darkMode;
             const darkFilter = useDark ? (this.config?.dark_mode_filter ?? 'brightness(0.88) contrast(1.05)') : 'none';
             const imgSrc = useDark && this.config?.image_dark ? this.config.image_dark : img;
+            const cr = this._contentRect;
+            const overlayStyle = cr
+              ? `left:${cr.left}%;top:${cr.top}%;width:${cr.width}%;height:${cr.height}%`
+              : 'left:0;top:0;width:100%;height:100%';
             return html`
           <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
             <div class="image-and-overlay ${useDark ? 'dark' : ''}" style="--image-aspect: ${this._imageAspect}; --plan-dark-filter: ${darkFilter};">
-              ${(() => {
-                const zoneList: { key: string; zone: HeatmapZone }[] = [];
-                const flattened = getFlattenedEntities(this.config);
-                for (const fl of flattened) {
-                  const ent = fl.entity;
-                  if (ent.preset !== 'temperature') continue;
-                  const boundaries = fl.room ? getRoomBoundaryList(fl.room) : getEntityBoundaries(ent);
-                  boundaries.forEach((b, bi) => {
-                    const key = `${fl.uniqueKey}-zone-${bi}`;
-                    if (isPolygonBoundary(b)) {
-                      zoneList.push({ key, zone: { entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 } });
-                    } else {
-                      const r = b as { x1: number; y1: number; x2: number; y2: number };
-                      zoneList.push({ key, zone: { entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4 } });
-                    }
-                  });
-                }
-                return zoneList.length
-                  ? html`
-                      <div class="heatmap-layer heatmap-layer-behind">
-                        ${repeat(zoneList, (z) => z.key, (z) => this._renderHeatmapZone(z.zone, z.key))}
-                      </div>
-                    `
-                  : '';
-              })()}
+              <div class="plan-content-overlay" style="${overlayStyle}">
+                ${(() => {
+                  const zoneList: { key: string; zone: HeatmapZone }[] = [];
+                  const flattened = getFlattenedEntities(this.config);
+                  for (const fl of flattened) {
+                    const ent = fl.entity;
+                    if (ent.preset !== 'temperature') continue;
+                    const boundaries = fl.room ? getRoomBoundaryList(fl.room) : getEntityBoundaries(ent);
+                    boundaries.forEach((b, bi) => {
+                      const key = `${fl.uniqueKey}-zone-${bi}`;
+                      if (isPolygonBoundary(b)) {
+                        zoneList.push({ key, zone: { entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 } });
+                      } else {
+                        const r = b as { x1: number; y1: number; x2: number; y2: number };
+                        zoneList.push({ key, zone: { entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4 } });
+                      }
+                    });
+                  }
+                  return zoneList.length
+                    ? html`
+                        <div class="heatmap-layer heatmap-layer-behind">
+                          ${repeat(zoneList, (z) => z.key, (z) => this._renderHeatmapZone(z.zone, z.key))}
+                        </div>
+                      `
+                    : '';
+                })()}
+                <div class="entities-overlay">
+                  ${repeat(
+                    this._filteredEntities(),
+                    (fl) => fl.uniqueKey,
+                    (fl) => this._renderEntity(fl, this._getEntityImagePosition(fl))
+                  )}
+                </div>
+              </div>
               <img
                 src="${imgSrc}"
                 alt="Raumplan"
@@ -516,13 +592,6 @@ export class RoomPlanCard extends LitElement {
               />
               ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
               ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
-              <div class="entities-overlay">
-                ${repeat(
-                  this._filteredEntities(),
-                  (fl) => fl.uniqueKey,
-                  (fl) => this._renderEntity(fl, this._getEntityImagePosition(fl))
-                )}
-              </div>
             </div>
           </div>
             `;
@@ -673,18 +742,30 @@ export class RoomPlanCard extends LitElement {
         height: 0;
         padding-bottom: calc(100% / var(--image-aspect, 1.778));
       }
+      .image-and-overlay .plan-content-overlay,
       .image-and-overlay .heatmap-layer,
       .image-and-overlay .plan-image,
       .image-and-overlay .image-skeleton,
       .image-and-overlay .image-error,
       .image-and-overlay .entities-overlay {
         position: absolute;
+        margin: 0;
+        box-sizing: border-box;
+      }
+      .image-and-overlay .plan-content-overlay {
+        top: 0;
+        left: 0;
+        z-index: 1;
+      }
+      .image-and-overlay .heatmap-layer,
+      .image-and-overlay .plan-image,
+      .image-and-overlay .image-skeleton,
+      .image-and-overlay .image-error,
+      .image-and-overlay .entities-overlay {
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        margin: 0;
-        box-sizing: border-box;
       }
       .heatmap-layer-behind {
         z-index: -1;
@@ -701,7 +782,7 @@ export class RoomPlanCard extends LitElement {
         isolation: isolate;
       }
       .plan-image {
-        object-fit: fill;
+        object-fit: contain;
         object-position: center;
         display: block;
       }
