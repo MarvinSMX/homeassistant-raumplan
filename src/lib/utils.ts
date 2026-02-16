@@ -130,6 +130,26 @@ export function getRoomBoundingBox(room: RoomPlanRoom): { left: number; top: num
   return { left, top, width, height };
 }
 
+/** BBox nur der ersten Raumboundary (für Entity-Position: 0–100 strikt auf diese eine Shape). */
+function getFirstBoundaryBox(room: RoomPlanRoom | undefined): { left: number; top: number; width: number; height: number } | null {
+  const list = getRoomBoundaryList(room);
+  const b = list[0];
+  if (!b) return null;
+  const pts = getBoundaryPoints(b);
+  if (pts.length === 0) return null;
+  let left = pts[0].x, top = pts[0].y, right = pts[0].x, bottom = pts[0].y;
+  for (const p of pts) {
+    left = Math.min(left, p.x);
+    top = Math.min(top, p.y);
+    right = Math.max(right, p.x);
+    bottom = Math.max(bottom, p.y);
+  }
+  const width = Math.max(0, right - left);
+  const height = Math.max(0, bottom - top);
+  if (width <= 0 || height <= 0) return null;
+  return { left, top, width, height };
+}
+
 /** Raum-relative Koordinaten (0–100 innerhalb des Raums) in Bild-Prozent (0–100) umrechnen. */
 export function roomRelativeToImagePercent(
   roomBox: { left: number; top: number; width: number; height: number },
@@ -201,12 +221,12 @@ export function clampPointToPolygon(px: number, py: number, points: { x: number;
   return nearestPointOnPolygon(px, py, points);
 }
 
-/** Mitte des Raums in Bild-Prozent: bei Polygon = Centroid, sonst BBox-Mitte. */
+/** Mitte des Raums in Bild-Prozent: erste Shape – bei Polygon = Centroid, sonst BBox-Mitte der ersten Zone. */
 export function getRoomShapeCenter(room: RoomPlanRoom | undefined): { x: number; y: number } | null {
   if (!room) return null;
   const polygon = getRoomPolygon(room);
   if (polygon && polygon.length >= 3) return getPolygonCentroid(polygon);
-  const box = getRoomBoundingBox(room);
+  const box = getFirstBoundaryBox(room);
   if (!box) return null;
   return {
     x: box.left + box.width / 2,
@@ -230,15 +250,15 @@ export function clampPointToBox(
 
 /**
  * Raum-relativ (rx, ry) 0–100 → Bild-Prozent.
- * Immer nur innerhalb des Raums: bei Polygon Clamp auf Polygon, bei Rechteck Clamp auf BBox.
- * Bei Polygon: 50/50 = Centroid.
+ * Strikte Abbildung auf die erste Raumboundary: 0–100 nur innerhalb dieser einen Shape.
+ * Bei Polygon: Clamp auf Polygon; bei Rechteck: Clamp auf BBox der ersten Zone. 50/50 = Centroid bzw. Rechteckmitte.
  */
 export function roomRelativeToImagePercentWithShape(
   room: RoomPlanRoom,
   rx: number,
   ry: number
 ): { x: number; y: number } {
-  const box = getRoomBoundingBox(room);
+  const box = getFirstBoundaryBox(room);
   if (!box) return { x: 50, y: 50 };
   const polygon = getRoomPolygon(room);
   const rx2 = Math.min(100, Math.max(0, rx));
@@ -266,9 +286,9 @@ export function imagePercentToRoomRelative(
   return { x, y };
 }
 
-/** Bild-Prozent → raum-relativ (0–100). Bei Polygon: Punkt zuerst in Shape clippen, dann BBox-Mapping. */
+/** Bild-Prozent → raum-relativ (0–100). Erste Raumboundary: Punkt in Shape clippen, dann BBox-Mapping. */
 export function imagePercentToRoomRelativeWithShape(room: RoomPlanRoom, imageX: number, imageY: number): { x: number; y: number } {
-  const box = getRoomBoundingBox(room);
+  const box = getFirstBoundaryBox(room);
   if (!box || box.width <= 0 || box.height <= 0) return { x: 50, y: 50 };
   const polygon = getRoomPolygon(room);
   let px = imageX, py = imageY;
@@ -276,6 +296,10 @@ export function imagePercentToRoomRelativeWithShape(room: RoomPlanRoom, imageX: 
     const clamped = clampPointToPolygon(imageX, imageY, polygon);
     px = clamped.x;
     py = clamped.y;
+  } else {
+    const c = clampPointToBox(imageX, imageY, box);
+    px = c.x;
+    py = c.y;
   }
   return imagePercentToRoomRelative(box, px, py);
 }
