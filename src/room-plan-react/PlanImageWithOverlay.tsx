@@ -12,6 +12,44 @@ import { HEATMAP_TAB } from './FilterTabs';
 
 const HEATMAP_DIM_DURATION = 0.28;
 
+/** Schiebetür: Türsegment-Position (Mittelpunkt cx,cy und Winkel) in Abhängigkeit von Öffnung und Richtung. */
+function slidingDoorPosition(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  isOpen: boolean,
+  direction: 'left' | 'right',
+  doorLengthRatio: number = 0.25
+): { cx: number; cy: number; angleDeg: number; halfLen: number } {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const L = Math.hypot(dx, dy) || 1;
+  const ux = dx / L;
+  const uy = dy / L;
+  const halfLen = (L * doorLengthRatio) / 2;
+  const t = isOpen ? 1 : 0;
+  let cx: number;
+  let cy: number;
+  if (direction === 'right') {
+    const c0x = x2 - halfLen * ux;
+    const c0y = y2 - halfLen * uy;
+    const c1x = x1 + halfLen * ux;
+    const c1y = y1 + halfLen * uy;
+    cx = (1 - t) * c0x + t * c1x;
+    cy = (1 - t) * c0y + t * c1y;
+  } else {
+    const c0x = x1 + halfLen * ux;
+    const c0y = y1 + halfLen * uy;
+    const c1x = x2 - halfLen * ux;
+    const c1y = y2 - halfLen * uy;
+    cx = (1 - t) * c0x + t * c1x;
+    cy = (1 - t) * c0y + t * c1y;
+  }
+  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  return { cx, cy, angleDeg, halfLen };
+}
+
 /** Icon-Position über/unter einer Linie: Mittelpunkt + senkrechter Offset (in viewBox %). */
 function windowIconPosition(
   x1: number,
@@ -280,10 +318,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           if (preset === 'temperature') return selectedTabs.has(HEATMAP_TAB);
           return selectedTabs.has(preset);
         });
-  /* Badges: gleiche Filter wie Tabs (filteredEntities), ohne Fensterkontakt (nur Linien). */
-  const badgeEntities = filteredEntities.filter((f) => f.entity.preset !== 'window_contact');
+  /* Badges: gleiche Filter wie Tabs (filteredEntities), ohne Fensterkontakt/Schiebetür (nur Linien/Shapes). */
+  const badgeEntities = filteredEntities.filter(
+    (f) => f.entity.preset !== 'window_contact' && f.entity.preset !== 'sliding_door'
+  );
   const windowLineEntities = filteredEntities.filter(
     (f) => f.entity.preset === 'window_contact' && getEntityBoundaries(f.entity).length > 0
+  );
+  const slidingDoorEntities = filteredEntities.filter(
+    (f) => f.entity.preset === 'sliding_door' && getEntityBoundaries(f.entity).length > 0
   );
 
   /* Heatmap-Zonen: aus Räumen (room.boundary); Temperatur-Entities */
@@ -523,6 +566,78 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                       strokeOpacity={opacity}
                     />
                   </g>
+                    );
+                  });
+              })}
+            </svg>
+          )}
+          {slidingDoorEntities.length > 0 && (
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              style={{
+                ...overlayBoxStyle,
+                pointerEvents: 'none',
+              }}
+              aria-hidden
+            >
+              {slidingDoorEntities.flatMap((f) => {
+                const ent = f.entity;
+                const state = hass?.states?.[ent.entity]?.state ?? '';
+                const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
+                const trackColor = ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)';
+                const doorColor = ent.line_color_open ?? 'var(--primary-color, #03a9f4)';
+                const thickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
+                const doorThickness = Math.min(4, Math.max(thickness, thickness * 1.4));
+                const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
+                const direction = ent.sliding_door_direction ?? 'left';
+                const actionConfig = {
+                  entity: ent.entity,
+                  tap_action: ent.tap_action ?? config?.tap_action ?? defTap,
+                  hold_action: ent.hold_action ?? config?.hold_action,
+                  double_tap_action: ent.double_tap_action ?? config?.double_tap_action,
+                };
+                return getEntityBoundaries(ent)
+                  .filter((b) => !isPolygonBoundary(b))
+                  .map((b, bi) => {
+                    const br = b as { x1: number; y1: number; x2: number; y2: number };
+                    const pos = slidingDoorPosition(br.x1, br.y1, br.x2, br.y2, isOpen, direction);
+                    return (
+                      <g
+                        key={`sliding-${ent.entity}-${bi}`}
+                        style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                        onClick={() => handleAction(host, hass, actionConfig, 'tap')}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                      >
+                        <line
+                          x1={br.x1}
+                          y1={br.y1}
+                          x2={br.x2}
+                          y2={br.y2}
+                          stroke={trackColor}
+                          strokeWidth={thickness}
+                          strokeLinecap="butt"
+                          strokeOpacity={opacity}
+                        />
+                        <g
+                          style={{
+                            transform: `translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg}deg)`,
+                            transformOrigin: '0 0',
+                            transition: 'transform 0.35s ease-out',
+                          }}
+                        >
+                          <line
+                            x1={-pos.halfLen}
+                            y1={0}
+                            x2={pos.halfLen}
+                            y2={0}
+                            stroke={doorColor}
+                            strokeWidth={doorThickness}
+                            strokeLinecap="round"
+                            strokeOpacity={opacity}
+                          />
+                        </g>
+                      </g>
                     );
                   });
               })}

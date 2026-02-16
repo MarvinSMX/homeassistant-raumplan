@@ -25,6 +25,18 @@ function toNum(val: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** Icon und Farbe für Klima-Modus (heat, cool, auto, off, …). */
+function climateModeIconAndColor(mode: string): { icon: string; color: string } {
+  const m = mode.toLowerCase();
+  if (m === 'heat' || m === 'heating') return { icon: 'mdi:fire', color: '#ff9800' };
+  if (m === 'cool' || m === 'cooling') return { icon: 'mdi:snowflake', color: '#2196f3' };
+  if (m === 'auto' || m === 'heat_cool') return { icon: 'mdi:autorenew', color: '#009688' };
+  if (m === 'dry') return { icon: 'mdi:water-percent', color: '#00bcd4' };
+  if (m === 'fan_only' || m === 'fan') return { icon: 'mdi:fan', color: '#607d8b' };
+  if (m === 'off' || m === 'idle' || m === 'unknown') return { icon: 'mdi:power', color: 'var(--secondary-text-color, #9e9e9e)' };
+  return { icon: 'mdi:thermostat', color: 'var(--primary-text-color, #212121)' };
+}
+
 export function EntityBadge(props: EntityBadgeProps) {
   const { ent, hass, host, tapAction, holdAction, doubleTapAction, onRoomPressStart, onRoomPressEnd } = props;
   const x = Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? toNum(ent.x, 50)));
@@ -45,10 +57,17 @@ export function EntityBadge(props: EntityBadgeProps) {
   let displayIcon = ent.icon || getEntityIcon(hass, ent.entity);
   let iconColorOverride: string | undefined;
 
+  let climateModeIcon: string | undefined;
+  let climateModeColor: string | undefined;
   if (preset === 'temperature') {
     showValue = true;
     temperatureValue = getTemperatureFromEntity(hass, ent.entity, ent.temperature_attribute);
     accentColor = temperatureColor(temperatureValue);
+    if (ent.entity.startsWith('climate.')) {
+      const { icon, color } = climateModeIconAndColor(state);
+      climateModeIcon = icon;
+      climateModeColor = color;
+    }
   } else if (preset === 'binary_sensor') {
     showValue = true;
     const active = ['on', 'open', 'detected', 'home', 'present', 'opening'].includes(String(state).toLowerCase());
@@ -138,9 +157,10 @@ export function EntityBadge(props: EntityBadgeProps) {
 
   const iconColor = ent.color ?? iconColorOverride ?? accentColor ?? (isOn ? 'var(--state-icon-active-color, var(--state-icon-on-color))' : 'var(--primary-text-color)');
 
-  /* Temperatur-Preset: nur Text mit „°C“ in Temperaturfarbe, kein Icon (Wert aus State oder Attribut, z. B. Klima current_temperature) */
+  /* Temperatur-Preset: optional Modus-Icon (Klima) links, dann Text „°C“ in Temperaturfarbe */
   const tempDisplay = preset === 'temperature' && temperatureValue != null ? `${temperatureValue} °C` : stateDisplay;
   const showIcon = preset !== 'temperature';
+  const showClimateModeIcon = preset === 'temperature' && climateModeIcon != null;
   const textColor = preset === 'temperature' && accentColor ? accentColor : undefined;
   const isIconOnly =
     preset === 'window_contact' ||
@@ -240,6 +260,9 @@ export function EntityBadge(props: EntityBadgeProps) {
       {!isIconOnly && (
         <span
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35em',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -247,6 +270,11 @@ export function EntityBadge(props: EntityBadgeProps) {
             ...(textColor ? { color: textColor } : {}),
           }}
         >
+          {showClimateModeIcon && climateModeIcon != null && climateModeColor != null && (
+            <span style={{ display: 'inline-flex', flexShrink: 0, color: climateModeColor }} title={state}>
+              <MdiIcon icon={climateModeIcon} color={climateModeColor} style={{ width: `${iconSizeEm}em`, height: `${iconSizeEm}em`, minWidth: `${iconSizeEm}em`, minHeight: `${iconSizeEm}em` }} />
+            </span>
+          )}
           {preset === 'temperature' ? tempDisplay : (showValue ? stateDisplay : friendlyName)}
         </span>
       )}

@@ -10,6 +10,7 @@ const PRESET_LABELS: Record<string, string> = {
   temperature: 'Temperatur',
   binary_sensor: 'Binary Sensor',
   window_contact: 'Fensterkontakt',
+  sliding_door: 'Schiebetür',
   smoke_detector: 'Rauchmelder',
 };
 

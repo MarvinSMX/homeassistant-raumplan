@@ -112,7 +112,7 @@ export function getBoundariesForEntity(
   roomIndex: number | null,
   ent: RoomPlanEntity
 ): RoomBoundary[] {
-  if (ent.preset === 'window_contact') {
+  if (ent.preset === 'window_contact' || ent.preset === 'sliding_door') {
     return getEntityBoundaries(ent);
   }
   if (roomIndex !== null) {

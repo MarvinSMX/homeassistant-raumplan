@@ -22,8 +22,8 @@ export interface RoomPlanEntity {
   show_value?: boolean;
   /** Wenn false: nur Icon anzeigen, kein Name/Text (z. B. Rauchmelder). Standard true. */
   show_name?: boolean;
-  /** Preset: temperature = Wert; binary_sensor = State; window_contact = Linie; smoke_detector = Rauchmelder, bei Auslösung/Sabotage blinkender Rand (Ping) */
-  preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact' | 'smoke_detector';
+  /** Preset: temperature = Wert; binary_sensor = State; window_contact = Linie; sliding_door = Schiebetür (Linie + animierte Tür); smoke_detector = Rauchmelder */
+  preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact' | 'sliding_door' | 'smoke_detector';
   /** Nur Temperatur: Attribut für den Wert (z. B. current_temperature bei Klimageräten). Leer = State; bei Domain climate automatisch current_temperature. */
   temperature_attribute?: string;
   /** Temperatur: mehrere Raum-/Heatmap-Zonen. Rechteck: x1,y1,x2,y2 (%). Polygon: points (beliebig viele Ecken). Fensterkontakt: eine Linie = ein Eintrag (x1,y1,x2,y2). */
@@ -38,6 +38,8 @@ export interface RoomPlanEntity {
   line_color_closed?: string;
   /** Nur Fensterkontakt: Schloss-Symbol „über“ oder „unter“ der Linie (Status offen/zu). */
   window_icon_position?: 'above' | 'below';
+  /** Nur Schiebetür: Richtung, in die die Tür beim Öffnen schiebt (links = von links nach rechts öffnen). */
+  sliding_door_direction?: 'left' | 'right';
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */

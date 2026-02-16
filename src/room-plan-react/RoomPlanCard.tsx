@@ -7,7 +7,7 @@ import type { FlattenedEntity } from '../lib/utils';
 import { getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
 
 /** Reihenfolge der Preset-Tabs (Temperatur = HEATMAP_TAB, wenn Heatmap-Zonen vorhanden). */
-const PRESET_ORDER: string[] = [HEATMAP_TAB, 'default', 'temperature', 'binary_sensor', 'window_contact', 'smoke_detector'];
+const PRESET_ORDER: string[] = [HEATMAP_TAB, 'default', 'temperature', 'binary_sensor', 'window_contact', 'sliding_door', 'smoke_detector'];
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;

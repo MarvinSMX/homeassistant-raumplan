@@ -902,6 +902,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="temperature">Temperatur</option>
                   <option value="binary_sensor">Binary Sensor</option>
                   <option value="window_contact">Fensterkontakt</option>
+                  <option value="sliding_door">Schiebetür</option>
                   <option value="smoke_detector">Rauchmelder</option>
                 </select>
                 ${(ent.preset === 'temperature') ? html`
@@ -948,6 +949,45 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="above">Über der Linie</option>
                   <option value="below">Unter der Linie</option>
                 </select>
+                ` : ''}
+                ${(ent.preset === 'sliding_door') ? html`
+                <div class="entity-boundaries">
+                  <span class="boundaries-label">Linie (Führung):</span>
+                  ${getEntityBoundaries(ent).filter((b) => !isPolygonBoundary(b)).map((b, bi) => {
+                    const br = b as { x1: number; y1: number; x2: number; y2: number };
+                    const fullList = getEntityBoundaries(ent);
+                    const realIndex = fullList.indexOf(b);
+                    return html`
+                    <div class="entity-coords room-boundary">
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.x1) ?? 0)} placeholder="x1"
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.y1) ?? 0)} placeholder="y1"
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.x2) ?? 100)} placeholder="x2"
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(br.y2) ?? 100)} placeholder="y2"
+                        @change=${(e: Event) => this._updateEntityBoundary(ri, ei, realIndex, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerLine(ri, ei, realIndex)} title="Linie bearbeiten"><ha-icon icon="mdi:draw"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeEntityBoundary(ri, ei, realIndex)} title="Linie entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                    </div>
+                  `;
+                  })}
+                  <button type="button" class="btn-add-small" @click=${() => this._addEntityBoundary(ri, ei, false)} title="Linie hinzufügen"><ha-icon icon="mdi:plus"></ha-icon></button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerLine(ri, ei)} title="Linie zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Zeichnen</button>
+                </div>
+                <span class="boundaries-label">Richtung:</span>
+                <select title="Schieberichtung beim Öffnen"
+                  .value=${ent.sliding_door_direction ?? 'left'}
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { sliding_door_direction: (e.target as HTMLSelectElement).value as 'left' | 'right' })}>
+                  <option value="left">Links (Tür schiebt nach rechts)</option>
+                  <option value="right">Rechts (Tür schiebt nach links)</option>
+                </select>
+                <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
+                <input type="color" .value=${ent.line_color_closed ?? '#9e9e9e'} title="Farbe Führungsschiene (BG)"
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_closed: (e.target as HTMLInputElement).value })} />
+                <input type="color" .value=${ent.line_color_open ?? '#03a9f4'} title="Farbe Tür"
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_open: (e.target as HTMLInputElement).value })} />
                 ` : ''}
                 <div class="entity-coords-wrap">
                   <div class="entity-coords">
