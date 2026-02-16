@@ -137,6 +137,104 @@ export function roomRelativeToImagePercent(
   return { x, y };
 }
 
+/** Erstes Polygon einer Raumboundary (Punkte in Bild-Prozent), sonst null. */
+export function getRoomPolygon(room: RoomPlanRoom | undefined): { x: number; y: number }[] | null {
+  const list = getRoomBoundaryList(room);
+  for (const b of list) {
+    if (isPolygonBoundary(b) && b.points.length >= 3) return b.points;
+  }
+  return null;
+}
+
+/** Schwerpunkt eines Polygons (einfacher Mittelwert der Ecken) in Bild-Prozent. */
+export function getPolygonCentroid(points: { x: number; y: number }[]): { x: number; y: number } {
+  if (points.length === 0) return { x: 50, y: 50 };
+  let sx = 0, sy = 0;
+  for (const p of points) {
+    sx += p.x;
+    sy += p.y;
+  }
+  return { x: sx / points.length, y: sy / points.length };
+}
+
+/** Punkt-in-Polygon (Ray-Casting). */
+export function pointInPolygon(px: number, py: number, points: { x: number; y: number }[]): boolean {
+  const n = points.length;
+  if (n < 3) return false;
+  let inside = false;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = points[i].x, yi = points[i].y;
+    const xj = points[j].x, yj = points[j].y;
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+/** Nächsten Punkt am Polygonrand (oder innen) zu (px, py). */
+function nearestPointOnPolygon(px: number, py: number, points: { x: number; y: number }[]): { x: number; y: number } {
+  let best = { x: points[0]?.x ?? 50, y: points[0]?.y ?? 50 };
+  let bestD = 1e9;
+  const n = points.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const a = points[j], b = points[i];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1e-9;
+    const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / (len * len)));
+    const qx = a.x + t * dx, qy = a.y + t * dy;
+    const d = Math.hypot(px - qx, py - qy);
+    if (d < bestD) {
+      bestD = d;
+      best = { x: qx, y: qy };
+    }
+  }
+  return best;
+}
+
+/** Punkt (px, py) in Bild-Prozent: wenn außerhalb des Polygons, auf Rand/innen projizieren. */
+export function clampPointToPolygon(px: number, py: number, points: { x: number; y: number }[]): { x: number; y: number } {
+  if (points.length < 3) return { x: px, y: py };
+  if (pointInPolygon(px, py, points)) return { x: px, y: py };
+  return nearestPointOnPolygon(px, py, points);
+}
+
+/** Mitte des Raums in Bild-Prozent: bei Polygon = Centroid, sonst BBox-Mitte. */
+export function getRoomShapeCenter(room: RoomPlanRoom | undefined): { x: number; y: number } | null {
+  if (!room) return null;
+  const polygon = getRoomPolygon(room);
+  if (polygon && polygon.length >= 3) return getPolygonCentroid(polygon);
+  const box = getRoomBoundingBox(room);
+  if (!box) return null;
+  return {
+    x: box.left + box.width / 2,
+    y: box.top + box.height / 2,
+  };
+}
+
+/**
+ * Raum-relativ (rx, ry) 0–100 → Bild-Prozent.
+ * Bei Polygon: 50/50 = Centroid; Ergebnis immer innerhalb der Raumform (Clamp bei Polygon).
+ * Bei Rechteck: wie bisher BBox-Mapping.
+ */
+export function roomRelativeToImagePercentWithShape(
+  room: RoomPlanRoom,
+  rx: number,
+  ry: number
+): { x: number; y: number } {
+  const box = getRoomBoundingBox(room);
+  if (!box) return { x: 50, y: 50 };
+  const polygon = getRoomPolygon(room);
+  const rx2 = Math.min(100, Math.max(0, rx));
+  const ry2 = Math.min(100, Math.max(0, ry));
+
+  if (polygon && polygon.length >= 3) {
+    const centroid = getPolygonCentroid(polygon);
+    if (Math.abs(rx2 - 50) < 0.01 && Math.abs(ry2 - 50) < 0.01) return centroid;
+    const raw = roomRelativeToImagePercent(box, rx2, ry2);
+    return clampPointToPolygon(raw.x, raw.y, polygon);
+  }
+  return roomRelativeToImagePercent(box, rx2, ry2);
+}
+
 /** Bild-Prozent (0–100) in raum-relative Koordinaten (0–100) umrechnen. Für Editor beim Speichern. */
 export function imagePercentToRoomRelative(
   roomBox: { left: number; top: number; width: number; height: number },
@@ -147,6 +245,20 @@ export function imagePercentToRoomRelative(
   const x = Math.min(100, Math.max(0, ((imageX - roomBox.left) / roomBox.width) * 100));
   const y = Math.min(100, Math.max(0, ((imageY - roomBox.top) / roomBox.height) * 100));
   return { x, y };
+}
+
+/** Bild-Prozent → raum-relativ (0–100). Bei Polygon: Punkt zuerst in Shape clippen, dann BBox-Mapping. */
+export function imagePercentToRoomRelativeWithShape(room: RoomPlanRoom, imageX: number, imageY: number): { x: number; y: number } {
+  const box = getRoomBoundingBox(room);
+  if (!box || box.width <= 0 || box.height <= 0) return { x: 50, y: 50 };
+  const polygon = getRoomPolygon(room);
+  let px = imageX, py = imageY;
+  if (polygon && polygon.length >= 3) {
+    const clamped = clampPointToPolygon(imageX, imageY, polygon);
+    px = clamped.x;
+    py = clamped.y;
+  }
+  return imagePercentToRoomRelative(box, px, py);
 }
 
 export function getEntityIcon(hass: HomeAssistant | undefined, entityId: string): string {

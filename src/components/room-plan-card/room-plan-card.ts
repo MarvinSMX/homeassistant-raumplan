@@ -17,7 +17,7 @@ import {
 import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getRoomBoundaryList, getRoomBoundingBox, roomRelativeToImagePercent, type FlattenedEntity } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getRoomBoundaryList, getRoomBoundingBox, roomRelativeToImagePercentWithShape, type FlattenedEntity } from '../../lib/utils';
 import { repeat } from 'lit/directives/repeat.js';
 import { actionHandler } from '../../lib/action-handler';
 
@@ -246,19 +246,13 @@ export class RoomPlanCard extends LitElement {
     this._darkMode = ev.matches;
   };
 
-  /** Vollbild als „Raum-Box“, wenn der Raum noch keine Boundary hat (z. B. neuer Raum). */
-  private static readonly FULL_IMAGE_BOX = { left: 0, top: 0, width: 100, height: 100 };
-
-  /** Bild-Prozent (0–100) für ein Entity-Badge: raum-relativ wenn in Raum (fl.room), sonst ent.x/ent.y. */
+  /** Bild-Prozent (0–100) für ein Entity-Badge: raum-relativ, bei Polygon Centroid für 50/50 und Clamp in Shape. */
   private _getEntityImagePosition(fl: FlattenedEntity): { x: number; y: number } {
     const ent = fl.entity;
     const rx = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
     const ry = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
     const room = fl.room;
-    if (room) {
-      const box = getRoomBoundingBox(room) ?? RoomPlanCard.FULL_IMAGE_BOX;
-      return roomRelativeToImagePercent(box, rx, ry);
-    }
+    if (room) return roomRelativeToImagePercentWithShape(room, rx, ry);
     return { x: rx, y: ry };
   }
 
@@ -374,12 +368,13 @@ export class RoomPlanCard extends LitElement {
     const y2 = Math.min(100, Math.max(0, Number(zone.y2) ?? 100));
     const left = Math.min(x1, x2);
     const top = Math.min(y1, y2);
-    const width = Math.abs(x2 - x1) || 1;
-    const height = Math.abs(y2 - y1) || 1;
+    const right = Math.max(x1, x2);
+    const bottom = Math.max(y1, y2);
+    const clip = `${left}% ${top}%, ${right}% ${top}%, ${right}% ${bottom}%, ${left}% ${bottom}%`;
     return html`
       <div
         class="heatmap-zone"
-        style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;background:${bg}"
+        style="left:0;top:0;width:100%;height:100%;background:${bg};clip-path:polygon(${clip})"
         title="${zone.entity}: ${state ?? '?'}"
       ></div>
     `;

@@ -7,7 +7,7 @@ import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-h
 
 import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom } from '../../lib/types';
 import type { RoomBoundary } from '../../lib/utils';
-import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, roomRelativeToImagePercent, imagePercentToRoomRelative } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, roomRelativeToImagePercentWithShape, imagePercentToRoomRelativeWithShape } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -437,8 +437,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       const entityIndex = this._pickerFor.entityIndex;
       const rooms = this._getRooms();
       const room = rooms[roomIndex];
-      const box = room ? getRoomBoundingBox(room) : null;
-      const { x, y } = box ? imagePercentToRoomRelative(box, p.x, p.y) : { x: p.x, y: p.y };
+      const { x, y } = room ? imagePercentToRoomRelativeWithShape(room, p.x, p.y) : { x: p.x, y: p.y };
       this._updateRoomEntity(roomIndex, entityIndex, { x: round(x), y: round(y) });
       return;
     }
@@ -538,8 +537,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     if (this._pickerFor.type === 'position') {
       const rooms = this._getRooms();
       const room = rooms[roomIndex];
-      const box = room ? getRoomBoundingBox(room) : null;
-      const { x, y } = box ? imagePercentToRoomRelative(box, p.x, p.y) : { x: p.x, y: p.y };
+      const { x, y } = room ? imagePercentToRoomRelativeWithShape(room, p.x, p.y) : { x: p.x, y: p.y };
       this._updateRoomEntity(roomIndex, this._pickerFor.entityIndex, { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
       this._closePicker();
       return;
@@ -731,10 +729,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                       const ri = this._pickerFor!.roomIndex;
                       const rooms = this._getRooms();
                       const room = rooms[ri];
-                      const box = room ? getRoomBoundingBox(room) : null;
                       const rx = Number(pickerEntity.x) ?? 50;
                       const ry = Number(pickerEntity.y) ?? 50;
-                      const { x: px, y: py } = box ? roomRelativeToImagePercent(box, rx, ry) : { x: rx, y: ry };
+                      const { x: px, y: py } = room ? roomRelativeToImagePercentWithShape(room, rx, ry) : { x: rx, y: ry };
                       return html`<div class="picker-point draggable" style="left:${px}%;top:${py}%"
                         @mousedown=${(e: MouseEvent) => this._startPickerDragPosition(e)} @click=${(e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); }}></div>`;
                     })()
