@@ -7,7 +7,7 @@ import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-h
 
 import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom } from '../../lib/types';
 import type { RoomBoundary } from '../../lib/utils';
-import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, getEffectiveCategories, DEFAULT_CATEGORIES, getEntityCategoryId } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, getEffectiveCategories, getEntityCategoryId } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -121,7 +121,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _removeCategory(categoryId: string): void {
-    const list = Array.isArray(this._config.categories) ? [...this._config.categories] : [...DEFAULT_CATEGORIES];
+    const list = Array.isArray(this._config.categories) ? [...this._config.categories] : [];
     const next = list.filter((c) => c.id !== categoryId);
     this._updateConfig({ categories: next });
   }
@@ -130,7 +130,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const id = this._newCategoryId.trim();
     const label = this._newCategoryLabel.trim();
     if (!id || !label) return;
-    const list = Array.isArray(this._config.categories) ? [...this._config.categories] : [...DEFAULT_CATEGORIES];
+    const list = Array.isArray(this._config.categories) ? [...this._config.categories] : [];
     if (list.some((c) => c.id === id)) return;
     list.push({ id, label });
     this._updateConfig({ categories: list });

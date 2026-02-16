@@ -71,11 +71,10 @@ export const DEFAULT_CATEGORIES: { id: string; label: string }[] = [
   { id: 'smoke_detector', label: 'Rauchmelder' },
 ];
 
-/** Effektive Kategorien: config.categories wenn gesetzt (auch []), sonst DEFAULT_CATEGORIES. */
+/** Effektive Kategorien: nur die in der Config konfigurierten (keine Domänen-/Preset-Fallback-Tabs). */
 export function getEffectiveCategories(config: RoomPlanCardConfig | undefined): { id: string; label: string }[] {
   const list = config?.categories;
-  if (Array.isArray(list)) return list;
-  return DEFAULT_CATEGORIES;
+  return Array.isArray(list) ? list : [];
 }
 
 /** Kategorie-ID einer Entität für den Filter-Tab (category_id oder Fallback preset/default). */
