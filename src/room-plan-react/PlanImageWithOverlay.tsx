@@ -578,7 +578,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   .filter((b) => !isPolygonBoundary(b))
                   .map((b, bi) => {
                     const br = b as { x1: number; y1: number; x2: number; y2: number };
-                    const pos = slidingDoorPosition(br.x1, br.y1, br.x2, br.y2, isOpen, direction);
+                    const pos = slidingDoorPosition(br.x1, br.y1, br.x2, br.y2, false, direction);
                     return (
                       <g
                         key={`sliding-${ent.entity}-${bi}`}
@@ -596,18 +596,20 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                           strokeLinecap="butt"
                           strokeOpacity={opacity}
                         />
-                        <g transform={`translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg})`}>
-                          <line
-                            x1={-pos.halfLen}
-                            y1={0}
-                            x2={pos.halfLen}
-                            y2={0}
-                            stroke={doorColor}
-                            strokeWidth={thickness}
-                            strokeLinecap="butt"
-                            strokeOpacity={opacity}
-                          />
-                        </g>
+                        {!isOpen && (
+                          <g transform={`translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg})`}>
+                            <line
+                              x1={-pos.halfLen}
+                              y1={0}
+                              x2={pos.halfLen}
+                              y2={0}
+                              stroke={doorColor}
+                              strokeWidth={thickness}
+                              strokeLinecap="butt"
+                              strokeOpacity={opacity}
+                            />
+                          </g>
+                        )}
                       </g>
                     );
                   });
