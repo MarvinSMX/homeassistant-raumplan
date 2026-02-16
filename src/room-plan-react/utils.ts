@@ -23,7 +23,8 @@ export function intensityForTempInColorBand(temp: number): number {
     return Math.min(1, Math.max(0, (18 - temp) / 8));
   }
   if (temp < 24) {
-    return Math.min(1, Math.max(0, Math.abs(temp - 21) / 3));
+    const dist = Math.abs(temp - 21) / 2;
+    return Math.max(0.55, Math.min(1, dist));
   }
   return Math.min(1, Math.max(0, (temp - 24) / 4));
 }
