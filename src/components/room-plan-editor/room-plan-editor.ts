@@ -7,7 +7,7 @@ import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-h
 
 import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom } from '../../lib/types';
 import type { RoomBoundary } from '../../lib/utils';
-import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, roomRelativeToImagePercent, imagePercentToRoomRelative } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -404,7 +404,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const round = (v: number) => Math.round(v * 10) / 10;
     if (this._pickerDrag.kind === 'position' && this._pickerFor.type === 'position') {
       const entityIndex = this._pickerFor.entityIndex;
-      this._updateRoomEntity(roomIndex, entityIndex, { x: round(p.x), y: round(p.y) });
+      const rooms = this._getRooms();
+      const room = rooms[roomIndex];
+      const box = room ? getRoomBoundingBox(room) : null;
+      const { x, y } = box ? imagePercentToRoomRelative(box, p.x, p.y) : { x: p.x, y: p.y };
+      this._updateRoomEntity(roomIndex, entityIndex, { x: round(x), y: round(y) });
       return;
     }
     if (this._pickerDrag.kind === 'rect') {
@@ -501,7 +505,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     if (!p || !this._pickerFor) return;
     const roomIndex = this._pickerFor.roomIndex;
     if (this._pickerFor.type === 'position') {
-      this._updateRoomEntity(roomIndex, this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
+      const rooms = this._getRooms();
+      const room = rooms[roomIndex];
+      const box = room ? getRoomBoundingBox(room) : null;
+      const { x, y } = box ? imagePercentToRoomRelative(box, p.x, p.y) : { x: p.x, y: p.y };
+      this._updateRoomEntity(roomIndex, this._pickerFor.entityIndex, { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
       this._closePicker();
       return;
     }
@@ -627,7 +635,13 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
             <div class="picker-header">
               <span class="picker-title">
-                ${this._pickerFor.type === 'position' ? 'Position: einen Punkt klicken' : ''}
+                ${this._pickerFor.type === 'position'
+                  ? (() => {
+                      const r = this._getRooms()[this._pickerFor!.roomIndex];
+                      const rel = r && getRoomBoundingBox(r) ? ' (X/Y relativ zum Raum)' : '';
+                      return `Position: Punkt klicken oder ziehen${rel}`;
+                    })()
+                  : ''}
                 ${this._pickerFor.type === 'rect' || this._pickerFor.type === 'rectNew' ? 'Zone: zwei Punkte klicken (Ecke – gegenüberliegende Ecke)' : ''}
                 ${this._pickerFor.type === 'polygonNew' ? 'Polygon: Klicks setzen Punkte (mind. 3), dann Fertig' : ''}
                 ${this._pickerFor.type === 'polygon' ? 'Polygon bearbeiten: Punkte verschieben, dann Fertig' : ''}
@@ -682,8 +696,17 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   `;
                 })() : ''}
                 ${this._pickerFor?.type === 'position' && pickerEntity && Number(pickerEntity.x) != null && Number(pickerEntity.y) != null
-                  ? html`<div class="picker-point draggable" style="left:${Number(pickerEntity.x) ?? 50}%;top:${Number(pickerEntity.y) ?? 50}%"
-                      @mousedown=${(e: MouseEvent) => this._startPickerDragPosition(e)} @click=${(e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); }}></div>`
+                  ? (() => {
+                      const ri = this._pickerFor!.roomIndex;
+                      const rooms = this._getRooms();
+                      const room = rooms[ri];
+                      const box = room ? getRoomBoundingBox(room) : null;
+                      const rx = Number(pickerEntity.x) ?? 50;
+                      const ry = Number(pickerEntity.y) ?? 50;
+                      const { x: px, y: py } = box ? roomRelativeToImagePercent(box, rx, ry) : { x: rx, y: ry };
+                      return html`<div class="picker-point draggable" style="left:${px}%;top:${py}%"
+                        @mousedown=${(e: MouseEvent) => this._startPickerDragPosition(e)} @click=${(e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); }}></div>`;
+                    })()
                   : ''}
                 ${(this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'line' || this._pickerFor?.type === 'lineNew') ? pickerBoundaries.map((b, bi) => {
                   if (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew') { if (isPolygonBoundary(b)) return null; }
@@ -888,12 +911,15 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 <input type="color" .value=${ent.line_color_closed ?? '#9e9e9e'} title="Farbe zu"
                   @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_closed: (e.target as HTMLInputElement).value })} />
                 ` : ''}
-                <div class="entity-coords">
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
-                    @change=${(e: Event) => this._updateRoomEntity(ri, ei, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
-                  <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
-                    @change=${(e: Event) => this._updateRoomEntity(ri, ei, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
-                  <button type="button" class="btn-draw" @click=${() => this._openPickerPosition(ri, ei)} title="Position"><ha-icon icon="mdi:crosshairs-gps"></ha-icon></button>
+                <div class="entity-coords-wrap">
+                  <div class="entity-coords">
+                    <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
+                      @change=${(e: Event) => this._updateRoomEntity(ri, ei, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
+                    <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
+                      @change=${(e: Event) => this._updateRoomEntity(ri, ei, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
+                    <button type="button" class="btn-draw" @click=${() => this._openPickerPosition(ri, ei)} title="Position auf Plan setzen (raum-relativ)"><ha-icon icon="mdi:crosshairs-gps"></ha-icon></button>
+                  </div>
+                  ${getRoomBoundingBox(room) ? html`<span class="coords-hint">X/Y relativ zum Raum</span>` : ''}
                 </div>
                 <input type="number" class="entity-scale" min="0.3" max="2" step="0.1" .value=${String(Math.min(2, Math.max(0.3, Number(ent.scale) || 1)))} title="Skalierung"
                   @change=${(e: Event) => this._updateRoomEntity(ri, ei, { scale: Math.min(2, Math.max(0.3, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
@@ -1120,6 +1146,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         width: auto;
         min-width: 100px;
       }
+      .entity-coords-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
       .entity-coords {
         display: flex;
         gap: 6px;
@@ -1127,6 +1159,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       }
       .entity-coords input {
         width: clamp(44px, 12vw, 52px);
+      }
+      .coords-hint {
+        font-size: 0.75rem;
+        color: var(--secondary-text-color);
+        white-space: nowrap;
       }
       .entity-boundaries {
         display: flex;

@@ -81,6 +81,52 @@ export function getBoundariesForEntity(
   return getEntityBoundaries(ent);
 }
 
+/** Umgebendes Rechteck eines Raums in Bild-Prozent (0–100). Aus allen room.boundary-Zonen vereint. */
+export function getRoomBoundingBox(room: RoomPlanRoom): { left: number; top: number; width: number; height: number } | null {
+  const boundary = room?.boundary;
+  if (!Array.isArray(boundary) || boundary.length === 0) return null;
+  let left = 100;
+  let top = 100;
+  let right = 0;
+  let bottom = 0;
+  for (const b of boundary) {
+    const pts = getBoundaryPoints(b);
+    for (const p of pts) {
+      left = Math.min(left, p.x);
+      top = Math.min(top, p.y);
+      right = Math.max(right, p.x);
+      bottom = Math.max(bottom, p.y);
+    }
+  }
+  const width = Math.max(0, right - left);
+  const height = Math.max(0, bottom - top);
+  if (width <= 0 || height <= 0) return null;
+  return { left, top, width, height };
+}
+
+/** Raum-relative Koordinaten (0–100 innerhalb des Raums) in Bild-Prozent (0–100) umrechnen. */
+export function roomRelativeToImagePercent(
+  roomBox: { left: number; top: number; width: number; height: number },
+  rx: number,
+  ry: number
+): { x: number; y: number } {
+  const x = roomBox.left + (Math.min(100, Math.max(0, rx)) / 100) * roomBox.width;
+  const y = roomBox.top + (Math.min(100, Math.max(0, ry)) / 100) * roomBox.height;
+  return { x, y };
+}
+
+/** Bild-Prozent (0–100) in raum-relative Koordinaten (0–100) umrechnen. Für Editor beim Speichern. */
+export function imagePercentToRoomRelative(
+  roomBox: { left: number; top: number; width: number; height: number },
+  imageX: number,
+  imageY: number
+): { x: number; y: number } {
+  if (roomBox.width <= 0 || roomBox.height <= 0) return { x: 50, y: 50 };
+  const x = Math.min(100, Math.max(0, ((imageX - roomBox.left) / roomBox.width) * 100));
+  const y = Math.min(100, Math.max(0, ((imageY - roomBox.top) / roomBox.height) * 100));
+  return { x, y };
+}
+
 export function getEntityIcon(hass: HomeAssistant | undefined, entityId: string): string {
   const s = hass?.states?.[entityId];
   if (!s) return 'mdi:help-circle';

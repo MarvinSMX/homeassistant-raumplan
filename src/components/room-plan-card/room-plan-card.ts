@@ -17,7 +17,7 @@ import {
 import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getBoundariesForEntity } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getBoundariesForEntity, getRooms, getRoomBoundingBox, roomRelativeToImagePercent, type FlattenedEntity } from '../../lib/utils';
 import { actionHandler } from '../../lib/action-handler';
 
 import '../room-plan-editor/room-plan-editor';
@@ -106,12 +106,12 @@ export class RoomPlanCard extends LitElement {
     return idx > 0 ? entityId.slice(0, idx) : '';
   }
 
-  private _filteredEntities(): RoomPlanEntity[] {
+  /** Gefilterte Entitäten inkl. roomIndex für Koordinatenumrechnung (raum-relativ → Bild-%). */
+  private _filteredEntities(): FlattenedEntity[] {
     const flattened = getFlattenedEntities(this.config);
-    const entities = flattened.map((f) => f.entity);
-    if (this._activeFilter === HEATMAP_TAB) return []; // Nur Heatmap anzeigen
-    if (this._activeFilter === null || this._activeFilter === '') return entities;
-    return entities.filter((ent) => this._getEntityDomain(ent.entity) === this._activeFilter);
+    if (this._activeFilter === HEATMAP_TAB) return [];
+    if (this._activeFilter === null || this._activeFilter === '') return flattened;
+    return flattened.filter((f) => this._getEntityDomain(f.entity.entity) === this._activeFilter);
   }
 
   private _availableDomains(): string[] {
@@ -218,6 +218,20 @@ export class RoomPlanCard extends LitElement {
     this._darkMode = ev.matches;
   };
 
+  /** Bild-Prozent (0–100) für ein Entity-Badge: raum-relativ wenn Raum mit Boundary, sonst ent.x/ent.y. */
+  private _getEntityImagePosition(fl: FlattenedEntity): { x: number; y: number } {
+    const ent = fl.entity;
+    const rx = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
+    const ry = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
+    if (fl.roomIndex !== null) {
+      const rooms = getRooms(this.config);
+      const room = rooms[fl.roomIndex];
+      const box = room ? getRoomBoundingBox(room) : null;
+      if (box) return roomRelativeToImagePercent(box, rx, ry);
+    }
+    return { x: rx, y: ry };
+  }
+
   private _getEntityActionConfig(ent: RoomPlanEntity): {
     entity: string;
     tap_action?: import('custom-card-helpers').ActionConfig;
@@ -255,31 +269,26 @@ export class RoomPlanCard extends LitElement {
     return '#f44336';                  // rot (ab 24°C)
   }
 
-  private _renderEntity(ent: RoomPlanEntity): TemplateResult {
-    const x = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
-    const y = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
+  private _renderEntity(ent: RoomPlanEntity, imagePos: { x: number; y: number }): TemplateResult {
+    const x = imagePos.x;
+    const y = imagePos.y;
     const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
     const isOn = this.hass?.states?.[ent.entity]?.state === 'on';
     const icon = ent.icon || getEntityIcon(this.hass, ent.entity);
     const stateDisplay = getStateDisplay(this.hass, ent.entity);
     const title = `${getFriendlyName(this.hass, ent.entity)}: ${stateDisplay}`;
-    const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
 
     const preset = ent.preset ?? 'default';
-    let bgColor: string;
     let showValue = !!ent.show_value;
+    /** Farbe nur für Icons (nicht für Wert-Text). Bei Icon: ent.color, Temperatur-Preset oder „an“. */
+    let iconColor = '';
 
     if (preset === 'temperature') {
       showValue = true;
-      const state = this.hass?.states?.[ent.entity]?.state;
-      const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
-      const temp = Number.isFinite(num) ? num : 20;
-      const presetColor = this._temperatureColor(temp);
-      bgColor = this._hexToRgba(presetColor, opacity);
-    } else {
-      bgColor = ent.color
-        ? this._hexToRgba(ent.color, opacity)
-        : `rgba(45, 45, 45, ${opacity})`;
+      /* Wert-Text wird neutral dargestellt; Icon-Farbe hier nicht genutzt */
+    } else if (!showValue) {
+      if (isOn) iconColor = ent.color || 'var(--state-icon-on-color, var(--state-icon-active-color, #ffc107))';
+      else iconColor = ent.color || 'var(--primary-text-color, #e1e1e1)';
     }
 
     const actionConfig = this._getEntityActionConfig(ent);
@@ -289,7 +298,7 @@ export class RoomPlanCard extends LitElement {
     return html`
       <div
         class="entity-badge ${isOn ? 'entity-on' : ''} ${showValue ? 'entity-show-value' : ''}"
-        style="left:${x}%;top:${y}%;--entity-scale:${scale};--entity-bg:${bgColor}"
+        style="left:${x}%;top:${y}%;--entity-scale:${scale};--entity-icon-color:${iconColor}"
         title="${title}"
         tabindex="0"
         role="button"
@@ -453,7 +462,7 @@ export class RoomPlanCard extends LitElement {
               ${!this._imageLoaded && !this._imageError ? html`<div class="image-skeleton" aria-hidden="true"></div>` : ''}
               ${this._imageError ? html`<div class="image-error">Bild konnte nicht geladen werden</div>` : ''}
               <div class="entities-overlay">
-                ${this._filteredEntities().map((ent) => this._renderEntity(ent))}
+                ${this._filteredEntities().map((fl) => this._renderEntity(fl.entity, this._getEntityImagePosition(fl)))}
               </div>
             </div>
           </div>
@@ -676,9 +685,9 @@ export class RoomPlanCard extends LitElement {
         width: 100%;
         height: 100%;
         border-radius: 50%;
-        background: var(--entity-bg, rgba(45, 45, 45, 0.9));
-        color: var(--primary-text-color, #e1e1e1);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+        background: #fff;
+        color: var(--primary-text-color, #212121);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -690,6 +699,7 @@ export class RoomPlanCard extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
+        color: var(--entity-icon-color, var(--primary-text-color, #424242));
       }
       .entity-badge-inner .entity-value {
         font-size: calc(var(--icon-size) * 0.5);
@@ -701,6 +711,7 @@ export class RoomPlanCard extends LitElement {
         text-overflow: ellipsis;
         white-space: nowrap;
         padding: 0 2px;
+        color: var(--primary-text-color, #212121);
       }
       .entity-badge.entity-show-value .entity-badge-inner .entity-value {
         white-space: normal;
@@ -710,8 +721,8 @@ export class RoomPlanCard extends LitElement {
         -webkit-box-orient: vertical;
         line-clamp: 3;
       }
-      .entity-badge.entity-on .entity-badge-inner {
-        color: var(--state-icon-on-color, var(--state-icon-active-color, #ffc107));
+      .entity-badge.entity-on .entity-badge-inner ha-icon {
+        color: var(--entity-icon-color, var(--state-icon-on-color, var(--state-icon-active-color, #ffc107)));
       }
       .entity-badge,
       .entity-badge *,
