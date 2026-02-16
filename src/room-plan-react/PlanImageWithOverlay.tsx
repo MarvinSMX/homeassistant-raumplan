@@ -14,7 +14,7 @@ const HEATMAP_DIM_DURATION = 0.28;
 
 const SLIDING_DOOR_ANIMATION_MS = 350;
 
-/** Schiebetür: Türsegment-Position (t 0 = zu, 1 = offen). */
+/** Schiebetür: Außen fest, nur Innenseite verschieben (t 0 = zu, 1 = offen). Gibt Linie von außen nach innen. */
 function slidingDoorPosition(
   x1: number,
   y1: number,
@@ -23,69 +23,58 @@ function slidingDoorPosition(
   t: number,
   direction: 'left' | 'right',
   doorLengthRatio: number = 0.25
-): { cx: number; cy: number; angleDeg: number; halfLen: number } {
+): { outerX: number; outerY: number; innerX: number; innerY: number } {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L;
   const uy = dy / L;
-  const halfLen = (L * doorLengthRatio) / 2;
-  let cx: number;
-  let cy: number;
+  const doorLen = L * doorLengthRatio;
+  /* Innenseite: t=0 (zu) = in der Öffnung, t=1 (offen) = nach außen verschoben (Tür in Tasche) */
+  const innerOffset = doorLen * (1 - 2 * t);
   if (direction === 'right') {
-    const c0x = x2 - halfLen * ux;
-    const c0y = y2 - halfLen * uy;
-    const c1x = x1 + halfLen * ux;
-    const c1y = y1 + halfLen * uy;
-    cx = (1 - t) * c0x + t * c1x;
-    cy = (1 - t) * c0y + t * c1y;
-  } else {
-    const c0x = x1 + halfLen * ux;
-    const c0y = y1 + halfLen * uy;
-    const c1x = x2 - halfLen * ux;
-    const c1y = y2 - halfLen * uy;
-    cx = (1 - t) * c0x + t * c1x;
-    cy = (1 - t) * c0y + t * c1y;
+    return {
+      outerX: x2,
+      outerY: y2,
+      innerX: x2 + innerOffset * (-ux),
+      innerY: y2 + innerOffset * (-uy),
+    };
   }
-  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  return { cx, cy, angleDeg, halfLen };
+  return {
+    outerX: x1,
+    outerY: y1,
+    innerX: x1 + innerOffset * ux,
+    innerY: y1 + innerOffset * uy,
+  };
 }
 
-/** Doppelte Schiebetür: zwei Segmente (links/rechts), t 0 = zu (Mitte), 1 = offen (außen). */
+/** Doppelte Schiebetür: außen fest, Innenseite verschieben. t 0 = zu, 1 = offen. */
 function slidingDoorPositionDouble(
   x1: number,
   y1: number,
   x2: number,
   y2: number,
   t: number
-): { left: { cx: number; cy: number; angleDeg: number; halfLen: number }; right: { cx: number; cy: number; angleDeg: number; halfLen: number } } {
+): { left: { outerX: number; outerY: number; innerX: number; innerY: number }; right: { outerX: number; outerY: number; innerX: number; innerY: number } } {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L;
   const uy = dy / L;
-  const halfLen = L / 8;
-  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const leftCenterClosedX = x1 + (L / 4) * ux;
-  const leftCenterClosedY = y1 + (L / 4) * uy;
-  const leftCenterOpenX = x1 + (L / 8) * ux;
-  const leftCenterOpenY = y1 + (L / 8) * uy;
-  const rightCenterClosedX = x2 - (L / 4) * ux;
-  const rightCenterClosedY = y2 - (L / 4) * uy;
-  const rightCenterOpenX = x2 - (L / 8) * ux;
-  const rightCenterOpenY = y2 - (L / 8) * uy;
+  const doorLen = L / 4;
+  const innerOffset = doorLen * (1 - 2 * t);
   return {
     left: {
-      cx: (1 - t) * leftCenterClosedX + t * leftCenterOpenX,
-      cy: (1 - t) * leftCenterClosedY + t * leftCenterOpenY,
-      angleDeg,
-      halfLen,
+      outerX: x1,
+      outerY: y1,
+      innerX: x1 + innerOffset * ux,
+      innerY: y1 + innerOffset * uy,
     },
     right: {
-      cx: (1 - t) * rightCenterClosedX + t * rightCenterOpenX,
-      cy: (1 - t) * rightCenterClosedY + t * rightCenterOpenY,
-      angleDeg,
-      halfLen,
+      outerX: x2,
+      outerY: y2,
+      innerX: x2 - innerOffset * ux,
+      innerY: y2 - innerOffset * uy,
     },
   };
 }
@@ -136,19 +125,17 @@ function SlidingDoorSegments({
   const singlePos = direction !== 'double' && slidingDoorPosition(br.x1, br.y1, br.x2, br.y2, t, dir);
   const doublePos = direction === 'double' && slidingDoorPositionDouble(br.x1, br.y1, br.x2, br.y2, t);
 
-  const doorLine = (pos: { cx: number; cy: number; angleDeg: number; halfLen: number }) => (
-    <g transform={`translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg})`}>
-      <line
-        x1={-pos.halfLen}
-        y1={0}
-        x2={pos.halfLen}
-        y2={0}
-        stroke={doorColor}
-        strokeWidth={thickness}
-        strokeLinecap="butt"
-        strokeOpacity={opacity}
-      />
-    </g>
+  const doorLine = (pos: { outerX: number; outerY: number; innerX: number; innerY: number }) => (
+    <line
+      x1={pos.outerX}
+      y1={pos.outerY}
+      x2={pos.innerX}
+      y2={pos.innerY}
+      stroke={doorColor}
+      strokeWidth={thickness}
+      strokeLinecap="butt"
+      strokeOpacity={opacity}
+    />
   );
 
   if (direction === 'double' && doublePos) {
