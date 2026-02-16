@@ -7,7 +7,7 @@ import { gsap } from 'gsap';
 import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
-import { hexToRgba, temperatureColor, intensityForArea } from './utils';
+import { hexToRgba, temperatureColor, intensityForArea, intensityForTempInColorBand } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
 
 const HEATMAP_DIM_DURATION = 0.28;
@@ -107,7 +107,7 @@ function HeatmapEntityShape({
   }
   r = Math.max(r, 1);
   const areaApprox = 4 * r * r;
-  const intensity = intensityForArea(areaApprox);
+  const intensity = intensityForArea(areaApprox) * intensityForTempInColorBand(temp);
   const fillColor = hexToRgba(color, baseOpacity * intensity);
   const gradId = `heat-${entityId.replace(/\./g, '-')}`;
 
@@ -624,7 +624,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           {windowLineEntities.length > 0 &&
             (() => {
               const defTap = config?.tap_action ?? { action: 'more-info' as const };
-              const items: { key: string; x: number; y: number; isOpen: boolean; color: string; scale: number; ent: RoomPlanEntity; actionConfig: { entity: string; tap_action: import('custom-card-helpers').ActionConfig; hold_action?: import('custom-card-helpers').ActionConfig; double_tap_action?: import('custom-card-helpers').ActionConfig } }[] = [];
+              const items: { key: string; x: number; y: number; isOpen: boolean; color: string; thickness: number; ent: RoomPlanEntity; actionConfig: { entity: string; tap_action: import('custom-card-helpers').ActionConfig; hold_action?: import('custom-card-helpers').ActionConfig; double_tap_action?: import('custom-card-helpers').ActionConfig } }[] = [];
               for (const f of windowLineEntities) {
                 const ent = f.entity;
                 const state = hass?.states?.[ent.entity]?.state ?? '';
@@ -632,7 +632,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 const color = isOpen
                   ? (ent.line_color_open ?? 'var(--error-color, #f44336)')
                   : (ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)');
-                const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
+                const thickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
                 const actionConfig = {
                   entity: ent.entity,
                   tap_action: ent.tap_action ?? config?.tap_action ?? defTap,
@@ -651,7 +651,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                       y: Math.min(100, Math.max(0, y)),
                       isOpen,
                       color,
-                      scale,
+                      thickness,
                       ent,
                       actionConfig,
                     });
@@ -665,10 +665,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   }}
                   aria-hidden
                 >
-                  {items.map((item) => {
-                    const baseSize = 23;
-                    const size = Math.round(baseSize * item.scale);
-                    return (
+                  {items.map((item) => (
                     <div
                       key={item.key}
                       role="button"
@@ -684,10 +681,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: size,
-                        height: size,
-                        minWidth: size,
-                        minHeight: size,
+                        width: `max(8px, ${item.thickness}%)`,
+                        height: `max(8px, ${item.thickness}%)`,
+                        minWidth: 8,
+                        minHeight: 8,
                       }}
                       onClick={() => handleAction(host, hass, item.actionConfig, 'tap')}
                       onPointerDown={(ev) => ev.stopPropagation()}
@@ -702,8 +699,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                         }}
                       />
                     </div>
-                    );
-                  })}
+                  ))}
                 </div>
               );
             })()}
