@@ -1,13 +1,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'preact/hooks';
 import type { RoomPlanCardConfig } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
-import { FilterTabs, HEATMAP_TAB } from './FilterTabs';
+import { FilterTabs } from './FilterTabs';
 import { PlanImageWithOverlay } from './PlanImageWithOverlay';
 import type { FlattenedEntity } from '../lib/utils';
-import { getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
-
-/** Reihenfolge der Preset-Tabs (Temperatur = HEATMAP_TAB, wenn Heatmap-Zonen vorhanden). */
-const PRESET_ORDER: string[] = [HEATMAP_TAB, 'default', 'temperature', 'binary_sensor', 'window_contact', 'sliding_door', 'smoke_detector'];
+import { getFlattenedEntities, getBoundariesForEntity, getEffectiveCategories, getEntityCategoryId } from '../lib/utils';
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;
@@ -23,25 +20,14 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
     [config]
   );
 
-  const allTabIds = useMemo(() => {
+  const { allTabIds, categoryLabels } = useMemo(() => {
     const flattened = flattenedEntities;
-    const usedPresets = new Set<string>();
-    let hasHeatmap = false;
-    for (const f of flattened) {
-      const preset = f.entity.preset ?? 'default';
-      usedPresets.add(preset);
-      if (preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0) {
-        hasHeatmap = true;
-      }
-    }
-    const tabIds: string[] = [];
-    if (hasHeatmap) tabIds.push(HEATMAP_TAB);
-    for (const id of PRESET_ORDER) {
-      if (id === HEATMAP_TAB) continue;
-      if (id === 'temperature' && hasHeatmap) continue;
-      if (usedPresets.has(id)) tabIds.push(id);
-    }
-    return tabIds;
+    const categories = getEffectiveCategories(config);
+    const usedCategoryIds = new Set(flattened.map((f) => getEntityCategoryId(f.entity)));
+    const tabIds = categories.filter((c) => usedCategoryIds.has(c.id)).map((c) => c.id);
+    const labels: Record<string, string> = {};
+    for (const c of categories) labels[c.id] = c.label;
+    return { allTabIds: tabIds, categoryLabels: labels };
   }, [config, flattenedEntities]);
 
   const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());
@@ -79,7 +65,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   const hasHeatmapZones = useMemo(() => {
     return flattenedEntities.some((f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0);
   }, [config, flattenedEntities]);
-  const isTemperaturTabSelected = selectedTabs.has(HEATMAP_TAB);
+  const isTemperaturTabSelected = selectedTabs.has('temperature');
 
   const onImageLoad = useCallback((e: Event) => {
     const img = e.target as HTMLImageElement;
@@ -120,6 +106,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           config={config}
           hass={hass}
           allTabIds={allTabIds}
+          categoryLabels={categoryLabels}
           selectedTabs={selectedTabs}
           onSelectTab={onSelectTab}
           host={host}

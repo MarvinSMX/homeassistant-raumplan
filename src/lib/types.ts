@@ -24,6 +24,8 @@ export interface RoomPlanEntity {
   show_name?: boolean;
   /** Preset: temperature = Wert; binary_sensor = State; window_contact = Linie; sliding_door = Schiebetür (Linie + animierte Tür); smoke_detector = Rauchmelder */
   preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact' | 'sliding_door' | 'smoke_detector';
+  /** Kategorie für Filter-Tab (ID aus config.categories). Fehlt = preset als Kategorie (Abwärtskompatibilität). */
+  category_id?: string;
   /** Nur Temperatur: Attribut für den Wert (z. B. current_temperature bei Klimageräten). Leer = State; bei Domain climate automatisch current_temperature. */
   temperature_attribute?: string;
   /** Temperatur: mehrere Raum-/Heatmap-Zonen. Rechteck: x1,y1,x2,y2 (%). Polygon: points (beliebig viele Ecken). Fensterkontakt: eine Linie = ein Eintrag (x1,y1,x2,y2). */
@@ -93,6 +95,8 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   alert_entities?: string[];
   /** Aktion beim Klick auf das Meldungs-Badge (optional) */
   alert_badge_action?: ActionConfig;
+  /** Kategorien für Filter-Tabs (id + Anzeigename). Fehlt/leer = Standard-Kategorien (entfernbar im Editor). */
+  categories?: { id: string; label: string }[];
   /** Räume: jeder Raum hat Boundary + Entities (Temperatur, Licht etc. nutzen Raumboundary). */
   rooms?: RoomPlanRoom[];
   /** @deprecated Nutze rooms[].entities. Flache Entitätsliste für Abwärtskompatibilität. */

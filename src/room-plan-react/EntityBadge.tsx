@@ -90,6 +90,10 @@ export function EntityBadge(props: EntityBadgeProps) {
     if (isAlert) {
       iconColorOverride = 'var(--error-color, #db4437)';
     }
+  } else if (preset === 'sliding_door') {
+    displayIcon = ent.icon || 'mdi:door-sliding';
+    const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
+    iconColorOverride = isOpen ? 'var(--state-icon-active-color, #4caf50)' : 'var(--primary-text-color)';
   } else if (ent.color) {
     accentColor = ent.color;
   } else if (isOn) {
@@ -165,6 +169,7 @@ export function EntityBadge(props: EntityBadgeProps) {
   const isIconOnly =
     preset === 'window_contact' ||
     preset === 'smoke_detector' ||
+    preset === 'sliding_door' ||
     ent.show_name === false;
   const isSmokeAlert =
     preset === 'smoke_detector' &&

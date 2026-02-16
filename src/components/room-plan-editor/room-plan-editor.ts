@@ -7,7 +7,7 @@ import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-h
 
 import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom } from '../../lib/types';
 import type { RoomBoundary } from '../../lib/utils';
-import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, getEffectiveCategories, DEFAULT_CATEGORIES, getEntityCategoryId } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -39,6 +39,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   @state() private _pickerContentRect: { left: number; top: number; width: number; height: number } | null = null;
   /** Eingeklappte Räume (Indizes) zur Übersicht. */
   @state() private _roomCollapsed = new Set<number>();
+  /** Neue Kategorie (ID / Label) beim Hinzufügen. */
+  @state() private _newCategoryId = '';
+  @state() private _newCategoryLabel = '';
 
   /** Beim Ziehen eines bestehenden Punkts (Position / Rechteck-Ecke / Linien-Endpunkt / Polygon-Ecke) */
   @state() private _pickerDrag:
@@ -106,10 +109,33 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
       alert_entities: Array.isArray(base.alert_entities) ? base.alert_entities : undefined,
       alert_badge_action: base.alert_badge_action,
+      categories: Array.isArray(base.categories) ? base.categories : undefined,
       image_dark: base.image_dark,
       dark_mode_filter: base.dark_mode_filter,
       dark_mode: base.dark_mode,
     };
+  }
+
+  private _getEffectiveCategories(): { id: string; label: string }[] {
+    return getEffectiveCategories(this._config);
+  }
+
+  private _removeCategory(categoryId: string): void {
+    const list = Array.isArray(this._config.categories) ? [...this._config.categories] : [...DEFAULT_CATEGORIES];
+    const next = list.filter((c) => c.id !== categoryId);
+    this._updateConfig({ categories: next.length ? next : undefined });
+  }
+
+  private _addCategory(): void {
+    const id = this._newCategoryId.trim();
+    const label = this._newCategoryLabel.trim();
+    if (!id || !label) return;
+    const list = Array.isArray(this._config.categories) ? [...this._config.categories] : [...DEFAULT_CATEGORIES];
+    if (list.some((c) => c.id === id)) return;
+    list.push({ id, label });
+    this._updateConfig({ categories: list });
+    this._newCategoryId = '';
+    this._newCategoryLabel = '';
   }
 
   private _emitConfig(): void {
@@ -831,6 +857,25 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           </div>
         </section>
         <section class="editor-section">
+          <h4 class="section-title"><ha-icon icon="mdi:tag-multiple"></ha-icon> Kategorien (Filter-Tabs)</h4>
+          <p class="section-hint">Kategorien erscheinen als Tabs. Entitäten mit derselben Kategorie werden gemeinsam ein-/ausgeblendet. Standard-Kategorien sind entfernbar.</p>
+          <div class="entity-boundaries" style="margin-bottom: 10px;">
+            ${this._getEffectiveCategories().map((c) => html`
+              <span class="category-chip" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; margin: 4px; border-radius: 8px; background: var(--secondary-background-color); border: 1px solid var(--divider-color);">
+                <span>${c.label}</span>
+                <button type="button" class="btn-remove" title="Kategorie entfernen" @click=${() => this._removeCategory(c.id)}><ha-icon icon="mdi:close"></ha-icon></button>
+              </span>
+            `)}
+          </div>
+          <div class="entity-coords-wrap" style="flex-wrap: wrap; gap: 8px; align-items: center;">
+            <input type="text" .value=${this._newCategoryId} @input=${(e: Event) => { this._newCategoryId = (e.target as HTMLInputElement).value; }} placeholder="ID (z. B. lights)"
+              style="width: 120px;" />
+            <input type="text" .value=${this._newCategoryLabel} @input=${(e: Event) => { this._newCategoryLabel = (e.target as HTMLInputElement).value; }} placeholder="Anzeigename"
+              style="width: 140px;" />
+            <button type="button" class="btn-add-small" @click=${() => this._addCategory()}><ha-icon icon="mdi:plus"></ha-icon> Kategorie hinzufügen</button>
+          </div>
+        </section>
+        <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:door-open"></ha-icon> Räume</h4>
           <p class="section-hint">Jeder Raum hat eine Boundary (Heatmap/Abdunkeln). Darin liegende Entities (Temperatur, Licht etc.) nutzen diese.</p>
           <div class="room-list">
@@ -904,6 +949,14 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="window_contact">Fensterkontakt</option>
                   <option value="sliding_door">Schiebetür</option>
                   <option value="smoke_detector">Rauchmelder</option>
+                </select>
+                <span class="boundaries-label" title="Filter-Tab">Kategorie:</span>
+                <select class="entity-category" .value=${getEntityCategoryId(ent)}
+                  @change=${(e: Event) => {
+                    const v = (e.target as HTMLSelectElement).value;
+                    this._updateRoomEntity(ri, ei, { category_id: v === (ent.preset ?? 'default') ? undefined : v });
+                  }}>
+                  ${this._getEffectiveCategories().map((c) => html`<option value=${c.id}>${c.label}</option>`)}
                 </select>
                 ${(ent.preset === 'temperature') ? html`
                   <span class="hint-inline">(nutzt Raumboundary)</span>
@@ -1256,7 +1309,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       .entity-row input.entity-icon {
         width: clamp(90px, 22vw, 120px);
       }
-      .entity-row select.entity-preset {
+      .entity-row select.entity-preset,
+      .entity-row select.entity-category {
         width: auto;
         min-width: 100px;
       }

@@ -61,6 +61,28 @@ export function getRooms(config: RoomPlanCardConfig | undefined): RoomPlanRoom[]
   return [];
 }
 
+/** Standard-Kategorien für Filter-Tabs (entsprechen den bisherigen Presets), im Editor entfernbar. */
+export const DEFAULT_CATEGORIES: { id: string; label: string }[] = [
+  { id: 'default', label: 'Standard' },
+  { id: 'temperature', label: 'Temperatur' },
+  { id: 'binary_sensor', label: 'Binary Sensor' },
+  { id: 'window_contact', label: 'Fensterkontakt' },
+  { id: 'sliding_door', label: 'Schiebetür' },
+  { id: 'smoke_detector', label: 'Rauchmelder' },
+];
+
+/** Effektive Kategorien: config.categories falls gesetzt und nicht leer, sonst DEFAULT_CATEGORIES. */
+export function getEffectiveCategories(config: RoomPlanCardConfig | undefined): { id: string; label: string }[] {
+  const list = config?.categories;
+  if (Array.isArray(list) && list.length > 0) return list;
+  return DEFAULT_CATEGORIES;
+}
+
+/** Kategorie-ID einer Entität für den Filter-Tab (category_id oder Fallback preset/default). */
+export function getEntityCategoryId(ent: RoomPlanEntity): string {
+  return ent.category_id ?? ent.preset ?? 'default';
+}
+
 /** Ein Eintrag in der flachen Entity-Liste inkl. Herkunft (Raum oder Legacy). */
 export interface FlattenedEntity {
   entity: RoomPlanEntity;

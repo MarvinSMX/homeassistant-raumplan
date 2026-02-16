@@ -4,11 +4,11 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, hasEntityCoords } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { hexToRgba, temperatureColor, intensityForArea } from './utils';
-import { HEATMAP_TAB } from './FilterTabs';
+import { getEntityCategoryId } from '../lib/utils';
 
 const HEATMAP_DIM_DURATION = 0.28;
 
@@ -291,14 +291,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const filteredEntities =
     selectedTabs.size === 0
       ? []
-      : flattened.filter((f) => {
-          const preset = f.entity.preset ?? 'default';
-          if (preset === 'temperature') return selectedTabs.has(HEATMAP_TAB);
-          return selectedTabs.has(preset);
-        });
-  /* Badges: gleiche Filter wie Tabs (filteredEntities), ohne Fensterkontakt/Schiebetür (nur Linien/Shapes). */
+      : flattened.filter((f) => selectedTabs.has(getEntityCategoryId(f.entity)));
+  /* Badges: ohne Fensterkontakt (nur Linie). Schiebetür nur mit optionaler Position (x,y) = frei platzierbares Icon-Badge. */
   const badgeEntities = filteredEntities.filter(
-    (f) => f.entity.preset !== 'window_contact' && f.entity.preset !== 'sliding_door'
+    (f) => f.entity.preset !== 'window_contact' && (f.entity.preset !== 'sliding_door' || hasEntityCoords(f.entity))
   );
   const windowLineEntities = filteredEntities.filter(
     (f) => f.entity.preset === 'window_contact' && getEntityBoundaries(f.entity).length > 0
@@ -409,7 +405,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             </div>
           )}
           {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an; pro Entity ein Shape (bei mehreren Boundaries ein gemeinsames SVG) */}
-          {zones.length > 0 && selectedTabs.has(HEATMAP_TAB) && showHeatmapOverlay && (() => {
+          {zones.length > 0 && selectedTabs.has('temperature') && showHeatmapOverlay && (() => {
             const byEntity = new Map<string, HeatmapZone[]>();
             for (const z of zones) {
               const list = byEntity.get(z.entity) ?? [];
@@ -533,6 +529,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                     onClick={() => handleAction(host, hass, actionConfig, 'tap')}
                     onPointerDown={(ev) => ev.stopPropagation()}
                   >
+                    <line
+                      x1={br.x1}
+                      y1={br.y1}
+                      x2={br.x2}
+                      y2={br.y2}
+                      stroke="transparent"
+                      strokeWidth={10}
+                      strokeLinecap="butt"
+                    />
                     <line
                       x1={br.x1}
                       y1={br.y1}

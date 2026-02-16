@@ -1,30 +1,19 @@
 import { handleAction, forwardHaptic } from 'custom-card-helpers';
 import type { RoomPlanCardConfig } from '../lib/types';
 
-export const HEATMAP_TAB = '__heatmap__';
-
-/** Anzeigenamen der Preset-/Filter-Tabs. */
-const PRESET_LABELS: Record<string, string> = {
-  [HEATMAP_TAB]: 'Temperatur',
-  default: 'Standard',
-  temperature: 'Temperatur',
-  binary_sensor: 'Binary Sensor',
-  window_contact: 'Fensterkontakt',
-  sliding_door: 'Schiebetür',
-  smoke_detector: 'Rauchmelder',
-};
-
 interface FilterTabsProps {
   config: RoomPlanCardConfig;
   hass: { states?: Record<string, { state?: string }> } | null;
   allTabIds: string[];
+  /** Anzeigename pro Tab-ID (aus Kategorien). */
+  categoryLabels: Record<string, string>;
   selectedTabs: Set<string>;
   onSelectTab: (id: string | null) => void;
   host: HTMLElement;
 }
 
 export function FilterTabs(props: FilterTabsProps) {
-  const { config, hass, allTabIds, selectedTabs, onSelectTab, host } = props;
+  const { config, hass, allTabIds, categoryLabels, selectedTabs, onSelectTab, host } = props;
   const alertEntities = config?.alert_entities ?? [];
 
   const tabIds: (string | null)[] = [null, ...allTabIds];
@@ -103,7 +92,7 @@ export function FilterTabs(props: FilterTabsProps) {
                 }
               }}
             >
-              {id === null ? 'Alle' : (PRESET_LABELS[id] ?? id)}
+              {id === null ? 'Alle' : (categoryLabels[id] ?? id)}
             </button>
           );
         })}
