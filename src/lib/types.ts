@@ -40,8 +40,8 @@ export interface RoomPlanEntity {
   line_color_closed?: string;
   /** Nur Fensterkontakt: Schloss-Symbol „über“ oder „unter“ der Linie (Status offen/zu). */
   window_icon_position?: 'above' | 'below';
-  /** Nur Schiebetür: Richtung, in die die Tür beim Öffnen schiebt (links = von links nach rechts öffnen). */
-  sliding_door_direction?: 'left' | 'right';
+  /** Nur Schiebetür: Richtung (links/rechts = eine Tür; doppelt = zwei Türen, eine links eine rechts, auffahrend). */
+  sliding_door_direction?: 'left' | 'right' | 'double';
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */

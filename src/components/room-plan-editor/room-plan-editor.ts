@@ -1031,9 +1031,10 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 <span class="boundaries-label">Richtung:</span>
                 <select title="Schieberichtung beim Öffnen"
                   .value=${ent.sliding_door_direction ?? 'left'}
-                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { sliding_door_direction: (e.target as HTMLSelectElement).value as 'left' | 'right' })}>
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { sliding_door_direction: (e.target as HTMLSelectElement).value as 'left' | 'right' | 'double' })}>
                   <option value="left">Links (Tür schiebt nach rechts)</option>
                   <option value="right">Rechts (Tür schiebt nach links)</option>
+                  <option value="double">Doppelt (zwei Türen, auf-/zufahren)</option>
                 </select>
                 <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
                   @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />

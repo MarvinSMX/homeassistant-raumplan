@@ -12,13 +12,15 @@ import { getEntityCategoryId } from '../lib/utils';
 
 const HEATMAP_DIM_DURATION = 0.28;
 
-/** Schiebetür: Türsegment-Position (Mittelpunkt cx,cy und Winkel) in Abhängigkeit von Öffnung und Richtung. */
+const SLIDING_DOOR_ANIMATION_MS = 350;
+
+/** Schiebetür: Türsegment-Position (t 0 = zu, 1 = offen). */
 function slidingDoorPosition(
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-  isOpen: boolean,
+  t: number,
   direction: 'left' | 'right',
   doorLengthRatio: number = 0.25
 ): { cx: number; cy: number; angleDeg: number; halfLen: number } {
@@ -28,7 +30,6 @@ function slidingDoorPosition(
   const ux = dx / L;
   const uy = dy / L;
   const halfLen = (L * doorLengthRatio) / 2;
-  const t = isOpen ? 1 : 0;
   let cx: number;
   let cy: number;
   if (direction === 'right') {
@@ -48,6 +49,120 @@ function slidingDoorPosition(
   }
   const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
   return { cx, cy, angleDeg, halfLen };
+}
+
+/** Doppelte Schiebetür: zwei Segmente (links/rechts), t 0 = zu (Mitte), 1 = offen (außen). */
+function slidingDoorPositionDouble(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  t: number
+): { left: { cx: number; cy: number; angleDeg: number; halfLen: number }; right: { cx: number; cy: number; angleDeg: number; halfLen: number } } {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const L = Math.hypot(dx, dy) || 1;
+  const ux = dx / L;
+  const uy = dy / L;
+  const halfLen = L / 8;
+  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const leftCenterClosedX = x1 + (L / 4) * ux;
+  const leftCenterClosedY = y1 + (L / 4) * uy;
+  const leftCenterOpenX = x1 + (L / 8) * ux;
+  const leftCenterOpenY = y1 + (L / 8) * uy;
+  const rightCenterClosedX = x2 - (L / 4) * ux;
+  const rightCenterClosedY = y2 - (L / 4) * uy;
+  const rightCenterOpenX = x2 - (L / 8) * ux;
+  const rightCenterOpenY = y2 - (L / 8) * uy;
+  return {
+    left: {
+      cx: (1 - t) * leftCenterClosedX + t * leftCenterOpenX,
+      cy: (1 - t) * leftCenterClosedY + t * leftCenterOpenY,
+      angleDeg,
+      halfLen,
+    },
+    right: {
+      cx: (1 - t) * rightCenterClosedX + t * rightCenterOpenX,
+      cy: (1 - t) * rightCenterClosedY + t * rightCenterOpenY,
+      angleDeg,
+      halfLen,
+    },
+  };
+}
+
+/** Animierte Schiebetür-Segmente (eine oder zwei Türen je nach direction). */
+function SlidingDoorSegments({
+  br,
+  isOpen,
+  direction,
+  doorColor,
+  thickness,
+  opacity,
+}: {
+  br: { x1: number; y1: number; x2: number; y2: number };
+  isOpen: boolean;
+  direction: 'left' | 'right' | 'double';
+  doorColor: string;
+  thickness: number;
+  opacity: number;
+}) {
+  const targetT = isOpen ? 1 : 0;
+  const [t, setT] = useState(targetT);
+  const tRef = useRef(t);
+  tRef.current = t;
+  const rafRef = useRef<number>(0);
+  const startRef = useRef<{ t: number; time: number }>({ t: 0, time: 0 });
+
+  useEffect(() => {
+    const currentT = tRef.current;
+    if (currentT === targetT) return;
+    startRef.current = { t: currentT, time: performance.now() };
+    const duration = SLIDING_DOOR_ANIMATION_MS;
+    const startT = currentT;
+
+    const tick = (now: number) => {
+      const elapsed = now - startRef.current.time;
+      const frac = Math.min(1, elapsed / duration);
+      const ease = frac < 0.5 ? 2 * frac * frac : 1 - Math.pow(-2 * frac + 2, 2) / 2;
+      const newT = startT + (targetT - startT) * ease;
+      setT(newT);
+      if (frac < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [targetT]);
+
+  const dir = direction === 'double' ? 'left' : direction;
+  const singlePos = direction !== 'double' && slidingDoorPosition(br.x1, br.y1, br.x2, br.y2, t, dir);
+  const doublePos = direction === 'double' && slidingDoorPositionDouble(br.x1, br.y1, br.x2, br.y2, t);
+
+  const doorLine = (pos: { cx: number; cy: number; angleDeg: number; halfLen: number }) => (
+    <g transform={`translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg})`}>
+      <line
+        x1={-pos.halfLen}
+        y1={0}
+        x2={pos.halfLen}
+        y2={0}
+        stroke={doorColor}
+        strokeWidth={thickness}
+        strokeLinecap="butt"
+        strokeOpacity={opacity}
+      />
+    </g>
+  );
+
+  if (direction === 'double' && doublePos) {
+    return (
+      <>
+        {doorLine(doublePos.left)}
+        {doorLine(doublePos.right)}
+      </>
+    );
+  }
+  if (direction !== 'double' && singlePos) {
+    return doorLine(singlePos);
+  }
+  return null;
 }
 
 /** Punkte einer HeatmapZone (Rechteck = 4 Ecken, Polygon = zone.points). */
@@ -583,7 +698,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   .filter((b) => !isPolygonBoundary(b))
                   .map((b, bi) => {
                     const br = b as { x1: number; y1: number; x2: number; y2: number };
-                    const pos = slidingDoorPosition(br.x1, br.y1, br.x2, br.y2, false, direction);
                     return (
                       <g
                         key={`sliding-${ent.entity}-${bi}`}
@@ -601,20 +715,14 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                           strokeLinecap="butt"
                           strokeOpacity={opacity}
                         />
-                        {!isOpen && (
-                          <g transform={`translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg})`}>
-                            <line
-                              x1={-pos.halfLen}
-                              y1={0}
-                              x2={pos.halfLen}
-                              y2={0}
-                              stroke={doorColor}
-                              strokeWidth={thickness}
-                              strokeLinecap="butt"
-                              strokeOpacity={opacity}
-                            />
-                          </g>
-                        )}
+                        <SlidingDoorSegments
+                          br={br}
+                          isOpen={isOpen}
+                          direction={direction}
+                          doorColor={doorColor}
+                          thickness={thickness}
+                          opacity={opacity}
+                        />
                       </g>
                     );
                   });
