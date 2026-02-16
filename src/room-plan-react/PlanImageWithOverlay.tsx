@@ -12,6 +12,28 @@ import { HEATMAP_TAB } from './FilterTabs';
 
 const HEATMAP_DIM_DURATION = 0.28;
 
+/** Icon-Position über/unter einer Linie: Mittelpunkt + senkrechter Offset (in viewBox %). */
+function windowIconPosition(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  position: 'above' | 'below',
+  offsetPercent: number = 4
+): { x: number; y: number } {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  const nx = (dy / len) * offsetPercent;
+  const ny = (-dx / len) * offsetPercent;
+  if (position === 'above') {
+    return { x: mx + nx, y: my + ny };
+  }
+  return { x: mx - nx, y: my - ny };
+}
+
 /** Punkte einer HeatmapZone (Rechteck = 4 Ecken, Polygon = zone.points). */
 function getZonePoints(z: HeatmapZone): { x: number; y: number }[] {
   if ('points' in z && Array.isArray(z.points) && z.points.length >= 3) return z.points;
@@ -501,6 +523,86 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               })}
             </svg>
           )}
+          {windowLineEntities.length > 0 &&
+            (() => {
+              const defTap = config?.tap_action ?? { action: 'more-info' as const };
+              const items: { key: string; x: number; y: number; isOpen: boolean; color: string; ent: RoomPlanEntity; actionConfig: { entity: string; tap_action: import('custom-card-helpers').ActionConfig; hold_action?: import('custom-card-helpers').ActionConfig; double_tap_action?: import('custom-card-helpers').ActionConfig } }[] = [];
+              for (const f of windowLineEntities) {
+                const ent = f.entity;
+                const state = hass?.states?.[ent.entity]?.state ?? '';
+                const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
+                const color = isOpen
+                  ? (ent.line_color_open ?? 'var(--error-color, #f44336)')
+                  : (ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)');
+                const pos = ent.window_icon_position ?? 'above';
+                const actionConfig = {
+                  entity: ent.entity,
+                  tap_action: ent.tap_action ?? config?.tap_action ?? defTap,
+                  hold_action: ent.hold_action ?? config?.hold_action,
+                  double_tap_action: ent.double_tap_action ?? config?.double_tap_action,
+                };
+                getEntityBoundaries(ent)
+                  .filter((b) => !isPolygonBoundary(b))
+                  .forEach((b, bi) => {
+                    const br = b as { x1: number; y1: number; x2: number; y2: number };
+                    const { x, y } = windowIconPosition(br.x1, br.y1, br.x2, br.y2, pos);
+                    items.push({
+                      key: `${ent.entity}-${bi}`,
+                      x: Math.min(100, Math.max(0, x)),
+                      y: Math.min(100, Math.max(0, y)),
+                      isOpen,
+                      color,
+                      ent,
+                      actionConfig,
+                    });
+                  });
+              }
+              return (
+                <div
+                  style={{
+                    ...overlayBoxStyle,
+                    pointerEvents: 'none',
+                  }}
+                  aria-hidden
+                >
+                  {items.map((item) => (
+                    <div
+                      key={item.key}
+                      role="button"
+                      tabIndex={0}
+                      title={`${item.ent.entity}: ${item.isOpen ? 'Offen' : 'Zu'}`}
+                      style={{
+                        position: 'absolute',
+                        left: `${item.x}%`,
+                        top: `${item.y}%`,
+                        transform: 'translate(-50%, -50%)',
+                        pointerEvents: 'auto',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 'clamp(18px, 4vw, 28px)',
+                        height: 'clamp(18px, 4vw, 28px)',
+                        minWidth: 18,
+                        minHeight: 18,
+                      }}
+                      onClick={() => handleAction(host, hass, item.actionConfig, 'tap')}
+                      onPointerDown={(ev) => ev.stopPropagation()}
+                    >
+                      <ha-icon
+                        icon={item.isOpen ? 'mdi:lock-open' : 'mdi:lock'}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          color: item.color,
+                          display: 'block',
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           <div style={{ ...overlayBoxStyle, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', minWidth: '100%', minHeight: '100%' }}>
               {badgeEntities.map((f, i) => {

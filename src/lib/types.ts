@@ -34,6 +34,8 @@ export interface RoomPlanEntity {
   line_color_open?: string;
   /** Nur Fensterkontakt: Farbe wenn zu (Standard Grau). */
   line_color_closed?: string;
+  /** Nur Fensterkontakt: Schloss-Symbol „über“ oder „unter“ der Linie (Status offen/zu). */
+  window_icon_position?: 'above' | 'below';
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */

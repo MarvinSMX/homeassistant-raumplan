@@ -928,6 +928,13 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_open: (e.target as HTMLInputElement).value })} />
                 <input type="color" .value=${ent.line_color_closed ?? '#9e9e9e'} title="Farbe zu"
                   @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_closed: (e.target as HTMLInputElement).value })} />
+                <span class="boundaries-label" title="Schloss-Symbol (Offen/Zu)">Schloss:</span>
+                <select title="Schloss über oder unter der Linie"
+                  .value=${ent.window_icon_position ?? 'above'}
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { window_icon_position: (e.target as HTMLSelectElement).value as 'above' | 'below' })}>
+                  <option value="above">Über der Linie</option>
+                  <option value="below">Unter der Linie</option>
+                </select>
                 ` : ''}
                 <div class="entity-coords-wrap">
                   <div class="entity-coords">
