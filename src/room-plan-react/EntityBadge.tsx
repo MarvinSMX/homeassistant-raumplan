@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'preact/hooks';
 import { handleAction, hasAction } from 'custom-card-helpers';
 import type { HomeAssistant } from 'custom-card-helpers';
 import type { RoomPlanEntity, RoomBoundaryItem } from '../lib/types';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries } from '../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, getEntityCoord } from '../lib/utils';
 import { temperatureColor } from './utils';
 import { MdiIcon } from './MdiIcon';
 import { gsap } from 'gsap';
@@ -27,8 +27,8 @@ function toNum(val: unknown, fallback: number): number {
 
 export function EntityBadge(props: EntityBadgeProps) {
   const { ent, hass, host, tapAction, holdAction, doubleTapAction, onRoomPressStart, onRoomPressEnd } = props;
-  const x = Math.min(100, Math.max(0, toNum(ent.x, 50)));
-  const y = Math.min(100, Math.max(0, toNum(ent.y, 50)));
+  const x = Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? toNum(ent.x, 50)));
+  const y = Math.min(100, Math.max(0, getEntityCoord(ent, 'y') ?? toNum(ent.y, 50)));
   const scale = Math.min(2, Math.max(0.3, toNum(ent.scale, 1)));
   const isOn = hass?.states?.[ent.entity]?.state === 'on';
   const icon = ent.icon || getEntityIcon(hass, ent.entity);

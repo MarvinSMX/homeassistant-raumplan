@@ -9,7 +9,9 @@ declare global {
 
 export interface RoomPlanEntity {
   entity: string;
+  /** X-Position in % des gesamten Plans (0–100), nicht raum-relativ. */
   x?: number;
+  /** Y-Position in % des gesamten Plans (0–100), nicht raum-relativ. */
   y?: number;
   scale?: number;
   color?: string;
