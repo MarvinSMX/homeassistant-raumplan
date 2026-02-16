@@ -166,7 +166,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _addRoomEntity(roomIndex: number): void {
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
-    const entities = [...(rooms[roomIndex].entities ?? []), { entity: '', x: 50, y: 50 }];
+    const entities = [...(rooms[roomIndex].entities ?? []), { entity: '' }];
     rooms[roomIndex] = { ...rooms[roomIndex], entities };
     this._updateConfig({ rooms });
   }

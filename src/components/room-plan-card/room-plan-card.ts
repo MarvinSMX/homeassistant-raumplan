@@ -17,7 +17,7 @@ import {
 import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getRoomBoundaryList, getRoomBoundingBox, roomRelativeToImagePercentWithShape, type FlattenedEntity } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getRoomBoundaryList, getRoomBoundingBox, getRoomShapeCenter, roomRelativeToImagePercentWithShape, type FlattenedEntity } from '../../lib/utils';
 import { repeat } from 'lit/directives/repeat.js';
 import { actionHandler } from '../../lib/action-handler';
 
@@ -52,6 +52,8 @@ export class RoomPlanCard extends LitElement {
   @state() private _imageAspect = 16 / 9;
   /** Aktiver Tab: null = Alle, HEATMAP_TAB oder Preset-ID (z. B. smoke_detector) */
   @state() private _activeFilter: string | null = null;
+  /** Eindeutiger Key der gerade gehoverten Badge (nur diese bekommt Hover-Effekt). */
+  @state() private _hoveredBadgeKey: string | null = null;
   /** Dark Mode (System/Theme), für Bild-Filter oder image_dark */
   @state() private _darkMode = false;
 
@@ -217,7 +219,8 @@ export class RoomPlanCard extends LitElement {
       changedProps.has('_imageLoaded') ||
       changedProps.has('_imageError') ||
       changedProps.has('_imageAspect') ||
-      changedProps.has('_darkMode')
+      changedProps.has('_darkMode') ||
+      changedProps.has('_hoveredBadgeKey')
     )
       return true;
     return hasConfigOrEntityChanged(this, changedProps, false);
@@ -246,13 +249,25 @@ export class RoomPlanCard extends LitElement {
     this._darkMode = ev.matches;
   };
 
-  /** Bild-Prozent (0–100) für ein Entity-Badge: raum-relativ, bei Polygon Centroid für 50/50 und Clamp in Shape. */
+  /**
+   * Bild-Prozent (0–100) für ein Entity-Badge.
+   * Im Raum: ausschließlich Koordinatensystem des Raums (0–100); keine x/y = Default = Raummitte.
+   */
   private _getEntityImagePosition(fl: FlattenedEntity): { x: number; y: number } {
     const ent = fl.entity;
+    const room = fl.room;
+    if (room) {
+      const hasCoords = ent.x != null && ent.y != null;
+      if (!hasCoords) {
+        const center = getRoomShapeCenter(room);
+        return center ?? { x: 50, y: 50 };
+      }
+      const rx = Math.min(100, Math.max(0, Number(ent.x)));
+      const ry = Math.min(100, Math.max(0, Number(ent.y)));
+      return roomRelativeToImagePercentWithShape(room, rx, ry);
+    }
     const rx = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
     const ry = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
-    const room = fl.room;
-    if (room) return roomRelativeToImagePercentWithShape(room, rx, ry);
     return { x: rx, y: ry };
   }
 
@@ -321,10 +336,11 @@ export class RoomPlanCard extends LitElement {
     const hasHold = hasAction(actionConfig.hold_action);
     const hasDbl = hasAction(actionConfig.double_tap_action);
 
+    const isHovered = this._hoveredBadgeKey === fl.uniqueKey;
     return html`
       <div
         id="rp-${fl.uniqueKey}"
-        class="entity-badge ${isOn ? 'entity-on' : ''} ${showValue ? 'entity-show-value' : ''}"
+        class="entity-badge ${isOn ? 'entity-on' : ''} ${showValue ? 'entity-show-value' : ''} ${isHovered ? 'badge-hovered' : ''}"
         data-room-index="${fl.roomIndex ?? ''}"
         data-entity-index="${fl.entityIndexInRoom}"
         data-unique-key="${fl.uniqueKey}"
@@ -332,6 +348,8 @@ export class RoomPlanCard extends LitElement {
         title="${title}"
         tabindex="0"
         role="button"
+        @mouseenter=${() => { this._hoveredBadgeKey = fl.uniqueKey; }}
+        @mouseleave=${() => { if (this._hoveredBadgeKey === fl.uniqueKey) this._hoveredBadgeKey = null; }}
         .actionHandler=${actionHandler({ hasHold, hasDoubleClick: hasDbl })}
         @action=${(e: ActionHandlerEvent) => this._handleEntityAction(e, ent)}
       >
@@ -720,7 +738,7 @@ export class RoomPlanCard extends LitElement {
         transition: transform 0.2s ease;
         isolation: isolate;
       }
-      .entity-badge:hover {
+      .entity-badge.badge-hovered {
         transform: translate(-50%, -50%) scale(1.08);
       }
       .entity-badge-inner {
