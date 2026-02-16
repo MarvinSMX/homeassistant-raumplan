@@ -106,22 +106,24 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           style={{
             position: 'absolute',
             inset: 0,
+            zIndex: 0,
             pointerEvents: 'none',
-            backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.2)) 1px, transparent 1px)',
+            backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.12)) 1px, transparent 1px)',
             backgroundSize: '12px 12px',
             backgroundPosition: '0 0',
           }}
         />
-        <FilterTabs
-          config={config}
-          hass={hass}
-          allTabIds={allTabIds}
-          categoryLabels={categoryLabels}
-          selectedTabs={selectedTabs}
-          onSelectTab={onSelectTab}
-          host={host}
-        />
-        <PlanImageWithOverlay
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, minWidth: 0 }}>
+          <FilterTabs
+            config={config}
+            hass={hass}
+            allTabIds={allTabIds}
+            categoryLabels={categoryLabels}
+            selectedTabs={selectedTabs}
+            onSelectTab={onSelectTab}
+            host={host}
+          />
+          <PlanImageWithOverlay
           config={config}
           flattenedEntities={flattenedEntities}
           hass={hass}
@@ -134,7 +136,8 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           imageError={imageError}
           onImageLoad={onImageLoad}
           onImageError={onImageError}
-        />
+          />
+        </div>
         {hasHeatmapZones && isTemperaturTabSelected && (
           <div
             style={{
