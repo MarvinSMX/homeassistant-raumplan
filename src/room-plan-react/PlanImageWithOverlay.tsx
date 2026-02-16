@@ -552,6 +552,18 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       }}
     >
       <div style={fillBoxStyle}>
+        {/* Grid als Card-/Workspace-Hintergrund (voller Bereich, nicht mit Plan mitbewegt) */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.2)) 1px, transparent 1px)',
+            backgroundSize: '12px 12px',
+            backgroundPosition: '0 0',
+          }}
+        />
         <div
           ref={panZoomWrapRef}
           style={{
@@ -566,31 +578,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           onPointerUp={handlePanZoomPointerUp}
           onPointerLeave={handlePanZoomPointerUp}
         >
-          {/* Workspace-Grid (n8n/React-Flow-Style) hinter dem Plan */}
-          <svg
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: '100%',
-              height: '100%',
-              pointerEvents: 'none',
-            }}
-            aria-hidden
-          >
-            <defs>
-              <pattern id="roomplan-grid-dots" width="5" height="5" patternUnits="userSpaceOnUse">
-                <circle cx="2.5" cy="2.5" r="0.2" fill="var(--secondary-text-color, rgba(0,0,0,0.15))" fillOpacity="0.4" />
-              </pattern>
-              <pattern id="roomplan-grid-lines" width="5" height="5" patternUnits="userSpaceOnUse">
-                <path d="M 5 0 L 0 0 0 5" fill="none" stroke="var(--divider-color, rgba(0,0,0,0.12))" strokeWidth="0.08" />
-              </pattern>
-            </defs>
-            <rect width="100" height="100" fill="var(--ha-card-background)" />
-            <rect width="100" height="100" fill="url(#roomplan-grid-dots)" />
-          </svg>
           <img
             src={resolvedSrc}
             alt="Raumplan"
