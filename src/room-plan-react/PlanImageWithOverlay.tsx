@@ -566,7 +566,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 const trackColor = ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)';
                 const doorColor = ent.line_color_open ?? 'var(--primary-color, #03a9f4)';
                 const thickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
-                const doorThickness = Math.min(4, Math.max(thickness, thickness * 1.4));
                 const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
                 const direction = ent.sliding_door_direction ?? 'left';
                 const actionConfig = {
@@ -597,21 +596,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                           strokeLinecap="butt"
                           strokeOpacity={opacity}
                         />
-                        <g
-                          style={{
-                            transform: `translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg}deg)`,
-                            transformOrigin: '0 0',
-                            transition: 'transform 0.35s ease-out',
-                          }}
-                        >
+                        <g transform={`translate(${pos.cx}, ${pos.cy}) rotate(${pos.angleDeg})`}>
                           <line
                             x1={-pos.halfLen}
                             y1={0}
                             x2={pos.halfLen}
                             y2={0}
                             stroke={doorColor}
-                            strokeWidth={doorThickness}
-                            strokeLinecap="round"
+                            strokeWidth={thickness}
+                            strokeLinecap="butt"
                             strokeOpacity={opacity}
                           />
                         </g>
@@ -621,88 +614,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               })}
             </svg>
           )}
-          {windowLineEntities.length > 0 &&
-            (() => {
-              const defTap = config?.tap_action ?? { action: 'more-info' as const };
-              const items: { key: string; x: number; y: number; isOpen: boolean; color: string; thickness: number; ent: RoomPlanEntity; actionConfig: { entity: string; tap_action: import('custom-card-helpers').ActionConfig; hold_action?: import('custom-card-helpers').ActionConfig; double_tap_action?: import('custom-card-helpers').ActionConfig } }[] = [];
-              for (const f of windowLineEntities) {
-                const ent = f.entity;
-                const state = hass?.states?.[ent.entity]?.state ?? '';
-                const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
-                const color = isOpen
-                  ? (ent.line_color_open ?? 'var(--error-color, #f44336)')
-                  : (ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)');
-                const thickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
-                const actionConfig = {
-                  entity: ent.entity,
-                  tap_action: ent.tap_action ?? config?.tap_action ?? defTap,
-                  hold_action: ent.hold_action ?? config?.hold_action,
-                  double_tap_action: ent.double_tap_action ?? config?.double_tap_action,
-                };
-                getEntityBoundaries(ent)
-                  .filter((b) => !isPolygonBoundary(b))
-                  .forEach((b, bi) => {
-                    const br = b as { x1: number; y1: number; x2: number; y2: number };
-                    const x = (br.x1 + br.x2) / 2;
-                    const y = (br.y1 + br.y2) / 2;
-                    items.push({
-                      key: `${ent.entity}-${bi}`,
-                      x: Math.min(100, Math.max(0, x)),
-                      y: Math.min(100, Math.max(0, y)),
-                      isOpen,
-                      color,
-                      thickness,
-                      ent,
-                      actionConfig,
-                    });
-                  });
-              }
-              return (
-                <div
-                  style={{
-                    ...overlayBoxStyle,
-                    pointerEvents: 'none',
-                  }}
-                  aria-hidden
-                >
-                  {items.map((item) => (
-                    <div
-                      key={item.key}
-                      role="button"
-                      tabIndex={0}
-                      title={`${item.ent.entity}: ${item.isOpen ? 'Offen' : 'Zu'}`}
-                      style={{
-                        position: 'absolute',
-                        left: `${item.x}%`,
-                        top: `${item.y}%`,
-                        transform: 'translate(-50%, -50%)',
-                        pointerEvents: 'auto',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: `max(8px, ${item.thickness}%)`,
-                        height: `max(8px, ${item.thickness}%)`,
-                        minWidth: 8,
-                        minHeight: 8,
-                      }}
-                      onClick={() => handleAction(host, hass, item.actionConfig, 'tap')}
-                      onPointerDown={(ev) => ev.stopPropagation()}
-                    >
-                      <ha-icon
-                        icon={item.isOpen ? 'mdi:lock-open' : 'mdi:lock'}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          color: '#fff',
-                          display: 'block',
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
           <div style={{ ...overlayBoxStyle, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
             <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', minWidth: '100%', minHeight: '100%' }}>
               {badgeEntities.map((f, i) => {
