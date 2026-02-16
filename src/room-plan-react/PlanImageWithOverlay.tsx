@@ -7,7 +7,7 @@ import { gsap } from 'gsap';
 import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
-import { hexToRgba, temperatureColor, intensityForArea, intensityForTempInColorBand } from './utils';
+import { hexToRgba, temperatureColor, intensityForArea } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
 
 const HEATMAP_DIM_DURATION = 0.28;
@@ -107,7 +107,7 @@ function HeatmapEntityShape({
   }
   r = Math.max(r, 1);
   const areaApprox = 4 * r * r;
-  const intensity = intensityForArea(areaApprox) * intensityForTempInColorBand(temp);
+  const intensity = intensityForArea(areaApprox);
   const fillColor = hexToRgba(color, baseOpacity * intensity);
   const gradId = `heat-${entityId.replace(/\./g, '-')}`;
 

@@ -1,7 +1,7 @@
 import type { HeatmapZone as HeatmapZoneType } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { getTemperatureFromEntity } from '../lib/utils';
-import { hexToRgba, temperatureColor, intensityForArea, intensityForTempInColorBand } from './utils';
+import { hexToRgba, temperatureColor, intensityForArea } from './utils';
 
 function isZonePolygon(z: HeatmapZoneType): z is HeatmapZoneType & { points: { x: number; y: number }[] } {
   return Array.isArray((z as { points?: { x: number; y: number }[] }).points) && (z as { points: { x: number; y: number }[] }).points.length >= 3;
@@ -33,7 +33,7 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
     }
     r = Math.max(r, 1);
     const areaApprox = 4 * r * r;
-    const intensity = intensityForArea(areaApprox) * intensityForTempInColorBand(temp);
+    const intensity = intensityForArea(areaApprox);
     const opacity = baseOpacity * intensity;
     const bg = hexToRgba(color, opacity);
     const polygonGradient = `radial-gradient(ellipse ${r * 2}% ${r * 2}% at ${cx}% ${cy}%, transparent 0%, ${bg} 100%)`;
@@ -65,7 +65,7 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
   const width = Math.abs(x2 - x1) || 1;
   const height = Math.abs(y2 - y1) || 1;
   const area = width * height;
-  const intensity = intensityForArea(area) * intensityForTempInColorBand(temp);
+  const intensity = intensityForArea(area);
   const opacity = baseOpacity * intensity;
   const bg = hexToRgba(color, opacity);
   const gradientBg = `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, ${bg} 100%)`;
