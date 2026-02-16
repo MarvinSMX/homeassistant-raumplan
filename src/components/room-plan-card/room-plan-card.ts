@@ -83,10 +83,15 @@ export class RoomPlanCard extends LitElement {
       config?.image && typeof config.image === 'string'
         ? config.image
         : (config?.image as { location?: string })?.location ?? '';
-    // Tiefe Kopie von rooms/entities, damit X/Y-Updates aus dem Editor sicher ankommen und die Karte neu rendert
-    const rooms = Array.isArray(config?.rooms)
-      ? JSON.parse(JSON.stringify(config.rooms)) as RoomPlanCardConfig['rooms']
+    // Tiefe Kopie von rooms/entities, damit X/Y-Updates aus dem Editor sicher ankommen und die Karte neu rendert.
+    // rooms nie mit undefined überschreiben, wenn bereits vorhanden – sonst werden (0,0) als Bild- statt Raumkoordinaten gelesen.
+    const roomsFromConfig = Array.isArray(config?.rooms)
+      ? (JSON.parse(JSON.stringify(config.rooms)) as RoomPlanCardConfig['rooms'])
       : undefined;
+    const rooms =
+      roomsFromConfig !== undefined && roomsFromConfig.length > 0
+        ? roomsFromConfig
+        : (this.config?.rooms?.length ? this.config.rooms : undefined);
     const entities = Array.isArray(config?.entities)
       ? JSON.parse(JSON.stringify(config.entities))
       : [];
