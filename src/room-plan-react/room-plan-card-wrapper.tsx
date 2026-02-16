@@ -38,7 +38,6 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
     entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
     alert_entities: Array.isArray(config?.alert_entities) ? config.alert_entities : undefined,
     alert_badge_action: config?.alert_badge_action,
-    categories: Array.isArray(config?.categories) ? config.categories : undefined,
     image_dark: config?.image_dark,
     dark_mode_filter: config?.dark_mode_filter,
     dark_mode: config?.dark_mode,

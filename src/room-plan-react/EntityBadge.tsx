@@ -223,6 +223,7 @@ export function EntityBadge(props: EntityBadgeProps) {
               minWidth: '2.75em',
               minHeight: '2.75em',
               borderRadius: 9999,
+              position: 'relative',
             }
           : {}),
       }}

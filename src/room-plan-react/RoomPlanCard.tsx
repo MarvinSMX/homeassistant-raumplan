@@ -21,12 +21,14 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   );
 
   const { allTabIds, categoryLabels } = useMemo(() => {
+    const flattened = flattenedEntities;
     const categories = getEffectiveCategories(config);
-    const tabIds = categories.map((c) => c.id);
+    const usedCategoryIds = new Set(flattened.map((f) => getEntityCategoryId(f.entity)));
+    const tabIds = categories.filter((c) => usedCategoryIds.has(c.id)).map((c) => c.id);
     const labels: Record<string, string> = {};
     for (const c of categories) labels[c.id] = c.label;
     return { allTabIds: tabIds, categoryLabels: labels };
-  }, [config]);
+  }, [config, flattenedEntities]);
 
   const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());
   const tabsInitialized = useRef(false);
