@@ -484,13 +484,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   return (
     <div
-      className="flex-1 min-h-0 overflow-hidden w-full min-w-0"
+      className="flex-1 min-h-0 w-full min-w-0"
       style={{
         transform: `rotate(${rotation}deg)`,
         minHeight: 280,
         width: '100%',
+        maxWidth: '100%',
         minWidth: 0,
         position: 'relative',
+        overflow: 'hidden',
       }}
     >
       <div style={fillBoxStyle}>
@@ -734,7 +736,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             </svg>
           )}
           <div style={{ ...overlayBoxStyle, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
-            <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', minWidth: '100%', minHeight: '100%' }}>
+            <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', width: '100%', height: '100%' }}>
               {badgeEntities.map((f, i) => {
                 const ent = f.entity;
                 const bounds = getBoundariesForEntity(config, f.roomIndex, ent);
