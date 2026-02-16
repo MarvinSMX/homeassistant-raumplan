@@ -49,6 +49,8 @@ export interface FlattenedEntity {
   entity: RoomPlanEntity;
   roomIndex: number | null;
   entityIndexInRoom: number;
+  /** Direkte Referenz auf den Raum (wenn in Raum), damit die Position immer dem richtigen Raum zugeordnet wird. */
+  room: RoomPlanRoom | null;
 }
 
 /** Liefert alle Entities flach: aus rooms[].entities, oder bei leerem rooms aus config.entities (Legacy). */
@@ -56,12 +58,22 @@ export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): Fl
   const rooms = getRooms(config);
   if (rooms.length > 0) {
     const fromRooms = rooms.flatMap((room, roomIndex) =>
-      (room.entities ?? []).map((entity, entityIndexInRoom) => ({ entity, roomIndex, entityIndexInRoom }))
+      (room.entities ?? []).map((entity, entityIndexInRoom) => ({
+        entity,
+        roomIndex,
+        entityIndexInRoom,
+        room,
+      }))
     );
     if (fromRooms.length > 0) return fromRooms;
   }
   if (!config || !Array.isArray(config.entities)) return [];
-  return config.entities.map((entity, entityIndexInRoom) => ({ entity, roomIndex: null, entityIndexInRoom }));
+  return config.entities.map((entity, entityIndexInRoom) => ({
+    entity,
+    roomIndex: null,
+    entityIndexInRoom,
+    room: null,
+  }));
 }
 
 /** Liefert die Boundary-Liste eines Raums (room.boundary oder room.boundaries). */
