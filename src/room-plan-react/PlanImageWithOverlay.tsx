@@ -50,28 +50,6 @@ function slidingDoorPosition(
   return { cx, cy, angleDeg, halfLen };
 }
 
-/** Icon-Position über/unter einer Linie: Mittelpunkt + senkrechter Offset (in viewBox %). */
-function windowIconPosition(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  position: 'above' | 'below',
-  offsetPercent: number = 4
-): { x: number; y: number } {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy) || 1;
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-  const nx = (dy / len) * offsetPercent;
-  const ny = (-dx / len) * offsetPercent;
-  if (position === 'above') {
-    return { x: mx + nx, y: my + ny };
-  }
-  return { x: mx - nx, y: my - ny };
-}
-
 /** Punkte einer HeatmapZone (Rechteck = 4 Ecken, Polygon = zone.points). */
 function getZonePoints(z: HeatmapZone): { x: number; y: number }[] {
   if ('points' in z && Array.isArray(z.points) && z.points.length >= 3) return z.points;
@@ -646,7 +624,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           {windowLineEntities.length > 0 &&
             (() => {
               const defTap = config?.tap_action ?? { action: 'more-info' as const };
-              const items: { key: string; x: number; y: number; isOpen: boolean; color: string; ent: RoomPlanEntity; actionConfig: { entity: string; tap_action: import('custom-card-helpers').ActionConfig; hold_action?: import('custom-card-helpers').ActionConfig; double_tap_action?: import('custom-card-helpers').ActionConfig } }[] = [];
+              const items: { key: string; x: number; y: number; isOpen: boolean; color: string; scale: number; ent: RoomPlanEntity; actionConfig: { entity: string; tap_action: import('custom-card-helpers').ActionConfig; hold_action?: import('custom-card-helpers').ActionConfig; double_tap_action?: import('custom-card-helpers').ActionConfig } }[] = [];
               for (const f of windowLineEntities) {
                 const ent = f.entity;
                 const state = hass?.states?.[ent.entity]?.state ?? '';
@@ -654,7 +632,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 const color = isOpen
                   ? (ent.line_color_open ?? 'var(--error-color, #f44336)')
                   : (ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)');
-                const pos = ent.window_icon_position ?? 'above';
+                const scale = Math.min(2, Math.max(0.3, Number(ent.scale) ?? 1));
                 const actionConfig = {
                   entity: ent.entity,
                   tap_action: ent.tap_action ?? config?.tap_action ?? defTap,
@@ -665,13 +643,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   .filter((b) => !isPolygonBoundary(b))
                   .forEach((b, bi) => {
                     const br = b as { x1: number; y1: number; x2: number; y2: number };
-                    const { x, y } = windowIconPosition(br.x1, br.y1, br.x2, br.y2, pos);
+                    const x = (br.x1 + br.x2) / 2;
+                    const y = (br.y1 + br.y2) / 2;
                     items.push({
                       key: `${ent.entity}-${bi}`,
                       x: Math.min(100, Math.max(0, x)),
                       y: Math.min(100, Math.max(0, y)),
                       isOpen,
                       color,
+                      scale,
                       ent,
                       actionConfig,
                     });
@@ -685,7 +665,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   }}
                   aria-hidden
                 >
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const baseSize = 23;
+                    const size = Math.round(baseSize * item.scale);
+                    return (
                     <div
                       key={item.key}
                       role="button"
@@ -701,10 +684,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: 'clamp(18px, 4vw, 28px)',
-                        height: 'clamp(18px, 4vw, 28px)',
-                        minWidth: 18,
-                        minHeight: 18,
+                        width: size,
+                        height: size,
+                        minWidth: size,
+                        minHeight: size,
                       }}
                       onClick={() => handleAction(host, hass, item.actionConfig, 'tap')}
                       onPointerDown={(ev) => ev.stopPropagation()}
@@ -714,12 +697,13 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                         style={{
                           width: '100%',
                           height: '100%',
-                          color: item.color,
+                          color: '#fff',
                           display: 'block',
                         }}
                       />
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })()}
