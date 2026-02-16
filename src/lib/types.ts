@@ -42,6 +42,8 @@ export interface RoomPlanEntity {
   window_icon_position?: 'above' | 'below';
   /** Nur Schiebetür: Richtung (links/rechts = eine Tür; doppelt = zwei Türen, eine links eine rechts, auffahrend). */
   sliding_door_direction?: 'left' | 'right' | 'double';
+  /** Nur Schiebetür: Dicke der Tür-Linie (unabhängig von line_thickness = Führung). Fehlt = wie line_thickness. */
+  sliding_door_door_thickness?: number;
   /** Tap-Aktion (Klick) – default: more-info */
   tap_action?: ActionConfig;
   /** Hold-Aktion (langes Drücken) */

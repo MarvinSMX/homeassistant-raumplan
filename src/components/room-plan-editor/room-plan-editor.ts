@@ -1036,8 +1036,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="right">Rechts (Tür schiebt nach links)</option>
                   <option value="double">Doppelt (zwei Türen, auf-/zufahren)</option>
                 </select>
-                <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Liniendicke"
+                <span class="boundaries-label" title="Führungsschiene">Führung:</span>
+                <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1)))} title="Dicke Führungsschiene"
                   @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
+                <span class="boundaries-label" title="Tür-Linie">Tür:</span>
+                <input type="number" min="0.2" max="3" step="0.1" .value=${String(Math.min(3, Math.max(0.2, Number(ent.sliding_door_door_thickness) ?? Number(ent.line_thickness) ?? 1)))} title="Dicke Tür-Linie"
+                  @change=${(e: Event) => this._updateRoomEntity(ri, ei, { sliding_door_door_thickness: Math.min(3, Math.max(0.2, Number((e.target as HTMLInputElement).value) || 1)) })} />
                 <input type="color" .value=${ent.line_color_closed ?? '#9e9e9e'} title="Farbe Führungsschiene (BG)"
                   @change=${(e: Event) => this._updateRoomEntity(ri, ei, { line_color_closed: (e.target as HTMLInputElement).value })} />
                 <input type="color" .value=${ent.line_color_open ?? '#03a9f4'} title="Farbe Tür"

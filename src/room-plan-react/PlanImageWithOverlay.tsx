@@ -14,22 +14,21 @@ const HEATMAP_DIM_DURATION = 0.28;
 
 const SLIDING_DOOR_ANIMATION_MS = 350;
 
-/** Schiebetür: nur innerhalb der Linie. Zu = breiter (bis kurz vor Mitte), Offen = dünner (kurz vor Ende), Länge nie negativ. */
+/** Schiebetür: nur verschieben innerhalb der Linie. Zu = Tür bis Mitte (L/2), Offen = kurz vor Ende. Kein Skalieren. */
 function slidingDoorPosition(
   x1: number,
   y1: number,
   x2: number,
   y2: number,
   t: number,
-  direction: 'left' | 'right',
-  _doorLengthRatio?: number
+  direction: 'left' | 'right'
 ): { outerX: number; outerY: number; innerX: number; innerY: number } {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L;
   const uy = dy / L;
-  const closedLen = L * 0.49;
+  const closedLen = L / 2;
   const openLen = Math.max(L * 0.06, 0.5);
   const doorLen = openLen + (closedLen - openLen) * (1 - t);
   if (direction === 'right') {
@@ -48,7 +47,7 @@ function slidingDoorPosition(
   };
 }
 
-/** Doppelte Schiebetür: nur innerhalb der Linie. Zu = beide breit bis kurz vor verbunden, Offen = beide dünn kurz vor Ende, nie negativ. */
+/** Doppelte Schiebetür: nur verschieben. Zu = beide genau L/2, komplett aneinander in der Mitte. Offen = kurz vor Ende. */
 function slidingDoorPositionDouble(
   x1: number,
   y1: number,
@@ -61,7 +60,7 @@ function slidingDoorPositionDouble(
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L;
   const uy = dy / L;
-  const closedLen = L * 0.49;
+  const closedLen = L / 2;
   const openLen = Math.max(L * 0.06, 0.5);
   const doorLen = openLen + (closedLen - openLen) * (1 - t);
   return {
@@ -676,7 +675,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 const isOpen = ['on', 'open', 'opening'].includes(String(state).toLowerCase());
                 const trackColor = ent.line_color_closed ?? 'var(--secondary-text-color, #9e9e9e)';
                 const doorColor = ent.line_color_open ?? 'var(--primary-color, #03a9f4)';
-                const thickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
+                const trackThickness = Math.min(3, Math.max(0.2, Number(ent.line_thickness) ?? 1));
+                const doorThickness = Math.min(3, Math.max(0.2, Number(ent.sliding_door_door_thickness) ?? trackThickness));
                 const opacity = Math.min(1, Math.max(0, Number(ent.background_opacity) ?? 1));
                 const direction = ent.sliding_door_direction ?? 'left';
                 const actionConfig = {
@@ -702,7 +702,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                           x2={br.x2}
                           y2={br.y2}
                           stroke={trackColor}
-                          strokeWidth={thickness}
+                          strokeWidth={trackThickness}
                           strokeLinecap="butt"
                           strokeOpacity={opacity}
                         />
@@ -711,7 +711,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                           isOpen={hoveredSlidingDoorEntityId === ent.entity ? false : isOpen}
                           direction={direction}
                           doorColor={doorColor}
-                          thickness={thickness}
+                          thickness={doorThickness}
                           opacity={opacity}
                         />
                       </g>
