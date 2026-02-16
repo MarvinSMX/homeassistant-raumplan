@@ -732,8 +732,18 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             </svg>
           )}
           <div style={{ ...overlayBoxStyle, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
-            <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', minWidth: '100%', minHeight: '100%' }}>
-              {badgeEntities.map((f, i) => {
+            <div
+              style={{
+                ...overlayBoxStyle,
+                pointerEvents: 'auto',
+                visibility: 'visible',
+                minWidth: '100%',
+                minHeight: '100%',
+                overflow: 'hidden',
+                isolation: 'isolate',
+              }}
+            >
+              {badgeEntities.map((f) => {
                 const ent = f.entity;
                 const bounds = getBoundariesForEntity(config, f.roomIndex, ent);
                 const hasBounds = bounds.length > 0;
@@ -759,7 +769,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                     : getEntityDisplayPosition(f.room ?? null, ent);
                 return (
                   <EntityBadge
-                    key={`${ent.entity}-${f.roomIndex ?? -1}-${f.entityIndexInRoom}-${i}`}
+                    key={f.uniqueKey}
                     ent={ent}
                     hass={hass}
                     host={host}
