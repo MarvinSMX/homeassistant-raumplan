@@ -51,6 +51,8 @@ export interface FlattenedEntity {
   entityIndexInRoom: number;
   /** Direkte Referenz auf den Raum (wenn in Raum), damit die Position immer dem richtigen Raum zugeordnet wird. */
   room: RoomPlanRoom | null;
+  /** Eindeutige ID pro Entity-Instanz: nur (roomIndex, entityIndexInRoom), nie entity_id. */
+  uniqueKey: string;
 }
 
 /** Liefert alle Entities flach: aus rooms[].entities, oder bei leerem rooms aus config.entities (Legacy). */
@@ -63,6 +65,7 @@ export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): Fl
         roomIndex,
         entityIndexInRoom,
         room,
+        uniqueKey: `room-${roomIndex}-ent-${entityIndexInRoom}`,
       }))
     );
     if (fromRooms.length > 0) return fromRooms;
@@ -73,6 +76,7 @@ export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): Fl
     roomIndex: null,
     entityIndexInRoom,
     room: null,
+    uniqueKey: `legacy-ent-${entityIndexInRoom}`,
   }));
 }
 
@@ -210,10 +214,24 @@ export function getRoomShapeCenter(room: RoomPlanRoom | undefined): { x: number;
   };
 }
 
+/** Punkt (px, py) auf Rechteck begrenzen (Bild-Prozent). */
+export function clampPointToBox(
+  px: number,
+  py: number,
+  box: { left: number; top: number; width: number; height: number }
+): { x: number; y: number } {
+  const right = box.left + box.width;
+  const bottom = box.top + box.height;
+  return {
+    x: Math.max(box.left, Math.min(right, px)),
+    y: Math.max(box.top, Math.min(bottom, py)),
+  };
+}
+
 /**
  * Raum-relativ (rx, ry) 0–100 → Bild-Prozent.
- * Bei Polygon: 50/50 = Centroid; Ergebnis immer innerhalb der Raumform (Clamp bei Polygon).
- * Bei Rechteck: wie bisher BBox-Mapping.
+ * Immer nur innerhalb des Raums: bei Polygon Clamp auf Polygon, bei Rechteck Clamp auf BBox.
+ * Bei Polygon: 50/50 = Centroid.
  */
 export function roomRelativeToImagePercentWithShape(
   room: RoomPlanRoom,
@@ -232,7 +250,8 @@ export function roomRelativeToImagePercentWithShape(
     const raw = roomRelativeToImagePercent(box, rx2, ry2);
     return clampPointToPolygon(raw.x, raw.y, polygon);
   }
-  return roomRelativeToImagePercent(box, rx2, ry2);
+  const raw = roomRelativeToImagePercent(box, rx2, ry2);
+  return clampPointToBox(raw.x, raw.y, box);
 }
 
 /** Bild-Prozent (0–100) in raum-relative Koordinaten (0–100) umrechnen. Für Editor beim Speichern. */

@@ -321,12 +321,13 @@ export class RoomPlanCard extends LitElement {
     const hasHold = hasAction(actionConfig.hold_action);
     const hasDbl = hasAction(actionConfig.double_tap_action);
 
-    const badgeKey = `r${fl.roomIndex ?? 'n'}-i${fl.entityIndexInRoom}`;
-
     return html`
       <div
+        id="rp-${fl.uniqueKey}"
         class="entity-badge ${isOn ? 'entity-on' : ''} ${showValue ? 'entity-show-value' : ''}"
-        data-badge-key="${badgeKey}"
+        data-room-index="${fl.roomIndex ?? ''}"
+        data-entity-index="${fl.entityIndexInRoom}"
+        data-unique-key="${fl.uniqueKey}"
         style="left:${x}%;top:${y}%;--entity-scale:${scale};--entity-icon-color:${iconColor}"
         title="${title}"
         tabindex="0"
@@ -343,8 +344,8 @@ export class RoomPlanCard extends LitElement {
     `;
   }
 
-  /** Heatmap-Zone: Rechteck oder Polygon in %, Farbe nach Temperatur-Entity */
-  private _renderHeatmapZone(zone: HeatmapZone): TemplateResult {
+  /** Heatmap-Zone: Rechteck oder Polygon in %, Farbe nach Temperatur-Entity; zoneKey = eindeutige ID pro Raum/Boundary. */
+  private _renderHeatmapZone(zone: HeatmapZone, zoneKey: string): TemplateResult {
     const opacity = Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4));
     const state = this.hass?.states?.[zone.entity]?.state;
     const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
@@ -356,7 +357,9 @@ export class RoomPlanCard extends LitElement {
       const pts = zone.points.map((p) => `${Math.min(100, Math.max(0, p.x))}% ${Math.min(100, Math.max(0, p.y))}%`).join(', ');
       return html`
         <div
+          id="rp-heatmap-${zoneKey}"
           class="heatmap-zone"
+          data-zone-key="${zoneKey}"
           style="left:0;top:0;width:100%;height:100%;background:${bg};clip-path:polygon(${pts})"
           title="${zone.entity}: ${state ?? '?'}"
         ></div>
@@ -373,7 +376,9 @@ export class RoomPlanCard extends LitElement {
     const clip = `${left}% ${top}%, ${right}% ${top}%, ${right}% ${bottom}%, ${left}% ${bottom}%`;
     return html`
       <div
+        id="rp-heatmap-${zoneKey}"
         class="heatmap-zone"
+        data-zone-key="${zoneKey}"
         style="left:0;top:0;width:100%;height:100%;background:${bg};clip-path:polygon(${clip})"
         title="${zone.entity}: ${state ?? '?'}"
       ></div>
@@ -459,25 +464,26 @@ export class RoomPlanCard extends LitElement {
           <div class="image-wrapper" style="transform: rotate(${rotation}deg);">
             <div class="image-and-overlay ${useDark ? 'dark' : ''}" style="--image-aspect: ${this._imageAspect}; --plan-dark-filter: ${darkFilter};">
               ${(() => {
-                const fromEntities: HeatmapZone[] = [];
+                const zoneList: { key: string; zone: HeatmapZone }[] = [];
                 const flattened = getFlattenedEntities(this.config);
                 for (const fl of flattened) {
                   const ent = fl.entity;
                   if (ent.preset !== 'temperature') continue;
                   const boundaries = fl.room ? getRoomBoundaryList(fl.room) : getEntityBoundaries(ent);
-                  for (const b of boundaries) {
+                  boundaries.forEach((b, bi) => {
+                    const key = `${fl.uniqueKey}-zone-${bi}`;
                     if (isPolygonBoundary(b)) {
-                      fromEntities.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 });
+                      zoneList.push({ key, zone: { entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 } });
                     } else {
                       const r = b as { x1: number; y1: number; x2: number; y2: number };
-                      fromEntities.push({ entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4 });
+                      zoneList.push({ key, zone: { entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4 } });
                     }
-                  }
+                  });
                 }
-                return fromEntities.length
+                return zoneList.length
                   ? html`
                       <div class="heatmap-layer heatmap-layer-behind">
-                        ${fromEntities.map((zone) => this._renderHeatmapZone(zone))}
+                        ${repeat(zoneList, (z) => z.key, (z) => this._renderHeatmapZone(z.zone, z.key))}
                       </div>
                     `
                   : '';
@@ -495,7 +501,7 @@ export class RoomPlanCard extends LitElement {
               <div class="entities-overlay">
                 ${repeat(
                   this._filteredEntities(),
-                  (fl) => `badge-${fl.roomIndex ?? 'n'}-${fl.entityIndexInRoom}`,
+                  (fl) => fl.uniqueKey,
                   (fl) => this._renderEntity(fl, this._getEntityImagePosition(fl))
                 )}
               </div>
