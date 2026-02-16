@@ -17,7 +17,7 @@ import {
 import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getBoundariesForEntity, getRoomBoundingBox, roomRelativeToImagePercent, type FlattenedEntity } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getRoomBoundaryList, getRoomBoundingBox, roomRelativeToImagePercent, type FlattenedEntity } from '../../lib/utils';
 import { repeat } from 'lit/directives/repeat.js';
 import { actionHandler } from '../../lib/action-handler';
 
@@ -152,7 +152,7 @@ export class RoomPlanCard extends LitElement {
     const presets = this._availablePresets();
     const flattened = getFlattenedEntities(this.config);
     const hasHeatmap = flattened.some(
-      (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
+      (f) => f.entity.preset === 'temperature' && (f.room ? getRoomBoundaryList(f.room) : getEntityBoundaries(f.entity)).length > 0
     );
     const ids: (string | null)[] = [null];
     if (hasHeatmap) ids.push(HEATMAP_TAB);
@@ -168,7 +168,7 @@ export class RoomPlanCard extends LitElement {
 
   private _showFilterBar(): boolean {
     const hasHeatmap = getFlattenedEntities(this.config).some(
-      (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
+      (f) => f.entity.preset === 'temperature' && (f.room ? getRoomBoundaryList(f.room) : getEntityBoundaries(f.entity)).length > 0
     );
     return (
       this._availablePresets().length > 0 ||
@@ -466,9 +466,10 @@ export class RoomPlanCard extends LitElement {
               ${(() => {
                 const fromEntities: HeatmapZone[] = [];
                 const flattened = getFlattenedEntities(this.config);
-                for (const { entity: ent, roomIndex } of flattened) {
+                for (const fl of flattened) {
+                  const ent = fl.entity;
                   if (ent.preset !== 'temperature') continue;
-                  const boundaries = getBoundariesForEntity(this.config, roomIndex, ent);
+                  const boundaries = fl.room ? getRoomBoundaryList(fl.room) : getEntityBoundaries(ent);
                   for (const b of boundaries) {
                     if (isPolygonBoundary(b)) {
                       fromEntities.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 });
