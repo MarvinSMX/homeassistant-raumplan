@@ -14,7 +14,7 @@ const HEATMAP_DIM_DURATION = 0.28;
 
 const SLIDING_DOOR_ANIMATION_MS = 350;
 
-/** Schiebetür: Außen fest, nur Innenseite verschieben (t 0 = zu, 1 = offen). Gibt Linie von außen nach innen. */
+/** Schiebetür: nur innerhalb der Linie. Zu = breiter (bis kurz vor Mitte), Offen = dünner (kurz vor Ende), Länge nie negativ. */
 function slidingDoorPosition(
   x1: number,
   y1: number,
@@ -22,33 +22,33 @@ function slidingDoorPosition(
   y2: number,
   t: number,
   direction: 'left' | 'right',
-  doorLengthRatio: number = 0.25
+  _doorLengthRatio?: number
 ): { outerX: number; outerY: number; innerX: number; innerY: number } {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L;
   const uy = dy / L;
-  const doorLen = L * doorLengthRatio;
-  /* Innenseite: t=0 (zu) = in der Öffnung, t=1 (offen) = nach außen verschoben (Tür in Tasche) */
-  const innerOffset = doorLen * (1 - 2 * t);
+  const closedLen = L * 0.49;
+  const openLen = Math.max(L * 0.06, 0.5);
+  const doorLen = openLen + (closedLen - openLen) * (1 - t);
   if (direction === 'right') {
     return {
       outerX: x2,
       outerY: y2,
-      innerX: x2 + innerOffset * (-ux),
-      innerY: y2 + innerOffset * (-uy),
+      innerX: x2 - doorLen * ux,
+      innerY: y2 - doorLen * uy,
     };
   }
   return {
     outerX: x1,
     outerY: y1,
-    innerX: x1 + innerOffset * ux,
-    innerY: y1 + innerOffset * uy,
+    innerX: x1 + doorLen * ux,
+    innerY: y1 + doorLen * uy,
   };
 }
 
-/** Doppelte Schiebetür: außen fest, Innenseite verschieben. t 0 = zu, 1 = offen. */
+/** Doppelte Schiebetür: nur innerhalb der Linie. Zu = beide breit bis kurz vor verbunden, Offen = beide dünn kurz vor Ende, nie negativ. */
 function slidingDoorPositionDouble(
   x1: number,
   y1: number,
@@ -61,20 +61,21 @@ function slidingDoorPositionDouble(
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L;
   const uy = dy / L;
-  const doorLen = L / 4;
-  const innerOffset = doorLen * (1 - 2 * t);
+  const closedLen = L * 0.49;
+  const openLen = Math.max(L * 0.06, 0.5);
+  const doorLen = openLen + (closedLen - openLen) * (1 - t);
   return {
     left: {
       outerX: x1,
       outerY: y1,
-      innerX: x1 + innerOffset * ux,
-      innerY: y1 + innerOffset * uy,
+      innerX: x1 + doorLen * ux,
+      innerY: y1 + doorLen * uy,
     },
     right: {
       outerX: x2,
       outerY: y2,
-      innerX: x2 - innerOffset * ux,
-      innerY: y2 - innerOffset * uy,
+      innerX: x2 - doorLen * ux,
+      innerY: y2 - doorLen * uy,
     },
   };
 }
