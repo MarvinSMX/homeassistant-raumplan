@@ -20,6 +20,10 @@ interface EntityBadgeProps {
   onRoomPressStart?: (entityId: string, boundaries: RoomBoundaryItem[]) => void;
   /** Temperatur: Ende Hover/Press → Abdunkelung ausblenden. */
   onRoomPressEnd?: () => void;
+  /** Schiebetür: Hover auf Badge → Tür animiert zu. */
+  onBadgeHoverStart?: () => void;
+  /** Schiebetür: Hover Ende → Tür animiert wieder auf. */
+  onBadgeHoverEnd?: () => void;
 }
 
 function toNum(val: unknown, fallback: number): number {
@@ -40,7 +44,7 @@ function climateModeIconAndColor(mode: string): { icon: string; color: string } 
 }
 
 export function EntityBadge(props: EntityBadgeProps) {
-  const { ent, hass, host, tapAction, holdAction, doubleTapAction, displayPosition, onRoomPressStart, onRoomPressEnd } = props;
+  const { ent, hass, host, tapAction, holdAction, doubleTapAction, displayPosition, onRoomPressStart, onRoomPressEnd, onBadgeHoverStart, onBadgeHoverEnd } = props;
   const x = displayPosition
     ? Math.min(100, Math.max(0, displayPosition.x))
     : Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? toNum(ent.x, 50)));
@@ -235,17 +239,23 @@ export function EntityBadge(props: EntityBadgeProps) {
       onPointerLeave={() => {
         onPointerUp();
         handleRoomHoverEnd();
+        onBadgeHoverEnd?.();
       }}
-      onPointerEnter={() => handleRoomHoverStart()}
+      onPointerEnter={() => {
+        handleRoomHoverStart();
+        onBadgeHoverStart?.();
+      }}
       onDblClick={onDbl}
       onContextMenu={(e) => { e.preventDefault(); onHold(); }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
         handleRoomHoverStart();
+        onBadgeHoverStart?.();
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
         handleRoomHoverEnd();
+        onBadgeHoverEnd?.();
       }}
     >
       {showIcon && (isIconOnly ? (

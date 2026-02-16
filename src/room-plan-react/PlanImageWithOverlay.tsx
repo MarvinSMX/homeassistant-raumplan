@@ -303,6 +303,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const blobUrlRef = useRef<string | null>(null);
   const [pressBoundaries, setPressBoundaries] = useState<import('../lib/types').RoomBoundaryItem[]>([]);
   const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
+  const [hoveredSlidingDoorEntityId, setHoveredSlidingDoorEntityId] = useState<string | null>(null);
   const pressOverlayRef = useRef<HTMLDivElement | null>(null);
 
   const onRoomPressStart = (entityId: string, boundaries: import('../lib/types').RoomBoundaryItem[]) => {
@@ -719,7 +720,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                         />
                         <SlidingDoorSegments
                           br={br}
-                          isOpen={isOpen}
+                          isOpen={hoveredSlidingDoorEntityId === ent.entity ? false : isOpen}
                           direction={direction}
                           doorColor={doorColor}
                           thickness={thickness}
@@ -779,6 +780,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                     doubleTapAction={ent.double_tap_action ?? config?.double_tap_action}
                     onRoomPressStart={ent.preset === 'temperature' && hasBounds ? (_id, _b) => onRoomPressStart(ent.entity, bounds) : undefined}
                     onRoomPressEnd={ent.preset === 'temperature' && hasBounds ? onRoomPressEnd : undefined}
+                    onBadgeHoverStart={ent.preset === 'sliding_door' ? () => setHoveredSlidingDoorEntityId(ent.entity) : undefined}
+                    onBadgeHoverEnd={ent.preset === 'sliding_door' ? () => setHoveredSlidingDoorEntityId(null) : undefined}
                   />
                 );
               })}
