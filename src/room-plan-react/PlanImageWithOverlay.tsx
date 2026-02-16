@@ -4,7 +4,7 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, hasEntityCoords, getEntityDisplayPosition } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, hasEntityCoords, getEntityDisplayPosition, getEntityCoord } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { hexToRgba, temperatureColor, intensityForArea } from './utils';
@@ -484,15 +484,13 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   return (
     <div
-      className="flex-1 min-h-0 w-full min-w-0"
+      className="flex-1 min-h-0 overflow-hidden w-full min-w-0"
       style={{
         transform: `rotate(${rotation}deg)`,
         minHeight: 280,
         width: '100%',
-        maxWidth: '100%',
         minWidth: 0,
         position: 'relative',
-        overflow: 'hidden',
       }}
     >
       <div style={fillBoxStyle}>
@@ -736,12 +734,19 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             </svg>
           )}
           <div style={{ ...overlayBoxStyle, pointerEvents: 'none', isolation: 'isolate', visibility: 'visible' }}>
-            <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', width: '100%', height: '100%' }}>
+            <div style={{ ...overlayBoxStyle, pointerEvents: 'auto', visibility: 'visible', minWidth: '100%', minHeight: '100%' }}>
               {badgeEntities.map((f, i) => {
                 const ent = f.entity;
                 const bounds = getBoundariesForEntity(config, f.roomIndex, ent);
                 const hasBounds = bounds.length > 0;
-                const displayPosition = getEntityDisplayPosition(f.room ?? null, ent);
+                /* Schiebetür-Badge: Position strikt aus ent.x/ent.y (Editor-Punkt), kein Raum-Fallback */
+                const displayPosition =
+                  ent.preset === 'sliding_door'
+                    ? {
+                        x: Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? Number(ent.x) ?? 50)),
+                        y: Math.min(100, Math.max(0, getEntityCoord(ent, 'y') ?? Number(ent.y) ?? 50)),
+                      }
+                    : getEntityDisplayPosition(f.room ?? null, ent);
                 return (
                   <EntityBadge
                     key={`${ent.entity}-${f.roomIndex ?? -1}-${f.entityIndexInRoom}-${i}`}
