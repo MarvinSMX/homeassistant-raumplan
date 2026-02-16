@@ -27,6 +27,20 @@ export function getBoundaryPoints(b: RoomBoundary): { x: number; y: number }[] {
   ];
 }
 
+/** Liest Entity-X/Y robust (unterstützt auch YAML-Keys "x"/"y" nach Serialisierung). */
+export function getEntityCoord(ent: RoomPlanEntity, axis: 'x' | 'y'): number | undefined {
+  const e = ent as RoomPlanEntity & Record<string, unknown>;
+  const v = axis === 'x' ? (ent.x ?? e['x']) : (ent.y ?? e['y']);
+  if (v === null || v === undefined) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Ob die Entität explizite Koordinaten hat (raum-relativ oder Bild-%). */
+export function hasEntityCoords(ent: RoomPlanEntity): boolean {
+  return getEntityCoord(ent, 'x') != null && getEntityCoord(ent, 'y') != null;
+}
+
 /** Liefert die Raum-/Heatmap-Zonen einer Entität (room_boundaries oder [room_boundary] für Abwärtskompatibilität). */
 export function getEntityBoundaries(ent: RoomPlanEntity): RoomBoundary[] {
   if (Array.isArray(ent.room_boundaries) && ent.room_boundaries.length > 0) {
@@ -38,10 +52,13 @@ export function getEntityBoundaries(ent: RoomPlanEntity): RoomBoundary[] {
   return [];
 }
 
-/** Liefert die Räume aus der Config (immer Array, ggf. leer). */
+/** Liefert die Räume aus der Config (immer Array, ggf. leer). Prüft auch config.config?.rooms (HA-Varianten). */
 export function getRooms(config: RoomPlanCardConfig | undefined): RoomPlanRoom[] {
-  if (!config || !Array.isArray(config.rooms)) return [];
-  return config.rooms;
+  if (!config) return [];
+  if (Array.isArray(config.rooms) && config.rooms.length > 0) return config.rooms;
+  const nested = (config as { config?: { rooms?: RoomPlanRoom[] } }).config?.rooms;
+  if (Array.isArray(nested) && nested.length > 0) return nested;
+  return [];
 }
 
 /** Ein Eintrag in der flachen Entity-Liste inkl. Herkunft (Raum oder Legacy). */

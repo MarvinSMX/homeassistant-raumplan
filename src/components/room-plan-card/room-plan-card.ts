@@ -14,10 +14,10 @@ import {
   forwardHaptic,
 } from 'custom-card-helpers';
 
-import type { RoomPlanCardConfig, RoomPlanEntity, HeatmapZone } from '../../lib/types';
+import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom, HeatmapZone } from '../../lib/types';
 import { CARD_VERSION } from '../../lib/const';
 import { localize } from '../../lib/localize/localize';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getRoomBoundaryList, getRoomBoundingBox, getRoomShapeCenter, roomRelativeToImagePercentWithShape, type FlattenedEntity } from '../../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, isPolygonBoundary, getFlattenedEntities, getRoomBoundaryList, getRoomBoundingBox, getRoomShapeCenter, roomRelativeToImagePercentWithShape, hasEntityCoords, getEntityCoord, type FlattenedEntity } from '../../lib/utils';
 import { repeat } from 'lit/directives/repeat.js';
 import { actionHandler } from '../../lib/action-handler';
 
@@ -83,17 +83,19 @@ export class RoomPlanCard extends LitElement {
       config?.image && typeof config.image === 'string'
         ? config.image
         : (config?.image as { location?: string })?.location ?? '';
-    // Tiefe Kopie von rooms/entities, damit X/Y-Updates aus dem Editor sicher ankommen und die Karte neu rendert.
-    // rooms nie mit undefined überschreiben, wenn bereits vorhanden – sonst werden (0,0) als Bild- statt Raumkoordinaten gelesen.
-    const roomsFromConfig = Array.isArray(config?.rooms)
-      ? (JSON.parse(JSON.stringify(config.rooms)) as RoomPlanCardConfig['rooms'])
+    // Tiefe Kopie von rooms/entities. rooms auch aus config.config lesen (manche HA/Dashboard-Varianten).
+    const rawRooms = config?.rooms ?? (config as { config?: { rooms?: RoomPlanRoom[] } })?.config?.rooms;
+    const roomsFromConfig = Array.isArray(rawRooms)
+      ? (JSON.parse(JSON.stringify(rawRooms)) as RoomPlanCardConfig['rooms'])
       : undefined;
+    // rooms nie mit undefined überschreiben, wenn bereits vorhanden – sonst werden (0,0) als Bild- statt Raumkoordinaten gelesen.
     const rooms =
       roomsFromConfig !== undefined && roomsFromConfig.length > 0
         ? roomsFromConfig
         : (this.config?.rooms?.length ? this.config.rooms : undefined);
-    const entities = Array.isArray(config?.entities)
-      ? JSON.parse(JSON.stringify(config.entities))
+    const rawEntities = config?.entities ?? (config as { config?: { entities?: RoomPlanEntity[] } })?.config?.entities;
+    const entities = Array.isArray(rawEntities)
+      ? JSON.parse(JSON.stringify(rawEntities))
       : [];
     this.config = {
       type: config?.type ?? 'custom:room-plan-card',
@@ -294,17 +296,16 @@ export class RoomPlanCard extends LitElement {
     const ent = fl.entity;
     const room = fl.room;
     if (room) {
-      const hasCoords = ent.x != null && ent.y != null;
-      if (!hasCoords) {
+      if (!hasEntityCoords(ent)) {
         const center = getRoomShapeCenter(room);
         return center ?? { x: 50, y: 50 };
       }
-      const rx = Math.min(100, Math.max(0, Number(ent.x)));
-      const ry = Math.min(100, Math.max(0, Number(ent.y)));
+      const rx = Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? 50));
+      const ry = Math.min(100, Math.max(0, getEntityCoord(ent, 'y') ?? 50));
       return roomRelativeToImagePercentWithShape(room, rx, ry);
     }
-    const rx = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
-    const ry = Math.min(100, Math.max(0, Number(ent.y) ?? 50));
+    const rx = Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? 50));
+    const ry = Math.min(100, Math.max(0, getEntityCoord(ent, 'y') ?? 50));
     return { x: rx, y: ry };
   }
 
