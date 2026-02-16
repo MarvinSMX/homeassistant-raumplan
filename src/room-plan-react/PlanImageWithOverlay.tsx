@@ -4,7 +4,7 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, hasEntityCoords, getEntityDisplayPosition, getEntityCoord } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, getEntityDisplayPosition, getEntityCoord } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { hexToRgba, temperatureColor, intensityForArea } from './utils';
@@ -411,10 +411,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       : selectedTabs.size === 0
         ? []
         : flattened.filter((f) => selectedTabs.has(getEntityCategoryId(f.entity)));
-  /* Badges: ohne Fensterkontakt (nur Linie). Schiebetür nur mit optionaler Position (x,y) = frei platzierbares Icon-Badge. */
-  const badgeEntities = filteredEntities.filter(
-    (f) => f.entity.preset !== 'window_contact' && (f.entity.preset !== 'sliding_door' || hasEntityCoords(f.entity))
-  );
+  /* Badges: ohne Fensterkontakt (nur Linie). Schiebetür hat Linie (Tür) + Badge (Punkt), beide frei platzierbar. */
+  const badgeEntities = filteredEntities.filter((f) => f.entity.preset !== 'window_contact');
   const windowLineEntities = filteredEntities.filter(
     (f) => f.entity.preset === 'window_contact' && getEntityBoundaries(f.entity).length > 0
   );
@@ -739,13 +737,25 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 const ent = f.entity;
                 const bounds = getBoundariesForEntity(config, f.roomIndex, ent);
                 const hasBounds = bounds.length > 0;
-                /* Schiebetür-Badge: Position strikt aus ent.x/ent.y (Editor-Punkt), kein Raum-Fallback */
+                /* Schiebetür: Badge an Punkt (ent.x/ent.y); ohne Punkt = Mitte der Linie. Tür = Linie, Badge = Punkt, beide frei platzierbar. */
                 const displayPosition =
                   ent.preset === 'sliding_door'
-                    ? {
-                        x: Math.min(100, Math.max(0, getEntityCoord(ent, 'x') ?? Number(ent.x) ?? 50)),
-                        y: Math.min(100, Math.max(0, getEntityCoord(ent, 'y') ?? Number(ent.y) ?? 50)),
-                      }
+                    ? (() => {
+                        const px = getEntityCoord(ent, 'x');
+                        const py = getEntityCoord(ent, 'y');
+                        if (px != null && py != null && Number.isFinite(Number(px)) && Number.isFinite(Number(py))) {
+                          return { x: Math.min(100, Math.max(0, Number(px))), y: Math.min(100, Math.max(0, Number(py))) };
+                        }
+                        const doorLines = getEntityBoundaries(ent).filter((b) => !isPolygonBoundary(b));
+                        const first = doorLines[0] as { x1?: number; y1?: number; x2?: number; y2?: number } | undefined;
+                        if (first && first.x1 != null && first.y1 != null && first.x2 != null && first.y2 != null) {
+                          return {
+                            x: Math.min(100, Math.max(0, (first.x1 + first.x2) / 2)),
+                            y: Math.min(100, Math.max(0, (first.y1 + first.y2) / 2)),
+                          };
+                        }
+                        return { x: 50, y: 50 };
+                      })()
                     : getEntityDisplayPosition(f.room ?? null, ent);
                 return (
                   <EntityBadge
