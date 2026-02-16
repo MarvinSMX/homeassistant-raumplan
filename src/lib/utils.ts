@@ -345,3 +345,19 @@ export function getStateDisplay(hass: HomeAssistant | undefined, entityId: strin
   const uom = s.attributes?.unit_of_measurement;
   return uom ? `${s.state} ${uom}` : s.state;
 }
+
+/** Temperatur-Wert aus Entity: bei climate aus Attribut (z. B. current_temperature), sonst aus state. attribute überschreibt (z. B. current_temperature). */
+export function getTemperatureFromEntity(
+  hass: HomeAssistant | undefined,
+  entityId: string,
+  attribute?: string
+): number {
+  const s = hass?.states?.[entityId];
+  if (!s) return 20;
+  const attrs = s.attributes ?? {};
+  const attrName = attribute ?? (entityId.startsWith('climate.') ? 'current_temperature' : undefined);
+  const raw = attrName != null ? attrs[attrName] : s.state;
+  if (raw == null) return 20;
+  const n = typeof raw === 'string' ? parseFloat(raw.replace(',', '.')) : Number(raw);
+  return Number.isFinite(n) ? n : 20;
+}

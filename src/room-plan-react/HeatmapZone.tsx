@@ -1,5 +1,6 @@
 import type { HeatmapZone as HeatmapZoneType } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
+import { getTemperatureFromEntity } from '../lib/utils';
 import { hexToRgba, temperatureColor, intensityForArea } from './utils';
 
 function isZonePolygon(z: HeatmapZoneType): z is HeatmapZoneType & { points: { x: number; y: number }[] } {
@@ -17,10 +18,9 @@ const DIM_DURATION = 0.28;
 
 export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
   const baseOpacity = Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4));
-  const state = hass?.states?.[zone.entity]?.state;
-  const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
-  const temp = Number.isFinite(num) ? num : 20;
+  const temp = getTemperatureFromEntity(hass, zone.entity, zone.temperature_attribute);
   const color = temperatureColor(temp);
+  const state = hass?.states?.[zone.entity]?.state;
 
   if (isZonePolygon(zone)) {
     const pts = zone.points.map((p) => ({ x: Math.min(100, Math.max(0, p.x)), y: Math.min(100, Math.max(0, p.y)) }));

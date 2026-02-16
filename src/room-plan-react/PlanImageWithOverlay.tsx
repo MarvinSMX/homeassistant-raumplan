@@ -4,7 +4,7 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { hexToRgba, temperatureColor, intensityForArea } from './utils';
@@ -63,12 +63,10 @@ function HeatmapEntityShape({
   dimmed: boolean;
   overlayBoxStyle: Record<string, string>;
 }) {
+  const temp = getTemperatureFromEntity(hass, entityId, zones[0]?.temperature_attribute);
   const state = hass?.states?.[entityId]?.state;
-  const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
-  const temp = Number.isFinite(num) ? num : 20;
   const color = temperatureColor(temp);
-  const opacity = Math.min(1, Math.max(0, Number(zones[0]?.opacity) ?? 0.4));
-  const fillColor = hexToRgba(color, opacity);
+  const baseOpacity = Math.min(1, Math.max(0, Number(zones[0]?.opacity) ?? 0.4));
 
   let minX = 100;
   let minY = 100;
@@ -92,6 +90,9 @@ function HeatmapEntityShape({
     }
   }
   r = Math.max(r, 1);
+  const areaApprox = 4 * r * r;
+  const intensity = intensityForArea(areaApprox);
+  const fillColor = hexToRgba(color, baseOpacity * intensity);
   const gradId = `heat-${entityId.replace(/\./g, '-')}`;
 
   return (
@@ -290,12 +291,13 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   for (const { entity: ent, roomIndex } of flattened) {
     if (ent.preset !== 'temperature') continue;
     const boundaries = getBoundariesForEntity(config, roomIndex, ent);
+    const tempAttr = ent.temperature_attribute;
     for (const b of boundaries) {
       if (isPolygonBoundary(b)) {
-        zones.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4 });
+        zones.push({ entity: ent.entity, points: b.points, opacity: b.opacity ?? 0.4, temperature_attribute: tempAttr });
       } else {
         const r = b as { x1: number; y1: number; x2: number; y2: number; opacity?: number };
-        zones.push({ entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4 });
+        zones.push({ entity: ent.entity, x1: r.x1, y1: r.y1, x2: r.x2, y2: r.y2, opacity: r.opacity ?? 0.4, temperature_attribute: tempAttr });
       }
     }
   }
@@ -453,12 +455,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   }
                 }
                 r = Math.max(r, 1);
+                const dimArea = 4 * r * r;
+                const dimIntensity = intensityForArea(dimArea);
+                const dimAlpha = 0.45 * dimIntensity;
                 return (
                   <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }}>
                     <defs>
                       <radialGradient id="dim-gradient" gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={r}>
                         <stop offset="0%" stopColor="transparent" />
-                        <stop offset="100%" stopColor="rgba(0,0,0,0.45)" />
+                        <stop offset="100%" stopColor={`rgba(0,0,0,${dimAlpha})`} />
                       </radialGradient>
                     </defs>
                     {bounds.map((b, i) => {

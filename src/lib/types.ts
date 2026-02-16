@@ -24,6 +24,8 @@ export interface RoomPlanEntity {
   show_name?: boolean;
   /** Preset: temperature = Wert; binary_sensor = State; window_contact = Linie; smoke_detector = Rauchmelder, bei Auslösung/Sabotage blinkender Rand (Ping) */
   preset?: 'default' | 'temperature' | 'binary_sensor' | 'window_contact' | 'smoke_detector';
+  /** Nur Temperatur: Attribut für den Wert (z. B. current_temperature bei Klimageräten). Leer = State; bei Domain climate automatisch current_temperature. */
+  temperature_attribute?: string;
   /** Temperatur: mehrere Raum-/Heatmap-Zonen. Rechteck: x1,y1,x2,y2 (%). Polygon: points (beliebig viele Ecken). Fensterkontakt: eine Linie = ein Eintrag (x1,y1,x2,y2). */
   room_boundaries?: RoomBoundaryItem[];
   /** @deprecated Nutze room_boundaries. Ein Eintrag für Rückwärtskompatibilität. */
@@ -61,8 +63,8 @@ export type RoomBoundaryItem =
 
 /** Temperatur-Heatmap: Rechteck (x1,y1,x2,y2) oder Polygon (points) in %, gefärbt nach entity-Wert */
 export type HeatmapZone =
-  | { entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number }
-  | { entity: string; points: { x: number; y: number }[]; opacity?: number };
+  | { entity: string; x1: number; y1: number; x2: number; y2: number; opacity?: number; temperature_attribute?: string }
+  | { entity: string; points: { x: number; y: number }[]; opacity?: number; temperature_attribute?: string };
 
 export interface RoomPlanCardConfig extends LovelaceCardConfig {
   type: string;

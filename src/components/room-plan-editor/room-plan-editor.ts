@@ -904,7 +904,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   <option value="window_contact">Fensterkontakt</option>
                   <option value="smoke_detector">Rauchmelder</option>
                 </select>
-                ${(ent.preset === 'temperature') ? html`<span class="hint-inline">(nutzt Raumboundary)</span>` : ''}
+                ${(ent.preset === 'temperature') ? html`
+                  <span class="hint-inline">(nutzt Raumboundary)</span>
+                  <input type="text" class="entity-temp-attr" .value=${ent.temperature_attribute ?? ''} placeholder="Attribut (z. B. current_temperature)"
+                    title="Leer = State; bei Klima automatisch current_temperature"
+                    @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateRoomEntity(ri, ei, { temperature_attribute: v || undefined }); }} />
+                ` : ''}
                 ${(ent.preset === 'window_contact') ? html`
                 <div class="entity-boundaries">
                   <span class="boundaries-label">Linien:</span>
@@ -1214,6 +1219,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       .entity-row select.entity-preset {
         width: auto;
         min-width: 100px;
+      }
+      .entity-row input.entity-temp-attr {
+        width: clamp(120px, 18vw, 200px);
       }
       .entity-coords-wrap {
         display: flex;

@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'preact/hooks';
 import { handleAction, hasAction } from 'custom-card-helpers';
 import type { HomeAssistant } from 'custom-card-helpers';
 import type { RoomPlanEntity, RoomBoundaryItem } from '../lib/types';
-import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, getEntityCoord } from '../lib/utils';
+import { getEntityIcon, getFriendlyName, getStateDisplay, getEntityBoundaries, getEntityCoord, getTemperatureFromEntity } from '../lib/utils';
 import { temperatureColor } from './utils';
 import { MdiIcon } from './MdiIcon';
 import { gsap } from 'gsap';
@@ -41,14 +41,14 @@ export function EntityBadge(props: EntityBadgeProps) {
   const state = hass?.states?.[ent.entity]?.state ?? '';
   let showValue = !!ent.show_value;
   let accentColor: string | undefined;
+  let temperatureValue: number | undefined;
   let displayIcon = ent.icon || getEntityIcon(hass, ent.entity);
   let iconColorOverride: string | undefined;
 
   if (preset === 'temperature') {
     showValue = true;
-    const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
-    const temp = Number.isFinite(num) ? num : 20;
-    accentColor = temperatureColor(temp);
+    temperatureValue = getTemperatureFromEntity(hass, ent.entity, ent.temperature_attribute);
+    accentColor = temperatureColor(temperatureValue);
   } else if (preset === 'binary_sensor') {
     showValue = true;
     const active = ['on', 'open', 'detected', 'home', 'present', 'opening'].includes(String(state).toLowerCase());
@@ -138,9 +138,8 @@ export function EntityBadge(props: EntityBadgeProps) {
 
   const iconColor = ent.color ?? iconColorOverride ?? accentColor ?? (isOn ? 'var(--state-icon-active-color, var(--state-icon-on-color))' : 'var(--primary-text-color)');
 
-  /* Temperatur-Preset: nur Text mit „°C“ in Temperaturfarbe, kein Icon */
-  const tempNum = preset === 'temperature' && typeof state === 'string' ? parseFloat(state.replace(',', '.')) : NaN;
-  const tempDisplay = Number.isFinite(tempNum) ? `${tempNum} °C` : stateDisplay;
+  /* Temperatur-Preset: nur Text mit „°C“ in Temperaturfarbe, kein Icon (Wert aus State oder Attribut, z. B. Klima current_temperature) */
+  const tempDisplay = preset === 'temperature' && temperatureValue != null ? `${temperatureValue} °C` : stateDisplay;
   const showIcon = preset !== 'temperature';
   const textColor = preset === 'temperature' && accentColor ? accentColor : undefined;
   const isIconOnly =
