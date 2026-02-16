@@ -36,11 +36,19 @@ export function FilterTabs(props: FilterTabsProps) {
 
   if (!showBar) return null;
 
-  /* Tab-Styles mit sichtbaren Fallbacks (Active / Inactive / Hover) */
-  const tabBarStyle = {
-    padding: '10px 16px 12px',
+  /* Tab-Styles: feste Höhe, damit der Plan darunter nicht springt */
+  const tabBarStyle: Record<string, string | number> = {
+    padding: '0 16px',
+    height: 48,
+    minHeight: 48,
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     background: 'var(--ha-card-background)',
     borderBottom: '1px solid var(--divider-color)',
+    overflow: 'hidden',
   };
   const tabActiveStyle = {
     background: 'var(--primary-color, #03a9f4)',
@@ -55,11 +63,19 @@ export function FilterTabs(props: FilterTabsProps) {
   const tabInactiveHoverFg = 'var(--filter-tab-inactive-hover-color)';
 
   return (
-    <div
-      className="flex flex-wrap items-center justify-between gap-2 flex-shrink-0 filter-tabs-bar"
-      style={tabBarStyle}
-    >
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="filter-tabs-bar" style={tabBarStyle}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'nowrap',
+          alignItems: 'center',
+          gap: 8,
+          minWidth: 0,
+          flex: 1,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+        }}
+      >
         {tabIds.map((id) => {
           const isActive = id === null ? allSelected : selectedTabs.has(id);
           return (
@@ -69,6 +85,7 @@ export function FilterTabs(props: FilterTabsProps) {
               onClick={() => onSelectTab(id)}
               className="filter-tab"
               style={{
+                flexShrink: 0,
                 padding: '6px 14px',
                 border: '1px solid var(--divider-color)',
                 borderRadius: 16,
@@ -103,6 +120,7 @@ export function FilterTabs(props: FilterTabsProps) {
           onClick={onAlertClick}
           className="filter-tab filter-tab-alert"
           style={{
+            flexShrink: 0,
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
