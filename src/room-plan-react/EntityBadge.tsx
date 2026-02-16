@@ -218,6 +218,7 @@ export function EntityBadge(props: EntityBadgeProps) {
     <div
       ref={chipRef}
       className="entity-badge-chip"
+      data-no-pan
       style={{
         ...chipStyle,
         background: '#fff',

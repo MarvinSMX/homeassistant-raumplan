@@ -291,7 +291,12 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const [pressBoundaries, setPressBoundaries] = useState<import('../lib/types').RoomBoundaryItem[]>([]);
   const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
   const [hoveredSlidingDoorEntityId, setHoveredSlidingDoorEntityId] = useState<string | null>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const panZoomStartRef = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | null>(null);
   const pressOverlayRef = useRef<HTMLDivElement | null>(null);
+  const panZoomWrapRef = useRef<HTMLDivElement | null>(null);
 
   const onRoomPressStart = (entityId: string, boundaries: import('../lib/types').RoomBoundaryItem[]) => {
     gsap.killTweensOf(pressOverlayRef.current);
@@ -425,6 +430,39 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   }
   const defTap = config?.tap_action ?? { action: 'more-info' as const };
 
+  const handlePanZoomPointerDown = (e: import('preact').JSX.TargetedPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest?.('[data-no-pan]')) return;
+    panZoomStartRef.current = { clientX: e.clientX, clientY: e.clientY, panX: pan.x, panY: pan.y };
+    setIsPanning(true);
+    panZoomWrapRef.current?.setPointerCapture?.(e.pointerId);
+  };
+  const handlePanZoomPointerMove = (e: import('preact').JSX.TargetedPointerEvent<HTMLDivElement>) => {
+    if (!panZoomStartRef.current) return;
+    setPan({
+      x: panZoomStartRef.current.panX + e.clientX - panZoomStartRef.current.clientX,
+      y: panZoomStartRef.current.panY + e.clientY - panZoomStartRef.current.clientY,
+    });
+  };
+  const handlePanZoomPointerUp = (e: import('preact').JSX.TargetedPointerEvent<HTMLDivElement>) => {
+    if (e.button === 0) {
+      panZoomStartRef.current = null;
+      setIsPanning(false);
+      panZoomWrapRef.current?.releasePointerCapture?.(e.pointerId);
+    }
+  };
+  const handlePanZoomWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    setScale((s) => Math.min(3, Math.max(0.5, s * factor)));
+  };
+  useEffect(() => {
+    const el = panZoomWrapRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handlePanZoomWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handlePanZoomWheel);
+  }, []);
+
   /* Gemeinsamer Block: alle Layer exakt dieselbe Box */
   const overlayBoxStyle: Record<string, string> = {
     position: 'absolute',
@@ -480,7 +518,20 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       }}
     >
       <div style={fillBoxStyle}>
-        <div style={fitBoxStyle}>
+        <div
+          ref={panZoomWrapRef}
+          style={{
+            ...fitBoxStyle,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transformOrigin: '50% 50%',
+            touchAction: 'none',
+            cursor: isPanning ? 'grabbing' : 'grab',
+          }}
+          onPointerDown={handlePanZoomPointerDown}
+          onPointerMove={handlePanZoomPointerMove}
+          onPointerUp={handlePanZoomPointerUp}
+          onPointerLeave={handlePanZoomPointerUp}
+        >
           <img
             src={resolvedSrc}
             alt="Raumplan"
@@ -630,6 +681,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                     return (
                   <g
                     key={`${ent.entity}-${bi}`}
+                    data-no-pan
                     style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                     onClick={() => handleAction(host, hass, actionConfig, 'tap')}
                     onPointerDown={(ev) => ev.stopPropagation()}
@@ -692,6 +744,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                     return (
                       <g
                         key={`sliding-${ent.entity}-${bi}`}
+                        data-no-pan
                         style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                         onClick={() => handleAction(host, hass, actionConfig, 'tap')}
                         onPointerDown={(ev) => ev.stopPropagation()}
@@ -776,6 +829,29 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             </div>
           </div>
         </div>
+        {(pan.x !== 0 || pan.y !== 0 || scale !== 1) && (
+          <button
+            type="button"
+            data-no-pan
+            onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
+            style={{
+              position: 'absolute',
+              bottom: 10,
+              left: 10,
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid var(--divider-color)',
+              background: 'var(--ha-card-background)',
+              color: 'var(--primary-text-color)',
+              fontSize: '0.8125rem',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+            }}
+            title="Ansicht zurücksetzen"
+          >
+            ⟲ Zurücksetzen
+          </button>
+        )}
       </div>
     </div>
   );
