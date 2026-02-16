@@ -49,7 +49,7 @@ export class RoomPlanCard extends LitElement {
   @state() private _imageError = false;
   /** Seitenverhältnis des Bildes (width/height), damit Overlay exakt aligned */
   @state() private _imageAspect = 16 / 9;
-  /** Aktiver Tab: null = Alle, sonst Domain (nur einer aktiv) */
+  /** Aktiver Tab: null = Alle, HEATMAP_TAB oder Preset-ID (z. B. smoke_detector) */
   @state() private _activeFilter: string | null = null;
   /** Dark Mode (System/Theme), für Bild-Filter oder image_dark */
   @state() private _darkMode = false;
@@ -76,11 +76,18 @@ export class RoomPlanCard extends LitElement {
       config?.image && typeof config.image === 'string'
         ? config.image
         : (config?.image as { location?: string })?.location ?? '';
+    // Tiefe Kopie von rooms/entities, damit X/Y-Updates aus dem Editor sicher ankommen und die Karte neu rendert
+    const rooms = Array.isArray(config?.rooms)
+      ? JSON.parse(JSON.stringify(config.rooms)) as RoomPlanCardConfig['rooms']
+      : undefined;
+    const entities = Array.isArray(config?.entities)
+      ? JSON.parse(JSON.stringify(config.entities))
+      : [];
     this.config = {
       type: config?.type ?? 'custom:room-plan-card',
       image: img,
-      entities: Array.isArray(config?.entities) ? config.entities : [],
-      rooms: Array.isArray(config?.rooms) ? config.rooms : undefined,
+      entities,
+      rooms,
       title: config?.title ?? '',
       rotation: Number(config?.rotation) ?? 0,
       full_height: config?.full_height ?? false,
@@ -101,9 +108,26 @@ export class RoomPlanCard extends LitElement {
     this._imageAspect = 16 / 9;
   }
 
-  private _getEntityDomain(entityId: string): string {
-    const idx = entityId.indexOf('.');
-    return idx > 0 ? entityId.slice(0, idx) : '';
+  /** Preset-ID → Anzeigename für Tabs */
+  private static readonly PRESET_LABELS: Record<string, string> = {
+    default: 'Standard',
+    temperature: 'Temperatur',
+    binary_sensor: 'Binary Sensor',
+    window_contact: 'Fensterkontakt',
+    smoke_detector: 'Rauchmelder',
+  };
+
+  /** Reihenfolge der Presets in den Tabs */
+  private static readonly PRESET_ORDER: (keyof typeof RoomPlanCard.PRESET_LABELS)[] = [
+    'default',
+    'temperature',
+    'binary_sensor',
+    'window_contact',
+    'smoke_detector',
+  ];
+
+  private _getPreset(ent: RoomPlanEntity): string {
+    return ent.preset ?? 'default';
   }
 
   /** Gefilterte Entitäten inkl. roomIndex für Koordinatenumrechnung (raum-relativ → Bild-%). */
@@ -111,31 +135,34 @@ export class RoomPlanCard extends LitElement {
     const flattened = getFlattenedEntities(this.config);
     if (this._activeFilter === HEATMAP_TAB) return [];
     if (this._activeFilter === null || this._activeFilter === '') return flattened;
-    return flattened.filter((f) => this._getEntityDomain(f.entity.entity) === this._activeFilter);
+    return flattened.filter((f) => this._getPreset(f.entity) === this._activeFilter);
   }
 
-  private _availableDomains(): string[] {
+  /** In der Config vorkommende Presets, in fester Reihenfolge. */
+  private _availablePresets(): string[] {
     const flattened = getFlattenedEntities(this.config);
-    const entities = flattened.map((f) => f.entity);
-    const doms = new Set<string>();
-    entities.forEach((e) => {
-      const d = this._getEntityDomain(e.entity);
-      if (d) doms.add(d);
-    });
-    return Array.from(doms).sort();
+    const used = new Set<string>();
+    flattened.forEach((f) => used.add(this._getPreset(f.entity)));
+    return RoomPlanCard.PRESET_ORDER.filter((p) => used.has(p));
   }
 
-  /** Zeile der Tab-Optionen: null = Alle, HEATMAP_TAB = Heatmap (wenn Zonen aus Räumen), dann Domains */
+  /** Zeile der Tab-Optionen: null = Alle, HEATMAP_TAB = Heatmap, dann Presets */
   private _filterTabIds(): (string | null)[] {
-    const domains = this._availableDomains();
+    const presets = this._availablePresets();
     const flattened = getFlattenedEntities(this.config);
     const hasHeatmap = flattened.some(
       (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
     );
     const ids: (string | null)[] = [null];
     if (hasHeatmap) ids.push(HEATMAP_TAB);
-    ids.push(...domains);
+    ids.push(...presets);
     return ids;
+  }
+
+  private _presetTabLabel(id: string | null): string {
+    if (id === null) return 'Alle';
+    if (id === HEATMAP_TAB) return 'Heatmap';
+    return RoomPlanCard.PRESET_LABELS[id] ?? id;
   }
 
   private _showFilterBar(): boolean {
@@ -143,7 +170,7 @@ export class RoomPlanCard extends LitElement {
       (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(this.config, f.roomIndex, f.entity).length > 0
     );
     return (
-      this._availableDomains().length > 0 ||
+      this._availablePresets().length > 0 ||
       hasHeatmap ||
       (this.config?.alert_entities ?? []).length > 0
     );
@@ -218,7 +245,10 @@ export class RoomPlanCard extends LitElement {
     this._darkMode = ev.matches;
   };
 
-  /** Bild-Prozent (0–100) für ein Entity-Badge: raum-relativ wenn Raum mit Boundary, sonst ent.x/ent.y. */
+  /** Vollbild als „Raum-Box“, wenn der Raum noch keine Boundary hat (z. B. neuer Raum). */
+  private static readonly FULL_IMAGE_BOX = { left: 0, top: 0, width: 100, height: 100 };
+
+  /** Bild-Prozent (0–100) für ein Entity-Badge: raum-relativ wenn in Raum, sonst ent.x/ent.y. */
   private _getEntityImagePosition(fl: FlattenedEntity): { x: number; y: number } {
     const ent = fl.entity;
     const rx = Math.min(100, Math.max(0, Number(ent.x) ?? 50));
@@ -226,7 +256,9 @@ export class RoomPlanCard extends LitElement {
     if (fl.roomIndex !== null) {
       const rooms = getRooms(this.config);
       const room = rooms[fl.roomIndex];
-      const box = room ? getRoomBoundingBox(room) : null;
+      const box = room
+        ? (getRoomBoundingBox(room) ?? RoomPlanCard.FULL_IMAGE_BOX)
+        : null;
       if (box) return roomRelativeToImagePercent(box, rx, ry);
     }
     return { x: rx, y: ry };
@@ -399,7 +431,7 @@ export class RoomPlanCard extends LitElement {
                           class="filter-tab ${activeTab === id ? 'active' : ''}"
                           @click=${() => this._selectFilter(id)}
                         >
-                          ${id === null ? 'Alle' : id === HEATMAP_TAB ? 'Heatmap' : id}
+                          ${this._presetTabLabel(id)}
                         </button>
                       `,
                     )}

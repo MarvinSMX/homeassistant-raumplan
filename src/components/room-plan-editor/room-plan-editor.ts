@@ -47,6 +47,37 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _pickerDocMove = (e: MouseEvent) => this._onPickerDocMove(e);
   private _pickerDocUp = () => this._onPickerDocUp();
 
+  /** Debounce für X/Y-Input: Feinjustierung mit sofortiger Vorschau */
+  private _xyDebounceTimer: number | null = null;
+  private _xyPending: Map<string, { roomIndex: number; entityIndex: number; updates: Partial<RoomPlanEntity> }> = new Map();
+  private static readonly XY_DEBOUNCE_MS = 250;
+
+  private _scheduleXyUpdate(roomIndex: number, entityIndex: number, updates: Partial<RoomPlanEntity>): void {
+    const key = `${roomIndex}-${entityIndex}`;
+    const existing = this._xyPending.get(key);
+    const merged = { ...existing?.updates, ...updates };
+    this._xyPending.set(key, { roomIndex, entityIndex, updates: merged });
+    if (this._xyDebounceTimer !== null) window.clearTimeout(this._xyDebounceTimer);
+    this._xyDebounceTimer = window.setTimeout(() => this._flushXyPending(), RoomPlanEditor.XY_DEBOUNCE_MS);
+  }
+
+  private _flushXyPending(): void {
+    this._xyDebounceTimer = null;
+    this._xyPending.forEach(({ roomIndex, entityIndex, updates }) => {
+      this._updateRoomEntity(roomIndex, entityIndex, updates);
+    });
+    this._xyPending.clear();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback?.();
+    if (this._xyDebounceTimer !== null) {
+      window.clearTimeout(this._xyDebounceTimer);
+      this._xyDebounceTimer = null;
+    }
+    this._xyPending.clear();
+  }
+
   public setConfig(config: RoomPlanCardConfig): void {
     const base = config ?? { type: '', image: '', rooms: [] };
     const img =
@@ -914,9 +945,23 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 <div class="entity-coords-wrap">
                   <div class="entity-coords">
                     <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
-                      @change=${(e: Event) => this._updateRoomEntity(ri, ei, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
+                      @input=${(e: Event) => {
+                        const v = Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50));
+                        this._scheduleXyUpdate(ri, ei, { x: v });
+                      }}
+                      @change=${(e: Event) => {
+                        this._xyPending.delete(`${ri}-${ei}`);
+                        this._updateRoomEntity(ri, ei, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) });
+                      }} />
                     <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
-                      @change=${(e: Event) => this._updateRoomEntity(ri, ei, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) })} />
+                      @input=${(e: Event) => {
+                        const v = Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50));
+                        this._scheduleXyUpdate(ri, ei, { y: v });
+                      }}
+                      @change=${(e: Event) => {
+                        this._xyPending.delete(`${ri}-${ei}`);
+                        this._updateRoomEntity(ri, ei, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) });
+                      }} />
                     <button type="button" class="btn-draw" @click=${() => this._openPickerPosition(ri, ei)} title="Position auf Plan setzen (raum-relativ)"><ha-icon icon="mdi:crosshairs-gps"></ha-icon></button>
                   </div>
                   ${getRoomBoundingBox(room) ? html`<span class="coords-hint">X/Y relativ zum Raum</span>` : ''}

@@ -69,8 +69,8 @@ card_mod:
 ## Koordinaten
 
 - **x** und **y** sind Prozentwerte (0–100)
-- **In Räumen mit Boundary:** x/y beziehen sich auf das **Koordinatensystem des Raums**: 0–100 innerhalb der Raumbegrenzung (z. B. 0 = linke Raumecke, 100 = rechte Raumecke). So bleiben Positionen beim Ändern der Raumgröße sinnvoll.
-- **Ohne Raum oder ohne Raumboundary:** x/y sind wie bisher relativ zur gesamten Bildbreite/-höhe.
+- **In Räumen mit Boundary:** x/y beziehen sich auf das **Koordinatensystem des Raums**: 0–100 innerhalb der Raumbegrenzung (z. B. 0 = linke Raumecke, 100 = rechte Raumecke). So bleiben Positionen beim Ändern der Raumgröße sinnvoll. **Tipp:** Zuerst die Raumbegrenzung (Rechteck/Polygon) zeichnen, dann Entitäten hinzufügen – dann erscheint die Standardposition (50, 50) in der Mitte des Raums.
+- **Ohne Raum oder ohne Raumboundary:** x/y sind relativ zur gesamten Bildbreite/-höhe; 50, 50 = Bildmitte.
 - **x: 0** = links, **x: 100** = rechts | **y: 0** = oben, **y: 100** = unten
 - Im Konfigurations-Editor: X/Y pro Entität eintragen oder per „Position“ auf dem Plan setzen (speichert raum-relativ, wenn der Raum eine Boundary hat).
 

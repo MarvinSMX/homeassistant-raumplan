@@ -64,6 +64,15 @@ export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): Fl
   return config.entities.map((entity, entityIndexInRoom) => ({ entity, roomIndex: null, entityIndexInRoom }));
 }
 
+/** Liefert die Boundary-Liste eines Raums (room.boundary oder room.boundaries). */
+export function getRoomBoundaryList(room: RoomPlanRoom | undefined): RoomBoundary[] {
+  if (!room) return [];
+  const r = room as RoomPlanRoom & { boundaries?: RoomBoundaryItem[] };
+  if (Array.isArray(r.boundary) && r.boundary.length > 0) return r.boundary;
+  if (Array.isArray(r.boundaries) && r.boundaries.length > 0) return r.boundaries;
+  return [];
+}
+
 /** Liefert die Boundaries für Heatmap/Abdunkeln: aus Raum (wenn in Raum), sonst von der Entität. Fensterkontakt nutzt weiterhin ent.room_boundaries (Linien). */
 export function getBoundariesForEntity(
   config: RoomPlanCardConfig | undefined,
@@ -76,15 +85,16 @@ export function getBoundariesForEntity(
   if (roomIndex !== null) {
     const rooms = getRooms(config);
     const room = rooms[roomIndex];
-    if (room?.boundary && room.boundary.length > 0) return room.boundary;
+    const list = getRoomBoundaryList(room);
+    if (list.length > 0) return list;
   }
   return getEntityBoundaries(ent);
 }
 
 /** Umgebendes Rechteck eines Raums in Bild-Prozent (0–100). Aus allen room.boundary-Zonen vereint. */
 export function getRoomBoundingBox(room: RoomPlanRoom): { left: number; top: number; width: number; height: number } | null {
-  const boundary = room?.boundary;
-  if (!Array.isArray(boundary) || boundary.length === 0) return null;
+  const boundary = getRoomBoundaryList(room);
+  if (boundary.length === 0) return null;
   let left = 100;
   let top = 100;
   let right = 0;
