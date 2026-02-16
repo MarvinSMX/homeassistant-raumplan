@@ -100,28 +100,27 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
         className="flex flex-col p-0 overflow-hidden w-full h-full min-h-0 min-w-0 flex-1"
         style={{ flex: '1 1 0', minHeight: 200, minWidth: 0, position: 'relative' }}
       >
-        {/* Grid als Card-Hintergrund für den gesamten sichtbaren Kartenbereich */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 0,
-            pointerEvents: 'none',
-            backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.12)) 1px, transparent 1px)',
-            backgroundSize: '12px 12px',
-            backgroundPosition: '0 0',
-          }}
+        <FilterTabs
+          config={config}
+          hass={hass}
+          allTabIds={allTabIds}
+          categoryLabels={categoryLabels}
+          selectedTabs={selectedTabs}
+          onSelectTab={onSelectTab}
+          host={host}
         />
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0, minWidth: 0 }}>
-          <FilterTabs
-            config={config}
-            hass={hass}
-            allTabIds={allTabIds}
-            categoryLabels={categoryLabels}
-            selectedTabs={selectedTabs}
-            onSelectTab={onSelectTab}
-            host={host}
+        {/* Grid nur im Plan-Bereich (unter den Tabs), damit Tabs klar darüber liegen */}
+        <div style={{ position: 'relative', flex: '1 1 0', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.12)) 1px, transparent 1px)',
+              backgroundSize: '12px 12px',
+              backgroundPosition: '0 0',
+            }}
           />
           <PlanImageWithOverlay
           config={config}
