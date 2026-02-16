@@ -37,6 +37,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   @state() private _pickerImageAspect: number | null = null;
   /** Overlay-Ausschnitt in % der Wrap-Breite/Höhe, damit 0–100 % exakt wie in der Card (Bildinhalt object-fit: contain) */
   @state() private _pickerContentRect: { left: number; top: number; width: number; height: number } | null = null;
+  /** Eingeklappte Räume (Indizes) zur Übersicht. */
+  @state() private _roomCollapsed = new Set<number>();
+
   /** Beim Ziehen eines bestehenden Punkts (Position / Rechteck-Ecke / Linien-Endpunkt / Polygon-Ecke) */
   @state() private _pickerDrag:
     | { kind: 'position' }
@@ -834,10 +837,15 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             ${rooms.map((room, ri) => html`
               <div class="room-block">
                 <div class="room-header">
+                  <button type="button" class="btn-collapse" title="${this._roomCollapsed.has(ri) ? 'Aufklappen' : 'Einklappen'}"
+                    @click=${() => { const s = new Set(this._roomCollapsed); if (s.has(ri)) s.delete(ri); else s.add(ri); this._roomCollapsed = s; }}>
+                    <ha-icon icon="${this._roomCollapsed.has(ri) ? 'mdi:chevron-right' : 'mdi:chevron-down'}"></ha-icon>
+                  </button>
                   <input type="text" class="room-name" .value=${room.name ?? ''} placeholder="Raumname (optional)"
                     @change=${(e: Event) => this._updateRoom(ri, { name: (e.target as HTMLInputElement).value.trim() || undefined })} />
                   <button type="button" class="btn-remove" @click=${() => this._removeRoom(ri)} title="Raum entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
                 </div>
+                <div class="room-body ${this._roomCollapsed.has(ri) ? 'collapsed' : ''}">
                 <div class="room-boundaries" title="Grenze / Heatmap-Zone dieses Raums (Rechteck oder Polygon)">
                   <span class="boundaries-label">Boundary (Raum/Heatmap):</span>
                   ${this._getRoomBoundaries(ri).map((b, bi) => {
@@ -973,6 +981,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             `)}
                 </div>
                 <button type="button" class="btn-add-small" @click=${() => this._addRoomEntity(ri)}><ha-icon icon="mdi:plus"></ha-icon> Entität in Raum</button>
+                </div>
               </div>
             `)}
           </div>
@@ -1128,6 +1137,27 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         flex: 1;
         min-width: 0;
         font-weight: 500;
+      }
+      .btn-collapse {
+        flex-shrink: 0;
+        padding: 4px;
+        min-width: 28px;
+        min-height: 28px;
+        border: none;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--secondary-text-color);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .btn-collapse:hover {
+        background: var(--secondary-background-color);
+        color: var(--primary-text-color);
+      }
+      .room-body.collapsed {
+        display: none;
       }
       .room-boundaries {
         margin-bottom: 12px;

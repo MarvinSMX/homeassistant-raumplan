@@ -1,6 +1,6 @@
 import type { HeatmapZone as HeatmapZoneType } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
-import { hexToRgba, temperatureColor } from './utils';
+import { hexToRgba, temperatureColor, intensityForArea } from './utils';
 
 function isZonePolygon(z: HeatmapZoneType): z is HeatmapZoneType & { points: { x: number; y: number }[] } {
   return Array.isArray((z as { points?: { x: number; y: number }[] }).points) && (z as { points: { x: number; y: number }[] }).points.length >= 3;
@@ -16,13 +16,11 @@ interface HeatmapZoneProps {
 const DIM_DURATION = 0.28;
 
 export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
-  const opacity = Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4));
+  const baseOpacity = Math.min(1, Math.max(0, Number(zone.opacity) ?? 0.4));
   const state = hass?.states?.[zone.entity]?.state;
   const num = typeof state === 'string' ? parseFloat(state.replace(',', '.')) : Number(state);
   const temp = Number.isFinite(num) ? num : 20;
   const color = temperatureColor(temp);
-  const bg = hexToRgba(color, opacity);
-  const gradientBg = `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, ${bg} 100%)`;
 
   if (isZonePolygon(zone)) {
     const pts = zone.points.map((p) => ({ x: Math.min(100, Math.max(0, p.x)), y: Math.min(100, Math.max(0, p.y)) }));
@@ -34,6 +32,10 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
       if (d > r) r = d;
     }
     r = Math.max(r, 1);
+    const areaApprox = 4 * r * r;
+    const intensity = intensityForArea(areaApprox);
+    const opacity = baseOpacity * intensity;
+    const bg = hexToRgba(color, opacity);
     const polygonGradient = `radial-gradient(ellipse ${r * 2}% ${r * 2}% at ${cx}% ${cy}%, transparent 0%, ${bg} 100%)`;
     const ptsStr = pts.map((p) => `${p.x}% ${p.y}%`).join(', ');
     return (
@@ -62,6 +64,11 @@ export function HeatmapZone({ zone, hass, dimmed = false }: HeatmapZoneProps) {
   const top = Math.min(y1, y2);
   const width = Math.abs(x2 - x1) || 1;
   const height = Math.abs(y2 - y1) || 1;
+  const area = width * height;
+  const intensity = intensityForArea(area);
+  const opacity = baseOpacity * intensity;
+  const bg = hexToRgba(color, opacity);
+  const gradientBg = `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, ${bg} 100%)`;
 
   return (
     <div

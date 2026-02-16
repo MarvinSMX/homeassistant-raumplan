@@ -7,7 +7,7 @@ import { gsap } from 'gsap';
 import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
-import { hexToRgba, temperatureColor } from './utils';
+import { hexToRgba, temperatureColor, intensityForArea } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
 
 const HEATMAP_DIM_DURATION = 0.28;

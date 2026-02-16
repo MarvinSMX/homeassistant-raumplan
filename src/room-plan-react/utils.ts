@@ -11,6 +11,12 @@ export function temperatureColor(temp: number): string {
   return '#f44336';
 }
 
+/** Weniger Intensität bei kleineren Räumen: Faktor 0.4–1 abhängig von Fläche in View-% (Referenz 50×50 = 2500). */
+export function intensityForArea(areaInViewPercent: number): number {
+  const ref = 2500;
+  return 0.4 + 0.6 * Math.min(1, areaInViewPercent / ref);
+}
+
 export function getEntityDomain(entityId: string): string {
   const idx = entityId.indexOf('.');
   return idx > 0 ? entityId.slice(0, idx) : '';
