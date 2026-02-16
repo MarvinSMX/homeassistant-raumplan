@@ -71,11 +71,11 @@ export const DEFAULT_CATEGORIES: { id: string; label: string }[] = [
   { id: 'smoke_detector', label: 'Rauchmelder' },
 ];
 
-/** Effektive Kategorien: config.categories falls gesetzt und nicht leer, sonst DEFAULT_CATEGORIES. */
+/** Effektive Kategorien: config.categories (auch leer []) als einzige Quelle; nur bei fehlendem Feld DEFAULT_CATEGORIES (Abwärtskompatibilität). */
 export function getEffectiveCategories(config: RoomPlanCardConfig | undefined): { id: string; label: string }[] {
-  const list = config?.categories;
-  if (Array.isArray(list) && list.length > 0) return list;
-  return DEFAULT_CATEGORIES;
+  if (config == null || !Object.prototype.hasOwnProperty.call(config, 'categories')) return DEFAULT_CATEGORIES;
+  const list = config.categories;
+  return Array.isArray(list) ? list : DEFAULT_CATEGORIES;
 }
 
 /** Kategorie-ID einer Entität für den Filter-Tab (category_id oder Fallback preset/default). */
