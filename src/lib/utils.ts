@@ -83,22 +83,14 @@ export function getEntityCategoryId(ent: RoomPlanEntity): string {
   return ent.category_id ?? ent.preset ?? 'default';
 }
 
-/** Anzeige-Position in Bild-Prozent (0–100). Bei Entität in Raum mit Boundary: (ent.x, ent.y) als raum-relativ interpretieren und umrechnen. */
+/** Anzeige-Position in Bild-Prozent (0–100). ent.x/ent.y sind immer % des gesamten Plans (wie im Editor gesetzt). */
 export function getEntityDisplayPosition(
-  room: RoomPlanRoom | null,
+  _room: RoomPlanRoom | null,
   ent: RoomPlanEntity
 ): { x: number; y: number } {
   const px = getEntityCoord(ent, 'x') ?? 50;
   const py = getEntityCoord(ent, 'y') ?? 50;
-  if (!room) {
-    return { x: Math.min(100, Math.max(0, px)), y: Math.min(100, Math.max(0, py)) };
-  }
-  const box = getRoomBoundingBox(room);
-  if (!box) {
-    return { x: Math.min(100, Math.max(0, px)), y: Math.min(100, Math.max(0, py)) };
-  }
-  const out = roomRelativeToImagePercentWithShape(room, px, py);
-  return { x: Math.min(100, Math.max(0, out.x)), y: Math.min(100, Math.max(0, out.y)) };
+  return { x: Math.min(100, Math.max(0, px)), y: Math.min(100, Math.max(0, py)) };
 }
 
 /** Ein Eintrag in der flachen Entity-Liste inkl. Herkunft (Raum oder Legacy). */
