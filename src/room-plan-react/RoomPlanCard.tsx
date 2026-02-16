@@ -127,7 +127,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
           <div
             style={{
               position: 'absolute',
-              bottom: 10,
+              bottom: 52,
               right: 10,
               padding: '8px 12px',
               borderRadius: 8,

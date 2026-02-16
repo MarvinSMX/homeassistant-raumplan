@@ -297,6 +297,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const panZoomStartRef = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | null>(null);
   const pressOverlayRef = useRef<HTMLDivElement | null>(null);
   const panZoomWrapRef = useRef<HTMLDivElement | null>(null);
+  const panRef = useRef(pan);
+  const scaleRef = useRef(scale);
+  panRef.current = pan;
+  scaleRef.current = scale;
 
   const onRoomPressStart = (entityId: string, boundaries: import('../lib/types').RoomBoundaryItem[]) => {
     gsap.killTweensOf(pressOverlayRef.current);
@@ -453,8 +457,21 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   };
   const handlePanZoomWheel = (e: WheelEvent) => {
     e.preventDefault();
+    const el = panZoomWrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const relX = e.clientX - rect.left - rect.width / 2;
+    const relY = e.clientY - rect.top - rect.height / 2;
+    const currentScale = scaleRef.current;
+    const currentPan = panRef.current;
     const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    setScale((s) => Math.min(3, Math.max(0.5, s * factor)));
+    const newScale = Math.min(3, Math.max(0.5, currentScale * factor));
+    const ratio = newScale / currentScale;
+    setPan({
+      x: currentPan.x * ratio + relX * (1 - ratio),
+      y: currentPan.y * ratio + relY * (1 - ratio),
+    });
+    setScale(newScale);
   };
   useEffect(() => {
     const el = panZoomWrapRef.current;
@@ -462,6 +479,23 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     el.addEventListener('wheel', handlePanZoomWheel, { passive: false });
     return () => el.removeEventListener('wheel', handlePanZoomWheel);
   }, []);
+
+  const zoomBtnStyle: Record<string, string | number> = {
+    width: 32,
+    height: 32,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    border: '1px solid var(--divider-color)',
+    borderRadius: 6,
+    background: 'var(--secondary-background-color, rgba(0,0,0,0.05))',
+    color: 'var(--primary-text-color)',
+    fontSize: '1.1rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    lineHeight: 1,
+  };
 
   /* Gemeinsamer Block: alle Layer exakt dieselbe Box */
   const overlayBoxStyle: Record<string, string> = {
@@ -532,6 +566,31 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           onPointerUp={handlePanZoomPointerUp}
           onPointerLeave={handlePanZoomPointerUp}
         >
+          {/* Workspace-Grid (n8n/React-Flow-Style) hinter dem Plan */}
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+            }}
+            aria-hidden
+          >
+            <defs>
+              <pattern id="roomplan-grid-dots" width="5" height="5" patternUnits="userSpaceOnUse">
+                <circle cx="2.5" cy="2.5" r="0.2" fill="var(--secondary-text-color, rgba(0,0,0,0.15))" fillOpacity="0.4" />
+              </pattern>
+              <pattern id="roomplan-grid-lines" width="5" height="5" patternUnits="userSpaceOnUse">
+                <path d="M 5 0 L 0 0 0 5" fill="none" stroke="var(--divider-color, rgba(0,0,0,0.12))" strokeWidth="0.08" />
+              </pattern>
+            </defs>
+            <rect width="100" height="100" fill="var(--ha-card-background)" />
+            <rect width="100" height="100" fill="url(#roomplan-grid-dots)" />
+          </svg>
           <img
             src={resolvedSrc}
             alt="Raumplan"
@@ -829,29 +888,48 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             </div>
           </div>
         </div>
-        {(pan.x !== 0 || pan.y !== 0 || scale !== 1) && (
+        {/* Zoom-Steuerung unten rechts: Plus, Minus, Zurücksetzen */}
+        <div
+          data-no-pan
+          style={{
+            position: 'absolute',
+            bottom: 10,
+            right: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: 4,
+            borderRadius: 8,
+            background: 'var(--ha-card-background)',
+            border: '1px solid var(--divider-color)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+          }}
+        >
           <button
             type="button"
-            data-no-pan
+            onClick={() => setScale((s) => Math.min(3, s * 1.2))}
+            style={zoomBtnStyle}
+            title="Vergrößern"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={() => setScale((s) => Math.max(0.5, s / 1.2))}
+            style={zoomBtnStyle}
+            title="Verkleinern"
+          >
+            −
+          </button>
+          <button
+            type="button"
             onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
-            style={{
-              position: 'absolute',
-              bottom: 10,
-              left: 10,
-              padding: '6px 10px',
-              borderRadius: 8,
-              border: '1px solid var(--divider-color)',
-              background: 'var(--ha-card-background)',
-              color: 'var(--primary-text-color)',
-              fontSize: '0.8125rem',
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-            }}
+            style={zoomBtnStyle}
             title="Ansicht zurücksetzen"
           >
-            ⟲ Zurücksetzen
+            ⟲
           </button>
-        )}
+        </div>
       </div>
     </div>
   );
