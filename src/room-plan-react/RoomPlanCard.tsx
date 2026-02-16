@@ -3,9 +3,11 @@ import type { RoomPlanCardConfig } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { FilterTabs, HEATMAP_TAB } from './FilterTabs';
 import { PlanImageWithOverlay } from './PlanImageWithOverlay';
-import { getEntityDomain } from './utils';
 import type { FlattenedEntity } from '../lib/utils';
 import { getFlattenedEntities, getBoundariesForEntity } from '../lib/utils';
+
+/** Reihenfolge der Preset-Tabs (Temperatur = HEATMAP_TAB, wenn Heatmap-Zonen vorhanden). */
+const PRESET_ORDER: string[] = [HEATMAP_TAB, 'default', 'temperature', 'binary_sensor', 'window_contact', 'smoke_detector'];
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;
@@ -23,12 +25,23 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
 
   const allTabIds = useMemo(() => {
     const flattened = flattenedEntities;
-    const entities = flattened.map((f) => f.entity);
-    const domains = Array.from(new Set(entities.map((e) => getEntityDomain(e.entity)).filter(Boolean))).sort();
-    const hasHeatmap = flattened.some(
-      (f) => f.entity.preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0
-    );
-    return [...(hasHeatmap ? [HEATMAP_TAB] : []), ...domains];
+    const usedPresets = new Set<string>();
+    let hasHeatmap = false;
+    for (const f of flattened) {
+      const preset = f.entity.preset ?? 'default';
+      usedPresets.add(preset);
+      if (preset === 'temperature' && getBoundariesForEntity(config, f.roomIndex, f.entity).length > 0) {
+        hasHeatmap = true;
+      }
+    }
+    const tabIds: string[] = [];
+    if (hasHeatmap) tabIds.push(HEATMAP_TAB);
+    for (const id of PRESET_ORDER) {
+      if (id === HEATMAP_TAB) continue;
+      if (id === 'temperature' && hasHeatmap) continue;
+      if (usedPresets.has(id)) tabIds.push(id);
+    }
+    return tabIds;
   }, [config, flattenedEntities]);
 
   const [selectedTabs, setSelectedTabs] = useState<Set<string>>(new Set());

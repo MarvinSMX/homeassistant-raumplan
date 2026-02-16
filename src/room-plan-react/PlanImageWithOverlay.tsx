@@ -7,7 +7,7 @@ import { gsap } from 'gsap';
 import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
-import { getEntityDomain, hexToRgba, temperatureColor } from './utils';
+import { hexToRgba, temperatureColor } from './utils';
 import { HEATMAP_TAB } from './FilterTabs';
 
 const HEATMAP_DIM_DURATION = 0.28;
@@ -248,14 +248,14 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
   const flattened = flattenedEntities;
   const entities = flattened.map((f) => f.entity);
-  /* Alle Tabs inaktiv = keine Entities anzeigen; sonst nach gewählten Tabs filtern. */
+  /* Alle Tabs inaktiv = keine Entities anzeigen; sonst nach gewählten Preset-Tabs filtern. */
   const filteredEntities =
     selectedTabs.size === 0
       ? []
       : flattened.filter((f) => {
-          const domain = getEntityDomain(f.entity.entity);
-          if (f.entity.preset === 'temperature') return selectedTabs.has(HEATMAP_TAB);
-          return selectedTabs.has(domain) || !domain;
+          const preset = f.entity.preset ?? 'default';
+          if (preset === 'temperature') return selectedTabs.has(HEATMAP_TAB);
+          return selectedTabs.has(preset);
         });
   /* Badges: gleiche Filter wie Tabs (filteredEntities), ohne Fensterkontakt (nur Linien). */
   const badgeEntities = filteredEntities.filter((f) => f.entity.preset !== 'window_contact');
