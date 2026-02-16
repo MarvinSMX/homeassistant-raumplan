@@ -552,18 +552,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       }}
     >
       <div style={fillBoxStyle}>
-        {/* Grid als Card-/Workspace-Hintergrund (voller Bereich, nicht mit Plan mitbewegt) */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.2)) 1px, transparent 1px)',
-            backgroundSize: '12px 12px',
-            backgroundPosition: '0 0',
-          }}
-        />
         <div
           ref={panZoomWrapRef}
           style={{

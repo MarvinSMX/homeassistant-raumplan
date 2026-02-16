@@ -100,6 +100,18 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
         className="flex flex-col p-0 overflow-hidden w-full h-full min-h-0 min-w-0 flex-1"
         style={{ flex: '1 1 0', minHeight: 200, minWidth: 0, position: 'relative' }}
       >
+        {/* Grid als Card-Hintergrund für den gesamten sichtbaren Kartenbereich */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.2)) 1px, transparent 1px)',
+            backgroundSize: '12px 12px',
+            backgroundPosition: '0 0',
+          }}
+        />
         <FilterTabs
           config={config}
           hass={hass}
