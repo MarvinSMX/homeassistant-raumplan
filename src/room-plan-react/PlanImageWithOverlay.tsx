@@ -506,7 +506,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     const boxW = right - left;
     const boxH = bottom - top;
     if (boxW <= 0 || boxH <= 0) return;
-    const scaleToFit = Math.min(1, 100 / boxW, 100 / boxH);
+    /* Zoom so groß wie möglich, damit alle Gebäude den View füllen (max 3x), sonst wirkt alles zu klein */
+    const scaleToFit = Math.min(3, 100 / boxW, 100 / boxH);
     const centerX = (left + right) / 2;
     const centerY = (top + bottom) / 2;
     setScale(scaleToFit);
