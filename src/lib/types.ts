@@ -78,6 +78,8 @@ export interface RoomPlanBuilding {
   height?: number;
   /** Drehung des Gebäudes in Grad (0, 90, 180, 270). */
   rotation?: number;
+  /** Skalierung (1 = 100 %, z. B. 0.5 = halb, 1.5 = 150 %). */
+  scale?: number;
   /** Räume in diesem Gebäude. */
   rooms: RoomPlanRoom[];
 }

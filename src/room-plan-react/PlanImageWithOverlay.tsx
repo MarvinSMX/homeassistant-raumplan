@@ -643,7 +643,9 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             </>
           )}
           {/* Bei Gebäuden: nur Gebäude-Bereiche mit eigenem Bild (kein globales Plan-Bild). pointer-events: none damit Pan/Zoom (Wrapper) funktioniert. */}
-          {hasBuildings && buildings.map((b, bi) => (
+          {hasBuildings && buildings.map((b, bi) => {
+            const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+            return (
             <div
               key={bi}
               style={{
@@ -655,7 +657,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 overflow: 'hidden',
                 boxSizing: 'border-box',
                 pointerEvents: 'none',
-                transform: `rotate(${Number(b.rotation) ?? 0}deg)`,
+                transform: `scale(${scale}) rotate(${Number(b.rotation) ?? 0}deg)`,
                 transformOrigin: '50% 50%',
               }}
             >
@@ -677,7 +679,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 }}
               />
             </div>
-          ))}
+            );
+          })}
           {/* Overlays nur ohne Gebäude (mit Gebäuden liegen Entities in den Gebäude-Bereichen; Overlays pro Gebäude optional erweiterbar) */}
           {!hasBuildings && zones.length > 0 && selectedTabs.has('temperature') && showHeatmapOverlay && (() => {
             const byEntity = new Map<string, HeatmapZone[]>();

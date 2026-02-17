@@ -1178,7 +1178,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <input type="number" min="0" max="360" step="15" .value=${String(Number(building.rotation) ?? 0)} placeholder="0" style="width: 56px;"
                       @change=${(e: Event) => this._updateBuilding(bi, { rotation: (parseFloat((e.target as HTMLInputElement).value) || 0) % 360 })} />
                   </div>
-                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung verschieben (alle Gebäude sichtbar):</div>
+                  <div class="entity-coords-wrap" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px;">
+                    <span class="boundaries-label">Skalierung (1 = 100 %):</span>
+                    <input type="number" min="0.25" max="3" step="0.1" .value=${String(Number(building.scale) ?? 1)} placeholder="1" style="width: 56px;"
+                      @change=${(e: Event) => this._updateBuilding(bi, { scale: Math.min(3, Math.max(0.25, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
+                  </div>
+                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung verschieben (Bildverhältnis &amp; Drehung sichtbar):</div>
                   <div
                     class="building-placement-preview"
                     style=${`position: relative; width: 100%; max-width: 280px; height: 160px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: grab;'}`}
@@ -1186,11 +1191,16 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   >
                     ${this._getBuildings().map((b, bj) => {
                       const isCurrent = bj === bi;
+                      const rot = Number(b.rotation) ?? 0;
+                      const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+                      const imgSrc = typeof b.image === 'string' ? b.image : '';
                       return html`
                         <div
-                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; ${isCurrent ? 'background: var(--primary-color); opacity: 0.6; border: 2px solid var(--primary-color);' : 'background: var(--secondary-text-color); opacity: 0.2; border: 1px solid var(--divider-color);'} border-radius: 4px; pointer-events: none;"
+                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color);' : 'border: 1px solid var(--divider-color);'} border-radius: 4px; pointer-events: none; display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
                           aria-hidden
-                        ></div>
+                        >
+                          ${imgSrc ? html`<img src="${imgSrc}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; display: block;" />` : ''}
+                        </div>
                       `;
                     })}
                   </div>
