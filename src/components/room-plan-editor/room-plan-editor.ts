@@ -33,6 +33,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   @state() private _buildingDrag: { buildingIndex: number; startX: number; startY: number; startBX: number; startBY: number; previewW: number; previewH: number; viewScale: number } | null = null;
   /** Gebäude-Platzierung im Vollbild (buildingIndex wenn geöffnet). */
   @state() private _buildingPlacementPicker: number | null = null;
+  /** Gesamtplan verschieben (alle Gebäude gemeinsam). */
+  @state() private _planDrag: { startX: number; startY: number; startOffsetX: number; startOffsetY: number; previewW: number; previewH: number; viewScale: number } | null = null;
   @state() private _drawStart: { x: number; y: number } | null = null;
   @state() private _drawCurrent: { x: number; y: number } | null = null;
   /** Beim Polygon-Picker: gesetzte Punkte (Reihenfolge). */
@@ -283,6 +285,32 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._buildingDrag = null;
     document.removeEventListener('mousemove', this._buildingDragMove);
     document.removeEventListener('mouseup', this._buildingDragUp);
+  };
+
+  private _startPlanDrag(e: MouseEvent, viewScale: number = 1): void {
+    e.preventDefault();
+    const wrap = (e.target as HTMLElement).closest('.building-placement-wrap') as HTMLElement | null;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const ox = Number(this._config.plan_offset_x) || 0;
+    const oy = Number(this._config.plan_offset_y) || 0;
+    this._planDrag = { startX: e.clientX, startY: e.clientY, startOffsetX: ox, startOffsetY: oy, previewW: rect.width, previewH: rect.height, viewScale };
+    document.addEventListener('mousemove', this._planDragMove);
+    document.addEventListener('mouseup', this._planDragUp);
+  }
+  private _planDragMove = (e: MouseEvent): void => {
+    const d = this._planDrag;
+    if (!d) return;
+    const dx = ((e.clientX - d.startX) / d.previewW) * 100 / d.viewScale;
+    const dy = ((e.clientY - d.startY) / d.previewH) * 100 / d.viewScale;
+    const newX = Math.round((d.startOffsetX + dx) * 10) / 10;
+    const newY = Math.round((d.startOffsetY + dy) * 10) / 10;
+    this._updateConfig({ plan_offset_x: newX, plan_offset_y: newY });
+  };
+  private _planDragUp = (): void => {
+    this._planDrag = null;
+    document.removeEventListener('mousemove', this._planDragMove);
+    document.removeEventListener('mouseup', this._planDragUp);
   };
 
   private _getRoomEntities(roomIndex: number): RoomPlanEntity[] {
@@ -1087,13 +1115,13 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         </div>
         ` : ''}
         ${this._buildingPlacementPicker !== null ? (() => {
-          const bi = this._buildingPlacementPicker;
           const buildings = this._getBuildings();
-          const currentName = buildings[bi]?.name ?? `Gebäude ${(bi ?? 0) + 1}`;
+          const offsetX = Number(this._config.plan_offset_x) || 0;
+          const offsetY = Number(this._config.plan_offset_y) || 0;
           let left = 100, top = 100, right = 0, bottom = 0;
           for (const b of buildings) {
-            const x = Number(b.x) ?? 0;
-            const y = Number(b.y) ?? 0;
+            const x = (Number(b.x) ?? 0) + offsetX;
+            const y = (Number(b.y) ?? 0) + offsetY;
             const w = Number(b.width) ?? 20;
             const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
             const h = ar != null ? w / ar : (Number(b.height) ?? 20);
@@ -1111,27 +1139,29 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
         <div class="picker-modal-backdrop" @click=${(e: MouseEvent) => e.target === e.currentTarget && (this._buildingPlacementPicker = null)}>
           <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
             <div class="picker-header">
-              <span class="picker-title">Gebäude positionieren: ${currentName} – ziehen zum Verschieben</span>
+              <span class="picker-title">Plan positionieren – alle Gebäude bewegbar, leerer Bereich = Gesamtplan verschieben</span>
               <button type="button" class="btn-cancel" @click=${() => { this._buildingPlacementPicker = null; }}>Schließen</button>
             </div>
             <div
               class="building-placement-wrap building-placement-fullscreen"
-              style="position: relative; flex: 1; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; background: transparent; ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: default;'}"
+              style="position: relative; width: 80vmin; height: 80vmin; max-width: 100%; max-height: 100%; margin: 0 auto; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: transparent; ${this._planDrag || this._buildingDrag ? 'cursor: grabbing;' : 'cursor: default;'}"
+              @mousedown=${(ev: MouseEvent) => { if (!(ev.target as HTMLElement).closest('.building-box')) this._startPlanDrag(ev, viewScale); }}
             >
               <div class="building-placement-inner" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform: translate(${50 - cx}%, ${50 - cy}%) scale(${viewScale}); transform-origin: 50% 50%;">
                 ${buildings.map((b, bj) => {
-                  const isCurrent = bj === bi;
                   const rot = Number(b.rotation) ?? 0;
                   const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
                   const w = Number(b.width) ?? 20;
                   const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
                   const h = ar != null ? w / ar : (Number(b.height) ?? 20);
+                  const leftPct = (Number(b.x) ?? 0) + offsetX;
+                  const topPct = (Number(b.y) ?? 0) + offsetY;
                   const imgSrc = typeof b.image === 'string' ? b.image : '';
                   return html`
                     <div class="building-box"
-                      style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent !important;"
+                      style="position: absolute; left: ${leftPct}%; top: ${topPct}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; border: 1px solid var(--divider-color); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
                       aria-hidden
-                      @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev, viewScale); } : undefined}
+                      @mousedown=${(ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bj, ev, viewScale); }}
                     >
                       ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
                     </div>
@@ -1212,6 +1242,46 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           ${this._getBuildings().length > 0 ? html`
           <h4 class="section-title"><ha-icon icon="mdi:office-building"></ha-icon> Gebäude</h4>
           <p class="section-hint">Gebäude haben ein eigenes Bild und werden auf dem Hauptplan positioniert. Die Räume liegen in den jeweiligen Gebäuden.</p>
+          <div class="entity-coords-wrap" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <span class="boundaries-label">Plan verschieben (ganze Karte, alle Gebäude gemeinsam):</span>
+            <input type="number" step="0.1" .value=${String(Number(this._config.plan_offset_x) || 0)} placeholder="X" style="width: 56px;"
+              @change=${(e: Event) => this._updateConfig({ plan_offset_x: parseFloat((e.target as HTMLInputElement).value) || 0 })} />
+            <input type="number" step="0.1" .value=${String(Number(this._config.plan_offset_y) || 0)} placeholder="Y" style="width: 56px;"
+              @change=${(e: Event) => this._updateConfig({ plan_offset_y: parseFloat((e.target as HTMLInputElement).value) || 0 })} />
+          </div>
+          <div class="boundaries-label" style="margin-bottom: 4px;">Positionierung (alle Gebäude sichtbar und bewegbar – leerer Bereich ziehen = Plan verschieben):</div>
+          <div
+            class="building-placement-wrap building-placement-preview"
+            style="position: relative; width: 200px; height: 200px; aspect-ratio: 1; background: transparent; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px; ${this._planDrag ? 'cursor: grabbing;' : this._buildingDrag ? 'cursor: grabbing;' : 'cursor: default;'}"
+            @mousedown=${(ev: MouseEvent) => { if (!(ev.target as HTMLElement).closest('.building-box')) this._startPlanDrag(ev); }}
+          >
+            ${((): unknown => {
+              const offsetX = Number(this._config.plan_offset_x) || 0;
+              const offsetY = Number(this._config.plan_offset_y) || 0;
+              return this._getBuildings().map((b, bj) => {
+                const rot = Number(b.rotation) ?? 0;
+                const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+                const w = Number(b.width) ?? 20;
+                const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+                const h = ar != null ? w / ar : (Number(b.height) ?? 20);
+                const leftPct = (Number(b.x) ?? 0) + offsetX;
+                const topPct = (Number(b.y) ?? 0) + offsetY;
+                const imgSrc = typeof b.image === 'string' ? b.image : '';
+                return html`
+                  <div class="building-box"
+                    style="position: absolute; left: ${leftPct}%; top: ${topPct}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; border: 1px solid var(--divider-color); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
+                    aria-hidden
+                    @mousedown=${(e: MouseEvent) => { e.stopPropagation(); this._startBuildingDrag(bj, e); }}
+                  >
+                    ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(ev: Event) => this._onBuildingImageLoad(bj, ev)} />` : ''}
+                  </div>
+                `;
+              });
+            })()}
+          </div>
+          <button type="button" class="btn-draw" style="margin-bottom: 12px;" @click=${() => { this._buildingPlacementPicker = 0; }} title="Positionierung im Vollbild">
+            <ha-icon icon="mdi:fullscreen"></ha-icon> Im Vollbild positionieren
+          </button>
           <div class="room-list">
             ${this._getBuildings().map((building, bi) => html`
               <div class="room-block building-block">
@@ -1251,30 +1321,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <input type="number" min="0.25" max="3" step="0.1" .value=${String(Number(building.scale) ?? 1)} placeholder="1" style="width: 56px;"
                       @change=${(e: Event) => this._updateBuilding(bi, { scale: Math.min(3, Math.max(0.25, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
                   </div>
-                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung:</div>
-                  <div class="building-placement-preview building-placement-wrap" style="position: relative; width: 100%; max-width: 280px; height: 160px; background: transparent; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px;">
-                    ${this._getBuildings().map((b, bj) => {
-                      const isCurrent = bj === bi;
-                      const rot = Number(b.rotation) ?? 0;
-                      const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
-                      const w = Number(b.width) ?? 20;
-                      const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
-                      const h = ar != null ? w / ar : (Number(b.height) ?? 20);
-                      const imgSrc = typeof b.image === 'string' ? b.image : '';
-                      return html`
-                  <div class="building-box"
-                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent !important;"
-                          aria-hidden
-                          @mousedown=${isCurrent ? (ev: MouseEvent) => this._startBuildingDrag(bi, ev) : undefined}
-                        >
-                          ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
-                        </div>
-                      `;
-                    })}
-                  </div>
-                  <button type="button" class="btn-draw" @click=${() => { this._buildingPlacementPicker = bi; }} title="Platzierung im Vollbild verschieben">
-                    <ha-icon icon="mdi:fullscreen"></ha-icon> Im Vollbild positionieren
-                  </button>
                   <span class="boundaries-label">Räume in diesem Gebäude:</span>
                   ${(building.rooms ?? []).map((room, ri) => {
                     const globalRoomIndex = this._getBuildings().slice(0, bi).reduce((acc, b) => acc + (b.rooms?.length ?? 0), 0) + ri;

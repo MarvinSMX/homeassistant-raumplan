@@ -46,6 +46,8 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
     image_dark: c?.image_dark,
     dark_mode_filter: c?.dark_mode_filter,
     dark_mode: c?.dark_mode,
+    plan_offset_x: Number(c?.plan_offset_x) || 0,
+    plan_offset_y: Number(c?.plan_offset_y) || 0,
   };
 }
 

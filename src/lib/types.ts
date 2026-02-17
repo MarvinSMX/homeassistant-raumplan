@@ -127,6 +127,9 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   rooms?: RoomPlanRoom[];
   /** Gebäude: jedes hat Bild + Position auf dem Plan und enthält Räume. Wenn gesetzt, werden rooms nicht genutzt. */
   buildings?: RoomPlanBuilding[];
+  /** Verschiebung der gesamten Karte in % (gilt für alle Gebäude gemeinsam). */
+  plan_offset_x?: number;
+  plan_offset_y?: number;
   /** @deprecated Nutze rooms[].entities. Flache Entitätsliste für Abwärtskompatibilität. */
   entities?: RoomPlanEntity[];
 }

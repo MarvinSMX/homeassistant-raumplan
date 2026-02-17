@@ -400,6 +400,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const rotation = Number(config.rotation) ?? 0;
   const buildings = getBuildings(config);
   const hasBuildings = buildings.length > 0;
+  const planOffsetX = Number(config.plan_offset_x) || 0;
+  const planOffsetY = Number(config.plan_offset_y) || 0;
 
   const flattened = flattenedEntities;
   const entities = flattened.map((f) => f.entity);
@@ -493,8 +495,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     if (W <= 0 || H <= 0) return;
     let left = 100, top = 100, right = 0, bottom = 0;
     for (const b of buildings) {
-      const x = Number(b.x) ?? 0;
-      const y = Number(b.y) ?? 0;
+      const x = (Number(b.x) ?? 0) + planOffsetX;
+      const y = (Number(b.y) ?? 0) + planOffsetY;
       const w = Number(b.width) ?? 20;
       const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
       const h = ar != null ? w / ar : (Number(b.height) ?? 20);
@@ -516,7 +518,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       x: W * scaleToFit * (0.5 - centerX / 100),
       y: H * scaleToFit * (0.5 - centerY / 100),
     });
-  }, [hasBuildings, buildings]);
+  }, [hasBuildings, buildings, planOffsetX, planOffsetY]);
 
   /** Reset mit zweitem Lauf nach Layout-Update, damit nach Zoom-Änderung die Kartengröße stimmt. */
   const applyFitBuildingsViewStable = useCallback(() => {
@@ -595,9 +597,9 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Bei Gebäuden: Workspace = ganze Card (absolut füllend), damit Fit/Reset sich an der Kartengröße orientiert. */
+  /* Bei Gebäuden: Plan immer als Quadrat (1:1), damit Positionierung in Editor und Card übereinstimmt (Card oft breiter). */
   const wrapStyle = hasBuildings
-    ? { position: 'absolute' as const, left: 0, top: 0, right: 0, bottom: 0, overflow: 'hidden' as const, boxSizing: 'border-box' as const }
+    ? { position: 'relative' as const, width: 'min(100cqw, 100cqh)', height: 'min(100cqw, 100cqh)', flexShrink: 0, overflow: 'hidden' as const, boxSizing: 'border-box' as const }
     : fitBoxStyle;
 
   return (
@@ -665,13 +667,15 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             const w = Number(b.width) ?? 20;
             const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
             const h = ar != null ? w / ar : (Number(b.height) ?? 20);
+            const leftPct = (Number(b.x) ?? 0) + planOffsetX;
+            const topPct = (Number(b.y) ?? 0) + planOffsetY;
             return (
             <div
               key={bi}
               style={{
                 position: 'absolute',
-                left: `${Number(b.x) ?? 0}%`,
-                top: `${Number(b.y) ?? 0}%`,
+                left: `${leftPct}%`,
+                top: `${topPct}%`,
                 width: `${w}%`,
                 height: `${h}%`,
                 overflow: 'hidden',
