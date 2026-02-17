@@ -24,11 +24,13 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
     ? config.image
     : (config?.image as { location?: string })?.location ?? '';
   const rooms = Array.isArray(config?.rooms) ? config.rooms : undefined;
+  const buildings = Array.isArray(config?.buildings) ? config.buildings : undefined;
   return {
     type: config?.type ?? 'custom:room-plan-card',
     image: img,
     entities: Array.isArray(config?.entities) ? config.entities : [],
     rooms,
+    buildings,
     title: config?.title ?? '',
     rotation: Number(config?.rotation) ?? 0,
     full_height: config?.full_height ?? false,
