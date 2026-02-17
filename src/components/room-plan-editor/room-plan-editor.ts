@@ -19,7 +19,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     rooms: [],
   };
 
-  /** „Auf Plan einzeichnen“: roomIndex + entityIndex (in Raum) oder boundaryIndex (Raum-Zone) oder buildingPlace. */
+  /** „Auf Plan einzeichnen“: roomIndex + entityIndex (in Raum) oder boundaryIndex (Raum-Zone). */
   @state() private _pickerFor:
     | { type: 'position'; roomIndex: number; entityIndex: number }
     | { type: 'rect'; roomIndex: number; boundaryIndex: number }
@@ -28,8 +28,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     | { type: 'polygonNew'; roomIndex: number }
     | { type: 'line'; roomIndex: number; entityIndex: number; lineIndex: number }
     | { type: 'lineNew'; roomIndex: number; entityIndex: number }
-    | { type: 'buildingPlace'; buildingIndex: number }
     | null = null;
+  /** Gebäude-Platzierung im Editor verschieben (nur Drag, kein Picker). */
+  @state() private _buildingDrag: { buildingIndex: number; startX: number; startY: number; startBX: number; startBY: number; previewW: number; previewH: number } | null = null;
   @state() private _drawStart: { x: number; y: number } | null = null;
   @state() private _drawCurrent: { x: number; y: number } | null = null;
   /** Beim Polygon-Picker: gesetzte Punkte (Reihenfolge). */
@@ -85,6 +86,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       this._xyDebounceTimer = null;
     }
     this._xyPending.clear();
+    if (this._buildingDrag) {
+      this._buildingDrag = null;
+      document.removeEventListener('mousemove', this._buildingDragMove);
+      document.removeEventListener('mouseup', this._buildingDragUp);
+    }
   }
 
   public setConfig(config: RoomPlanCardConfig): void {
@@ -226,15 +232,47 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _addBuilding(): void {
-    const buildings = [...(this._config.buildings ?? []), { name: '', image: '', x: 0, y: 0, width: 20, height: 20, rooms: [] }];
+    const buildings = [...(this._config.buildings ?? []), { name: '', image: '', x: 10, y: 10, width: 25, height: 25, rooms: [] }];
     this._updateConfig({ buildings });
   }
 
-  private _openPickerBuildingPlace(buildingIndex: number): void {
-    this._pickerFor = { type: 'buildingPlace', buildingIndex };
-    this._drawStart = null;
-    this._drawCurrent = null;
+  private _startBuildingDrag(buildingIndex: number, e: MouseEvent): void {
+    e.preventDefault();
+    const preview = (e.target as HTMLElement).closest('.building-placement-preview') as HTMLElement | null;
+    if (!preview) return;
+    const rect = preview.getBoundingClientRect();
+    const b = this._getBuildings()[buildingIndex];
+    if (!b) return;
+    this._buildingDrag = {
+      buildingIndex,
+      startX: e.clientX,
+      startY: e.clientY,
+      startBX: Number(b.x) ?? 0,
+      startBY: Number(b.y) ?? 0,
+      previewW: rect.width,
+      previewH: rect.height,
+    };
+    document.addEventListener('mousemove', this._buildingDragMove);
+    document.addEventListener('mouseup', this._buildingDragUp);
   }
+  private _buildingDragMove = (e: MouseEvent): void => {
+    const d = this._buildingDrag;
+    if (!d) return;
+    const dx = ((e.clientX - d.startX) / d.previewW) * 100;
+    const dy = ((e.clientY - d.startY) / d.previewH) * 100;
+    const b = this._getBuildings()[d.buildingIndex];
+    if (!b) return;
+    const w = Number(b.width) ?? 20;
+    const h = Number(b.height) ?? 20;
+    const newX = Math.min(100 - w, Math.max(0, d.startBX + dx));
+    const newY = Math.min(100 - h, Math.max(0, d.startBY + dy));
+    this._updateBuilding(d.buildingIndex, { x: Math.round(newX * 10) / 10, y: Math.round(newY * 10) / 10 });
+  };
+  private _buildingDragUp = (): void => {
+    this._buildingDrag = null;
+    document.removeEventListener('mousemove', this._buildingDragMove);
+    document.removeEventListener('mouseup', this._buildingDragUp);
+  };
 
   private _getRoomEntities(roomIndex: number): RoomPlanEntity[] {
     const rooms = this._getRooms();
@@ -687,7 +725,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _onPickerDocMove(e: MouseEvent): void {
     const p = this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerDrag || !this._pickerFor) return;
-    if (this._pickerFor.type === 'buildingPlace') return;
     const roomIndex = this._pickerFor.roomIndex;
     const round = (v: number) => Math.round(v * 10) / 10;
     if (this._pickerDrag.kind === 'position' && this._pickerFor.type === 'position') {
@@ -787,22 +824,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     e.preventDefault();
     const p = this._getPercentFromEvent(e) ?? this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerFor) return;
-    if (this._pickerFor.type === 'buildingPlace') {
-      if (!this._drawStart) {
-        this._drawStart = p;
-        this._drawCurrent = p;
-        return;
-      }
-      const rx1 = Math.min(this._drawStart.x, p.x);
-      const ry1 = Math.min(this._drawStart.y, p.y);
-      const rx2 = Math.max(this._drawStart.x, p.x);
-      const ry2 = Math.max(this._drawStart.y, p.y);
-      const width = Math.max(5, rx2 - rx1);
-      const height = Math.max(5, ry2 - ry1);
-      this._updateBuilding(this._pickerFor.buildingIndex, { x: rx1, y: ry1, width, height });
-      this._closePicker();
-      return;
-    }
     const roomIndex = this._pickerFor.roomIndex;
     if (this._pickerFor.type === 'position') {
       this._updateRoomEntity(roomIndex, this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
@@ -879,7 +900,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const p = this._getPercentFromEvent(e);
     if (!this._pickerFor || !this._drawStart) return;
     if (
-      this._pickerFor.type === 'buildingPlace' ||
       this._pickerFor.type === 'line' ||
       this._pickerFor.type === 'lineNew' ||
       this._pickerFor.type === 'rect' ||
@@ -932,7 +952,6 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
             <div class="picker-header">
               <span class="picker-title">
-                ${this._pickerFor.type === 'buildingPlace' ? 'Gebäude platzieren: zwei Punkte klicken (Ecke – gegenüberliegende Ecke des Gebäudebereichs)' : ''}
                 ${this._pickerFor.type === 'position'
                   ? (() => {
                       const r = this._getRooms()[this._pickerFor!.roomIndex];
@@ -972,7 +991,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 : 'left:0;top:0;width:100%;height:100%'}
                 @click=${(e: MouseEvent) => {
                   const handle = e.target === e.currentTarget ||
-                    this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygonNew' || this._pickerFor?.type === 'buildingPlace';
+                    this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygonNew';
                   if (handle) {
                     this._onPickerImageClick(e);
                     e.stopPropagation();
@@ -1030,25 +1049,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${left + w}%;top:${top + h}%"
                       @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragRect(bi, 1, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>`;
                 }) : ''}
-                ${this._pickerFor?.type === 'buildingPlace' ? (() => {
-                  const buildings = this._getBuildings();
-                  const bi = this._pickerFor.buildingIndex;
-                  const b = buildings[bi];
-                  const hasPos = b && Number(b.x) != null && Number(b.y) != null && Number(b.width) != null && Number(b.height) != null;
-                  return html`
-                    ${hasPos ? html`
-                      <div class="picker-rect editing" style="left:${b!.x}%;top:${b!.y}%;width:${b!.width}%;height:${b!.height}%"></div>
-                      <div class="picker-point" style="left:${b!.x}%;top:${b!.y}%"></div>
-                      <div class="picker-point" style="left:${(b!.x ?? 0) + (b!.width ?? 0)}%;top:${(b!.y ?? 0) + (b!.height ?? 0)}%"></div>
-                    ` : ''}
-                    ${this._drawStart && this._drawCurrent ? html`
-                      <div class="picker-rect draw-preview" style="left:${Math.min(this._drawStart.x, this._drawCurrent.x)}%;top:${Math.min(this._drawStart.y, this._drawCurrent.y)}%;width:${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}%;height:${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}%"></div>
-                      <div class="picker-point draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%"></div>
-                      <div class="picker-point draw-preview" style="left:${this._drawCurrent.x}%;top:${this._drawCurrent.y}%"></div>
-                    ` : ''}
-                  `;
-                })() : ''}
-                ${this._drawStart && this._drawCurrent && this._pickerFor?.type !== 'buildingPlace' ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
+                ${this._drawStart && this._drawCurrent ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
                   ? (() => {
                       const l = Math.min(this._drawStart.x, this._drawCurrent.x);
                       const t = Math.min(this._drawStart.y, this._drawCurrent.y);
@@ -1171,7 +1172,17 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                       @change=${(e: Event) => this._updateBuilding(bi, { width: Math.min(100, Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 20)) })} />
                     <input type="number" min="1" max="100" step="0.1" .value=${String(Number(building.height) ?? 20)} placeholder="Höhe" style="width: 56px;"
                       @change=${(e: Event) => this._updateBuilding(bi, { height: Math.min(100, Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 20)) })} />
-                    <button type="button" class="btn-draw" @click=${() => img && this._openPickerBuildingPlace(bi)} ?disabled=${!img} title="Auf Plan platzieren"><ha-icon icon="mdi:map-marker"></ha-icon> Auf Plan platzieren</button>
+                  </div>
+                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung verschieben:</div>
+                  <div
+                    class="building-placement-preview"
+                    style=${`position: relative; width: 100%; max-width: 280px; height: 160px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: grab;'}`}
+                    @mousedown=${(ev: MouseEvent) => this._startBuildingDrag(bi, ev)}
+                  >
+                    <div
+                      style="position: absolute; left: ${Number(building.x) ?? 0}%; top: ${Number(building.y) ?? 0}%; width: ${Number(building.width) ?? 20}%; height: ${Number(building.height) ?? 20}%; background: var(--primary-color); opacity: 0.5; border: 2px solid var(--primary-color); border-radius: 4px; pointer-events: none;"
+                      aria-hidden
+                    ></div>
                   </div>
                   <span class="boundaries-label">Räume in diesem Gebäude:</span>
                   ${(building.rooms ?? []).map((room, ri) => {

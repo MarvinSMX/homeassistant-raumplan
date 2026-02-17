@@ -568,35 +568,40 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           onPointerUp={handlePanZoomPointerUp}
           onPointerLeave={handlePanZoomPointerUp}
         >
-          <img
-            src={resolvedSrc}
-            alt="Raumplan"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              margin: 0,
-              padding: 0,
-              boxSizing: 'border-box',
-              objectFit: 'contain',
-              objectPosition: 'center',
-              filter: darkFilter,
-              display: 'block',
-            }}
-            onLoad={onImageLoad}
-            onError={onImageError}
-          />
-          {!imageLoaded && !imageError && (
-            <div style={{ ...overlayBoxStyle, background: 'var(--ha-card-background)' }} aria-hidden />
+          {/* Kein globales Bild bei Gebäuden – nur Gebäude-Bereiche mit ihren Bildern; sonst ein Plan-Bild */}
+          {!hasBuildings && (
+            <>
+              <img
+                src={resolvedSrc}
+                alt="Raumplan"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  margin: 0,
+                  padding: 0,
+                  boxSizing: 'border-box',
+                  objectFit: 'contain',
+                  objectPosition: 'center',
+                  filter: darkFilter,
+                  display: 'block',
+                }}
+                onLoad={onImageLoad}
+                onError={onImageError}
+              />
+              {!imageLoaded && !imageError && (
+                <div style={{ ...overlayBoxStyle, background: 'var(--ha-card-background)' }} aria-hidden />
+              )}
+              {imageError && (
+                <div style={{ ...overlayBoxStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
+                  Bild konnte nicht geladen werden
+                </div>
+              )}
+            </>
           )}
-          {imageError && (
-            <div style={{ ...overlayBoxStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ha-card-background)', color: 'var(--secondary-text-color)', fontSize: '0.875rem' }}>
-              Bild konnte nicht geladen werden
-            </div>
-          )}
-          {/* Bei Gebäuden: jedes Gebäude als positionierter Bereich mit eigenem Bild (Overlays pro Gebäude später erweiterbar) */}
+          {/* Bei Gebäuden: nur Gebäude-Bereiche mit eigenem Bild (kein globales Plan-Bild) */}
           {hasBuildings && buildings.map((b, bi) => (
             <div
               key={bi}
