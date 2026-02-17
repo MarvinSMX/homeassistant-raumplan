@@ -1173,16 +1173,21 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <input type="number" min="1" max="100" step="0.1" .value=${String(Number(building.height) ?? 20)} placeholder="Höhe" style="width: 56px;"
                       @change=${(e: Event) => this._updateBuilding(bi, { height: Math.min(100, Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 20)) })} />
                   </div>
-                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung verschieben:</div>
+                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung verschieben (alle Gebäude sichtbar):</div>
                   <div
                     class="building-placement-preview"
                     style=${`position: relative; width: 100%; max-width: 280px; height: 160px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: grab;'}`}
                     @mousedown=${(ev: MouseEvent) => this._startBuildingDrag(bi, ev)}
                   >
-                    <div
-                      style="position: absolute; left: ${Number(building.x) ?? 0}%; top: ${Number(building.y) ?? 0}%; width: ${Number(building.width) ?? 20}%; height: ${Number(building.height) ?? 20}%; background: var(--primary-color); opacity: 0.5; border: 2px solid var(--primary-color); border-radius: 4px; pointer-events: none;"
-                      aria-hidden
-                    ></div>
+                    ${this._getBuildings().map((b, bj) => {
+                      const isCurrent = bj === bi;
+                      return html`
+                        <div
+                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; ${isCurrent ? 'background: var(--primary-color); opacity: 0.6; border: 2px solid var(--primary-color);' : 'background: var(--secondary-text-color); opacity: 0.2; border: 1px solid var(--divider-color);'} border-radius: 4px; pointer-events: none;"
+                          aria-hidden
+                        ></div>
+                      `;
+                    })}
                   </div>
                   <span class="boundaries-label">Räume in diesem Gebäude:</span>
                   ${(building.rooms ?? []).map((room, ri) => {

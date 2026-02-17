@@ -4,7 +4,7 @@ import type { HomeAssistant } from 'custom-card-helpers';
 import { FilterTabs } from './FilterTabs';
 import { PlanImageWithOverlay } from './PlanImageWithOverlay';
 import type { FlattenedEntity } from '../lib/utils';
-import { getFlattenedEntities, getBoundariesForEntity, getEffectiveCategories } from '../lib/utils';
+import { getFlattenedEntities, getBoundariesForEntity, getEffectiveCategories, getBuildings } from '../lib/utils';
 
 interface RoomPlanCardProps {
   hass: HomeAssistant;
@@ -80,8 +80,10 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
   }, []);
 
   const img = typeof config.image === 'string' ? config.image : (config?.image as { location?: string } | undefined)?.location ?? '';
+  const hasBuildings = getBuildings(config).length > 0;
 
-  if (!img) {
+  /* Ohne Bild und ohne Gebäude: Konfiguration nötig; mit Gebäuden reicht Gebäude-Bilder. */
+  if (!img && !hasBuildings) {
     return (
       <ha-card>
         <style dangerouslySetInnerHTML={{ __html: cssString }} />

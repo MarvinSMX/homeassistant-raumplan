@@ -52,10 +52,12 @@ export function getEntityBoundaries(ent: RoomPlanEntity): RoomBoundary[] {
   return [];
 }
 
-/** Liefert die Gebäude aus der Config (immer Array, ggf. leer). */
+/** Liefert die Gebäude aus der Config (immer Array, ggf. leer). Prüft auch config.config?.buildings (HA-Varianten). */
 export function getBuildings(config: RoomPlanCardConfig | undefined): RoomPlanBuilding[] {
   if (!config) return [];
-  return Array.isArray(config.buildings) ? config.buildings : [];
+  if (Array.isArray(config.buildings) && config.buildings.length > 0) return config.buildings;
+  const nested = (config as { config?: { buildings?: RoomPlanBuilding[] } }).config?.buildings;
+  return Array.isArray(nested) ? nested : [];
 }
 
 /** Liefert die Räume aus der Config (immer Array, ggf. leer). Bei buildings: flache Liste aus allen buildings[].rooms. Sonst config.rooms. */
