@@ -76,6 +76,8 @@ export interface RoomPlanBuilding {
   width?: number;
   /** Höhe auf dem Hauptplan in % (0–100). */
   height?: number;
+  /** Drehung des Gebäudes in Grad (0, 90, 180, 270). */
+  rotation?: number;
   /** Räume in diesem Gebäude. */
   rooms: RoomPlanRoom[];
 }

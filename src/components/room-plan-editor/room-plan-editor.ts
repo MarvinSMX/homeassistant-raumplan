@@ -1173,6 +1173,11 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <input type="number" min="1" max="100" step="0.1" .value=${String(Number(building.height) ?? 20)} placeholder="Höhe" style="width: 56px;"
                       @change=${(e: Event) => this._updateBuilding(bi, { height: Math.min(100, Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 20)) })} />
                   </div>
+                  <div class="entity-coords-wrap" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px;">
+                    <span class="boundaries-label">Drehung (Grad):</span>
+                    <input type="number" min="0" max="360" step="15" .value=${String(Number(building.rotation) ?? 0)} placeholder="0" style="width: 56px;"
+                      @change=${(e: Event) => this._updateBuilding(bi, { rotation: (parseFloat((e.target as HTMLInputElement).value) || 0) % 360 })} />
+                  </div>
                   <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung verschieben (alle Gebäude sichtbar):</div>
                   <div
                     class="building-placement-preview"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import type { RoomPlanCardConfig, RoomPlanEntity } from '../lib/types';
 import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
@@ -482,6 +482,47 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     return () => el.removeEventListener('wheel', handlePanZoomWheel);
   }, []);
 
+  /** Bei Gebäuden: Zoom/Pan so setzen, dass alle Gebäude grade so sichtbar sind. */
+  const applyFitBuildingsView = useCallback(() => {
+    if (!hasBuildings || buildings.length === 0) return;
+    const el = panZoomWrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const W = rect.width;
+    const H = rect.height;
+    if (W <= 0 || H <= 0) return;
+    let left = 100, top = 100, right = 0, bottom = 0;
+    for (const b of buildings) {
+      const x = Number(b.x) ?? 0;
+      const y = Number(b.y) ?? 0;
+      const w = Number(b.width) ?? 20;
+      const h = Number(b.height) ?? 20;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x + w);
+      bottom = Math.max(bottom, y + h);
+    }
+    const boxW = right - left;
+    const boxH = bottom - top;
+    if (boxW <= 0 || boxH <= 0) return;
+    const scaleToFit = Math.min(1, 100 / boxW, 100 / boxH);
+    const centerX = (left + right) / 2;
+    const centerY = (top + bottom) / 2;
+    setScale(scaleToFit);
+    setPan({
+      x: W * (0.5 - (scaleToFit * centerX) / 100),
+      y: H * (0.5 - (scaleToFit * centerY) / 100),
+    });
+  }, [hasBuildings, buildings]);
+
+  useEffect(() => {
+    if (!hasBuildings || buildings.length === 0) return;
+    const t = requestAnimationFrame(() => {
+      applyFitBuildingsView();
+    });
+    return () => cancelAnimationFrame(t);
+  }, [hasBuildings, applyFitBuildingsView]);
+
   const zoomBtnStyle: Record<string, string | number> = {
     width: 32,
     height: 32,
@@ -601,7 +642,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               )}
             </>
           )}
-          {/* Bei Gebäuden: nur Gebäude-Bereiche mit eigenem Bild (kein globales Plan-Bild) */}
+          {/* Bei Gebäuden: nur Gebäude-Bereiche mit eigenem Bild (kein globales Plan-Bild). pointer-events: none damit Pan/Zoom (Wrapper) funktioniert. */}
           {hasBuildings && buildings.map((b, bi) => (
             <div
               key={bi}
@@ -613,7 +654,9 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 height: `${Number(b.height) ?? 20}%`,
                 overflow: 'hidden',
                 boxSizing: 'border-box',
-                pointerEvents: 'auto',
+                pointerEvents: 'none',
+                transform: `rotate(${Number(b.rotation) ?? 0}deg)`,
+                transformOrigin: '50% 50%',
               }}
             >
               <img
@@ -907,7 +950,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           </div>
           </div>
           )}
-        {/* Zoom-Steuerung unten rechts: Plus, Minus, Zurücksetzen */}
+        </div>
+        {/* Zoom-Steuerung immer unten rechts (nicht im Pan-Wrapper, damit sie nicht mitzieht) */}
         <div
           data-no-pan
           style={{
@@ -922,6 +966,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
             background: 'var(--ha-card-background)',
             border: '1px solid var(--divider-color)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            zIndex: 10,
           }}
         >
           <button
@@ -942,7 +987,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           </button>
           <button
             type="button"
-            onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
+            onClick={() => { if (hasBuildings) applyFitBuildingsView(); else { setPan({ x: 0, y: 0 }); setScale(1); } }}
             style={zoomBtnStyle}
             title="Ansicht zurücksetzen"
           >
@@ -950,7 +995,6 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           </button>
         </div>
       </div>
-    </div>
     </div>
   );
 }
