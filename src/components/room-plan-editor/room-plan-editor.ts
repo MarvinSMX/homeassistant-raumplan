@@ -29,8 +29,10 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     | { type: 'line'; roomIndex: number; entityIndex: number; lineIndex: number }
     | { type: 'lineNew'; roomIndex: number; entityIndex: number }
     | null = null;
-  /** Gebäude-Platzierung im Editor verschieben (nur Drag, kein Picker). */
+  /** Gebäude-Platzierung im Editor verschieben (Drag in Preview oder Vollbild). */
   @state() private _buildingDrag: { buildingIndex: number; startX: number; startY: number; startBX: number; startBY: number; previewW: number; previewH: number } | null = null;
+  /** Gebäude-Platzierung im Vollbild (buildingIndex wenn geöffnet). */
+  @state() private _buildingPlacementPicker: number | null = null;
   @state() private _drawStart: { x: number; y: number } | null = null;
   @state() private _drawCurrent: { x: number; y: number } | null = null;
   /** Beim Polygon-Picker: gesetzte Punkte (Reihenfolge). */
@@ -238,7 +240,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
   private _startBuildingDrag(buildingIndex: number, e: MouseEvent): void {
     e.preventDefault();
-    const preview = (e.target as HTMLElement).closest('.building-placement-preview') as HTMLElement | null;
+    const preview = (e.target as HTMLElement).closest('.building-placement-wrap') as HTMLElement | null;
     if (!preview) return;
     const rect = preview.getBoundingClientRect();
     const b = this._getBuildings()[buildingIndex];
@@ -1075,6 +1077,41 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           </div>
         </div>
         ` : ''}
+        ${this._buildingPlacementPicker !== null ? (() => {
+          const bi = this._buildingPlacementPicker;
+          const buildings = this._getBuildings();
+          const currentName = buildings[bi]?.name ?? `Gebäude ${(bi ?? 0) + 1}`;
+          return html`
+        <div class="picker-modal-backdrop" @click=${(e: MouseEvent) => e.target === e.currentTarget && (this._buildingPlacementPicker = null)}>
+          <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
+            <div class="picker-header">
+              <span class="picker-title">Gebäude positionieren: ${currentName} – ziehen zum Verschieben</span>
+              <button type="button" class="btn-cancel" @click=${() => { this._buildingPlacementPicker = null; }}>Schließen</button>
+            </div>
+            <div
+              class="building-placement-wrap building-placement-fullscreen"
+              style="position: relative; flex: 1; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; background: var(--secondary-background-color); ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: default;'}"
+            >
+              ${buildings.map((b, bj) => {
+                const isCurrent = bj === bi;
+                const rot = Number(b.rotation) ?? 0;
+                const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+                const imgSrc = typeof b.image === 'string' ? b.image : '';
+                return html`
+                  <div
+                    style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
+                    aria-hidden
+                    @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev); } : undefined}
+                  >
+                    ${imgSrc ? html`<img src="${imgSrc}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; display: block; pointer-events: none;" />` : ''}
+                  </div>
+                `;
+              })}
+            </div>
+          </div>
+        </div>
+          `;
+        })() : ''}
         <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:image"></ha-icon> Bild</h4>
           <div class="field">
@@ -1183,12 +1220,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <input type="number" min="0.25" max="3" step="0.1" .value=${String(Number(building.scale) ?? 1)} placeholder="1" style="width: 56px;"
                       @change=${(e: Event) => this._updateBuilding(bi, { scale: Math.min(3, Math.max(0.25, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
                   </div>
-                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung verschieben (Bildverhältnis &amp; Drehung sichtbar):</div>
-                  <div
-                    class="building-placement-preview"
-                    style=${`position: relative; width: 100%; max-width: 280px; height: 160px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: grab;'}`}
-                    @mousedown=${(ev: MouseEvent) => this._startBuildingDrag(bi, ev)}
-                  >
+                  <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung:</div>
+                  <div class="building-placement-preview building-placement-wrap" style="position: relative; width: 100%; max-width: 280px; height: 160px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px;">
                     ${this._getBuildings().map((b, bj) => {
                       const isCurrent = bj === bi;
                       const rot = Number(b.rotation) ?? 0;
@@ -1196,14 +1229,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                       const imgSrc = typeof b.image === 'string' ? b.image : '';
                       return html`
                         <div
-                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color);' : 'border: 1px solid var(--divider-color);'} border-radius: 4px; pointer-events: none; display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
+                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
                           aria-hidden
+                          @mousedown=${isCurrent ? (ev: MouseEvent) => this._startBuildingDrag(bi, ev) : undefined}
                         >
-                          ${imgSrc ? html`<img src="${imgSrc}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; display: block;" />` : ''}
+                          ${imgSrc ? html`<img src="${imgSrc}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; display: block; pointer-events: none;" />` : ''}
                         </div>
                       `;
                     })}
                   </div>
+                  <button type="button" class="btn-draw" @click=${() => { this._buildingPlacementPicker = bi; }} title="Platzierung im Vollbild verschieben">
+                    <ha-icon icon="mdi:fullscreen"></ha-icon> Im Vollbild positionieren
+                  </button>
                   <span class="boundaries-label">Räume in diesem Gebäude:</span>
                   ${(building.rooms ?? []).map((room, ri) => {
                     const globalRoomIndex = this._getBuildings().slice(0, bi).reduce((acc, b) => acc + (b.rooms?.length ?? 0), 0) + ri;
