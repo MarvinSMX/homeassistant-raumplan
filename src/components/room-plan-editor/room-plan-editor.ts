@@ -974,7 +974,14 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
     let pickerEntity: RoomPlanEntity | null = null;
     let pickerBoundaries: RoomBoundary[] = [];
+    /** Picker-Bild: bei Raum in Gebäude das Gebäude-Bild, sonst globales Plan-Bild (damit Boundary-Picker auch mit nur Gebäuden funktioniert). */
+    let pickerImg = img;
     if (this._pickerFor && 'roomIndex' in this._pickerFor) {
+      const buildingPos = getBuildingAndRoomIndex(this._config, this._pickerFor.roomIndex);
+      if (buildingPos) {
+        const building = this._config.buildings?.[buildingPos.buildingIndex];
+        pickerImg = typeof building?.image === 'string' ? building.image : '';
+      }
       const ri = this._pickerFor.roomIndex;
       if (this._pickerFor.type === 'position' || this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew') {
         pickerEntity = this._getRoomEntities(ri)[this._pickerFor.entityIndex] ?? null;
@@ -986,7 +993,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
     return html`
       <div class="editor">
-        ${this._pickerFor && img ? html`
+        ${this._pickerFor && pickerImg ? html`
         <div class="picker-modal-backdrop" @click=${(e: MouseEvent) => e.target === e.currentTarget && this._closePicker()}>
           <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
             <div class="picker-header">
@@ -1019,7 +1026,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
               <div class="picker-image-layer">
                 <img
                   class="picker-image"
-                  src=${img}
+                  src=${pickerImg}
                   alt="Plan"
                   draggable="false"
                   @load=${(e: Event) => this._onPickerImageLoad(e)}
