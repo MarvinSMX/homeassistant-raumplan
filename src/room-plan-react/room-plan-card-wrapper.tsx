@@ -20,30 +20,32 @@ window.customCards.push({
 });
 
 function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
-  const img = config?.image && typeof config.image === 'string'
-    ? config.image
-    : (config?.image as { location?: string })?.location ?? '';
-  const rooms = Array.isArray(config?.rooms) ? config.rooms : undefined;
-  const buildings = Array.isArray(config?.buildings) ? config.buildings : undefined;
+  /* Home Assistant kann die Konfiguration unter config.config übergeben; beide Varianten auswerten. */
+  const c = (config as { config?: RoomPlanCardConfig }).config ?? config;
+  const img = c?.image && typeof c.image === 'string'
+    ? c.image
+    : (c?.image as { location?: string })?.location ?? '';
+  const rooms = Array.isArray(c?.rooms) ? c.rooms : undefined;
+  const buildings = Array.isArray(c?.buildings) ? c.buildings : undefined;
   return {
-    type: config?.type ?? 'custom:room-plan-card',
+    type: c?.type ?? config?.type ?? 'custom:room-plan-card',
     image: img,
-    entities: Array.isArray(config?.entities) ? config.entities : [],
+    entities: Array.isArray(c?.entities) ? c.entities : [],
     rooms,
     buildings,
-    title: config?.title ?? '',
-    rotation: Number(config?.rotation) ?? 0,
-    full_height: config?.full_height ?? false,
-    tap_action: config?.tap_action,
-    hold_action: config?.hold_action,
-    double_tap_action: config?.double_tap_action,
-    entity_filter: Array.isArray(config?.entity_filter) ? config.entity_filter : undefined,
-    alert_entities: Array.isArray(config?.alert_entities) ? config.alert_entities : undefined,
-    alert_badge_action: config?.alert_badge_action,
-    categories: Array.isArray(config?.categories) ? config.categories : undefined,
-    image_dark: config?.image_dark,
-    dark_mode_filter: config?.dark_mode_filter,
-    dark_mode: config?.dark_mode,
+    title: c?.title ?? '',
+    rotation: Number(c?.rotation) ?? 0,
+    full_height: c?.full_height ?? false,
+    tap_action: c?.tap_action,
+    hold_action: c?.hold_action,
+    double_tap_action: c?.double_tap_action,
+    entity_filter: Array.isArray(c?.entity_filter) ? c.entity_filter : undefined,
+    alert_entities: Array.isArray(c?.alert_entities) ? c.alert_entities : undefined,
+    alert_badge_action: c?.alert_badge_action,
+    categories: Array.isArray(c?.categories) ? c.categories : undefined,
+    image_dark: c?.image_dark,
+    dark_mode_filter: c?.dark_mode_filter,
+    dark_mode: c?.dark_mode,
   };
 }
 
