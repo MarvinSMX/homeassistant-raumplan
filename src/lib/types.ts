@@ -130,6 +130,8 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   /** Verschiebung der gesamten Karte in % (gilt für alle Gebäude gemeinsam). */
   plan_offset_x?: number;
   plan_offset_y?: number;
+  /** Seitenverhältnis des Plan-Bereichs (Breite/Höhe), damit Editor und Card exakt übereinstimmen. Fehlt = 16/9. */
+  plan_aspect_ratio?: number;
   /** @deprecated Nutze rooms[].entities. Flache Entitätsliste für Abwärtskompatibilität. */
   entities?: RoomPlanEntity[];
 }

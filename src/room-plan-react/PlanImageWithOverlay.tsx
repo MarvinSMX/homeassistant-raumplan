@@ -402,6 +402,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
   const hasBuildings = buildings.length > 0;
   const planOffsetX = Number(config.plan_offset_x) || 0;
   const planOffsetY = Number(config.plan_offset_y) || 0;
+  const planAspect = Number(config.plan_aspect_ratio) > 0 ? config.plan_aspect_ratio! : 16 / 9;
 
   const flattened = flattenedEntities;
   const entities = flattened.map((f) => f.entity);
@@ -469,7 +470,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     const currentScale = scaleRef.current;
     const currentPan = panRef.current;
     const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(3, Math.max(0.5, currentScale * factor));
+    const newScale = Math.min(10, Math.max(0.5, currentScale * factor));
     const ratio = newScale / currentScale;
     setPan({
       x: currentPan.x * ratio + relX * (1 - ratio),
@@ -508,8 +509,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     const boxW = right - left;
     const boxH = bottom - top;
     if (boxW <= 0 || boxH <= 0) return;
-    /* Zoom so groß wie möglich, damit alle Gebäude den View füllen (max 3x), sonst wirkt alles zu klein */
-    const scaleToFit = Math.min(3, 100 / boxW, 100 / boxH);
+    /* Zoom so, dass alle Gebäude zusammen genau Viewport-Größe haben (Gebäude-Box füllt den View) */
+    const scaleToFit = Math.min(20, 100 / boxW, 100 / boxH);
     const centerX = (left + right) / 2;
     const centerY = (top + bottom) / 2;
     setScale(scaleToFit);
@@ -597,9 +598,9 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
-  /* Bei Gebäuden: Plan immer als Quadrat (1:1), damit Positionierung in Editor und Card übereinstimmt (Card oft breiter). */
+  /* Bei Gebäuden: fester Seitenverhältnis (planAspect), damit Editor und Card exakt übereinstimmen. */
   const wrapStyle = hasBuildings
-    ? { position: 'relative' as const, width: 'min(100cqw, 100cqh)', height: 'min(100cqw, 100cqh)', flexShrink: 0, overflow: 'hidden' as const, boxSizing: 'border-box' as const }
+    ? { position: 'relative' as const, width: `min(100cqw, 100cqh * ${planAspect})`, height: `min(100cqh, 100cqw / ${planAspect})`, maxWidth: '100%', maxHeight: '100%', flexShrink: 0, overflow: 'hidden' as const, boxSizing: 'border-box' as const }
     : fitBoxStyle;
 
   return (
@@ -999,7 +1000,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
         >
           <button
             type="button"
-            onClick={() => setScale((s) => Math.min(3, s * 1.2))}
+            onClick={() => setScale((s) => Math.min(10, s * 1.2))}
             style={zoomBtnStyle}
             title="Vergrößern"
           >

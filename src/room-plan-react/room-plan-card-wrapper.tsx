@@ -48,6 +48,7 @@ function normalizeConfig(config: RoomPlanCardConfig): RoomPlanCardConfig {
     dark_mode: c?.dark_mode,
     plan_offset_x: Number(c?.plan_offset_x) || 0,
     plan_offset_y: Number(c?.plan_offset_y) || 0,
+    plan_aspect_ratio: Number(c?.plan_aspect_ratio) > 0 ? c!.plan_aspect_ratio : undefined,
   };
 }
 

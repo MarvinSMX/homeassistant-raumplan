@@ -1144,7 +1144,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             </div>
             <div
               class="building-placement-wrap building-placement-fullscreen"
-              style="position: relative; width: 80vmin; height: 80vmin; max-width: 100%; max-height: 100%; margin: 0 auto; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: transparent; ${this._planDrag || this._buildingDrag ? 'cursor: grabbing;' : 'cursor: default;'}"
+              style="position: relative; flex: 1; min-height: 0; width: 100%; max-width: 100%; aspect-ratio: ${Number(this._config.plan_aspect_ratio) > 0 ? this._config.plan_aspect_ratio : 16/9}; border-radius: 8px; overflow: hidden; background: transparent; ${this._planDrag || this._buildingDrag ? 'cursor: grabbing;' : 'cursor: default;'}"
               @mousedown=${(ev: MouseEvent) => { if (!(ev.target as HTMLElement).closest('.building-box')) this._startPlanDrag(ev, viewScale); }}
             >
               <div class="building-placement-inner" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform: translate(${50 - cx}%, ${50 - cy}%) scale(${viewScale}); transform-origin: 50% 50%;">
@@ -1242,6 +1242,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           ${this._getBuildings().length > 0 ? html`
           <h4 class="section-title"><ha-icon icon="mdi:office-building"></ha-icon> Gebäude</h4>
           <p class="section-hint">Gebäude haben ein eigenes Bild und werden auf dem Hauptplan positioniert. Die Räume liegen in den jeweiligen Gebäuden.</p>
+          <div class="entity-coords-wrap" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px;">
+            <span class="boundaries-label">Plan-Seitenverhältnis (Breite/Höhe, für exakte Übereinstimmung mit Card):</span>
+            <input type="number" step="0.01" min="0.5" max="3" .value=${String(Number(this._config.plan_aspect_ratio) || 1.78)} placeholder="1.78" style="width: 64px;"
+              @change=${(e: Event) => this._updateConfig({ plan_aspect_ratio: Math.max(0.5, Math.min(3, parseFloat((e.target as HTMLInputElement).value) || 1.78)) })} />
+            <span class="hint" style="font-size: 0.8rem;">(1.78 = 16:9, 1 = Quadrat)</span>
+          </div>
           <div class="entity-coords-wrap" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;">
             <span class="boundaries-label">Plan verschieben (ganze Karte, alle Gebäude gemeinsam):</span>
             <input type="number" step="0.1" .value=${String(Number(this._config.plan_offset_x) || 0)} placeholder="X" style="width: 56px;"
@@ -1252,7 +1258,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           <div class="boundaries-label" style="margin-bottom: 4px;">Positionierung (alle Gebäude sichtbar und bewegbar – leerer Bereich ziehen = Plan verschieben):</div>
           <div
             class="building-placement-wrap building-placement-preview"
-            style="position: relative; width: 200px; height: 200px; aspect-ratio: 1; background: transparent; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px; ${this._planDrag ? 'cursor: grabbing;' : this._buildingDrag ? 'cursor: grabbing;' : 'cursor: default;'}"
+            style="position: relative; width: 100%; max-width: 500px; aspect-ratio: ${Number(this._config.plan_aspect_ratio) > 0 ? this._config.plan_aspect_ratio : 16/9}; background: transparent; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px; ${this._planDrag ? 'cursor: grabbing;' : this._buildingDrag ? 'cursor: grabbing;' : 'cursor: default;'}"
             @mousedown=${(ev: MouseEvent) => { if (!(ev.target as HTMLElement).closest('.building-box')) this._startPlanDrag(ev); }}
           >
             ${((): unknown => {
