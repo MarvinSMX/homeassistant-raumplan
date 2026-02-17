@@ -511,9 +511,10 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     const centerX = (left + right) / 2;
     const centerY = (top + bottom) / 2;
     setScale(scaleToFit);
+    /* Pan so, dass Gebäude-Mittelpunkt in der Kartenmitte liegt (Reihenfolge: scale dann translate) */
     setPan({
-      x: W * (0.5 - (scaleToFit * centerX) / 100),
-      y: H * (0.5 - (scaleToFit * centerY) / 100),
+      x: W * scaleToFit * (0.5 - centerX / 100),
+      y: H * scaleToFit * (0.5 - centerY / 100),
     });
   }, [hasBuildings, buildings]);
 
