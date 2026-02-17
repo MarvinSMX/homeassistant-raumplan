@@ -4,7 +4,7 @@ import type { HeatmapZone } from '../lib/types';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { handleAction } from 'custom-card-helpers';
 import { gsap } from 'gsap';
-import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, getEntityDisplayPosition, getEntityCoord } from '../lib/utils';
+import { getEntityBoundaries, isPolygonBoundary, getBoundaryPoints, getBoundariesForEntity, getTemperatureFromEntity, getEntityDisplayPosition, getEntityCoord, getBuildings } from '../lib/utils';
 import { EntityBadge } from './EntityBadge';
 import { HeatmapZone as HeatmapZoneComponent } from './HeatmapZone';
 import { hexToRgba, temperatureColor, intensityForArea } from './utils';
@@ -398,6 +398,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
 
 
   const rotation = Number(config.rotation) ?? 0;
+  const buildings = getBuildings(config);
+  const hasBuildings = buildings.length > 0;
 
   const flattened = flattenedEntities;
   const entities = flattened.map((f) => f.entity);
@@ -594,8 +596,42 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               Bild konnte nicht geladen werden
             </div>
           )}
-          {/* Heatmap nur anzeigen, wenn Temperatur-Tab aktiv und Toggle an; pro Entity ein Shape (bei mehreren Boundaries ein gemeinsames SVG) */}
-          {zones.length > 0 && selectedTabs.has('temperature') && showHeatmapOverlay && (() => {
+          {/* Bei Gebäuden: jedes Gebäude als positionierter Bereich mit eigenem Bild (Overlays pro Gebäude später erweiterbar) */}
+          {hasBuildings && buildings.map((b, bi) => (
+            <div
+              key={bi}
+              style={{
+                position: 'absolute',
+                left: `${Number(b.x) ?? 0}%`,
+                top: `${Number(b.y) ?? 0}%`,
+                width: `${Number(b.width) ?? 20}%`,
+                height: `${Number(b.height) ?? 20}%`,
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                pointerEvents: 'auto',
+              }}
+            >
+              <img
+                src={typeof b.image === 'string' ? b.image : ''}
+                alt={b.name ?? `Gebäude ${bi + 1}`}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  margin: 0,
+                  padding: 0,
+                  boxSizing: 'border-box',
+                  objectFit: 'contain',
+                  objectPosition: 'center',
+                  display: 'block',
+                }}
+              />
+            </div>
+          ))}
+          {/* Overlays nur ohne Gebäude (mit Gebäuden liegen Entities in den Gebäude-Bereichen; Overlays pro Gebäude optional erweiterbar) */}
+          {!hasBuildings && zones.length > 0 && selectedTabs.has('temperature') && showHeatmapOverlay && (() => {
             const byEntity = new Map<string, HeatmapZone[]>();
             for (const z of zones) {
               const list = byEntity.get(z.entity) ?? [];
@@ -626,6 +662,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               </div>
             );
           })()}
+          {!hasBuildings && (
+          <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
           {/* Press/Hover-Effekt: Temperatur-Badge → Raumgrenzen abdunkeln (GSAP), mehrere Zonen = ein Shape wie Heatmap */}
           {pressBoundaries.length > 0 && (
             <div
@@ -862,7 +900,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
               })}
             </div>
           </div>
-        </div>
+          </div>
+          )}
         {/* Zoom-Steuerung unten rechts: Plus, Minus, Zurücksetzen */}
         <div
           data-no-pan
@@ -906,6 +945,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

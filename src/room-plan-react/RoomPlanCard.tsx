@@ -117,7 +117,7 @@ export function RoomPlanCard({ hass, config, host, cssString }: RoomPlanCardProp
               position: 'absolute',
               inset: 0,
               pointerEvents: 'none',
-              backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.12)) 1px, transparent 1px)',
+              backgroundImage: 'radial-gradient(circle, var(--secondary-text-color, rgba(0,0,0,0.08)) 1px, transparent 1px)',
               backgroundSize: '12px 12px',
               backgroundPosition: '0 0',
             }}

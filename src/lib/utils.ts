@@ -1,5 +1,5 @@
 import type { HomeAssistant } from 'custom-card-helpers';
-import type { RoomPlanEntity, RoomBoundaryItem, RoomPlanCardConfig, RoomPlanRoom } from './types';
+import type { RoomPlanEntity, RoomBoundaryItem, RoomPlanCardConfig, RoomPlanRoom, RoomPlanBuilding } from './types';
 
 export type RoomBoundary = RoomBoundaryItem;
 
@@ -52,13 +52,54 @@ export function getEntityBoundaries(ent: RoomPlanEntity): RoomBoundary[] {
   return [];
 }
 
-/** Liefert die Räume aus der Config (immer Array, ggf. leer). Prüft auch config.config?.rooms (HA-Varianten). */
+/** Liefert die Gebäude aus der Config (immer Array, ggf. leer). */
+export function getBuildings(config: RoomPlanCardConfig | undefined): RoomPlanBuilding[] {
+  if (!config) return [];
+  return Array.isArray(config.buildings) ? config.buildings : [];
+}
+
+/** Liefert die Räume aus der Config (immer Array, ggf. leer). Bei buildings: flache Liste aus allen buildings[].rooms. Sonst config.rooms. */
 export function getRooms(config: RoomPlanCardConfig | undefined): RoomPlanRoom[] {
   if (!config) return [];
+  const buildings = getBuildings(config);
+  if (buildings.length > 0) {
+    return buildings.flatMap((b) => b.rooms ?? []);
+  }
   if (Array.isArray(config.rooms) && config.rooms.length > 0) return config.rooms;
   const nested = (config as { config?: { rooms?: RoomPlanRoom[] } }).config?.rooms;
   if (Array.isArray(nested) && nested.length > 0) return nested;
   return [];
+}
+
+/** Bei Nutzung von buildings: Gebäude-Index für einen flachen roomIndex (0 = erstes Gebäude, erste Räume …). Sonst -1. */
+export function getBuildingIndexForRoom(config: RoomPlanCardConfig | undefined, roomIndex: number): number {
+  const buildings = getBuildings(config);
+  if (buildings.length === 0) return -1;
+  let idx = 0;
+  for (let bi = 0; bi < buildings.length; bi++) {
+    const len = (buildings[bi].rooms ?? []).length;
+    if (roomIndex < idx + len) return bi;
+    idx += len;
+  }
+  return -1;
+}
+
+/** Bei Nutzung von buildings: (buildingIndex, roomIndexInBuilding) für einen flachen roomIndex. Sonst null. */
+export function getBuildingAndRoomIndex(
+  config: RoomPlanCardConfig | undefined,
+  globalRoomIndex: number
+): { buildingIndex: number; roomIndexInBuilding: number } | null {
+  const buildings = getBuildings(config);
+  if (buildings.length === 0) return null;
+  let idx = 0;
+  for (let bi = 0; bi < buildings.length; bi++) {
+    const rooms = buildings[bi].rooms ?? [];
+    if (globalRoomIndex < idx + rooms.length) {
+      return { buildingIndex: bi, roomIndexInBuilding: globalRoomIndex - idx };
+    }
+    idx += rooms.length;
+  }
+  return null;
 }
 
 /** Standard-Kategorien für Filter-Tabs (entsprechen den bisherigen Presets), im Editor entfernbar. */
@@ -92,19 +133,44 @@ export function getEntityDisplayPosition(
   return { x: Math.min(100, Math.max(0, px)), y: Math.min(100, Math.max(0, py)) };
 }
 
-/** Ein Eintrag in der flachen Entity-Liste inkl. Herkunft (Raum oder Legacy). */
+/** Ein Eintrag in der flachen Entity-Liste inkl. Herkunft (Raum/Gebäude oder Legacy). */
 export interface FlattenedEntity {
   entity: RoomPlanEntity;
   roomIndex: number | null;
   entityIndexInRoom: number;
+  /** Bei Nutzung von buildings: Index des Gebäudes; sonst null. */
+  buildingIndex: number | null;
   /** Direkte Referenz auf den Raum (wenn in Raum), damit die Position immer dem richtigen Raum zugeordnet wird. */
   room: RoomPlanRoom | null;
   /** Eindeutige ID pro Entity-Instanz: nur (roomIndex, entityIndexInRoom), nie entity_id. */
   uniqueKey: string;
 }
 
-/** Liefert alle Entities flach: aus rooms[].entities, oder bei leerem rooms aus config.entities (Legacy). */
+/** Liefert alle Entities flach: aus buildings[].rooms[].entities oder rooms[].entities, oder config.entities (Legacy). */
 export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): FlattenedEntity[] {
+  const buildings = getBuildings(config);
+  if (buildings.length > 0) {
+    let globalRoomIndex = 0;
+    const result: FlattenedEntity[] = [];
+    for (let bi = 0; bi < buildings.length; bi++) {
+      const rooms = buildings[bi].rooms ?? [];
+      for (let ri = 0; ri < rooms.length; ri++) {
+        const room = rooms[ri];
+        for (let ei = 0; ei < (room.entities ?? []).length; ei++) {
+          result.push({
+            entity: room.entities![ei]!,
+            roomIndex: globalRoomIndex,
+            entityIndexInRoom: ei,
+            buildingIndex: bi,
+            room,
+            uniqueKey: `building-${bi}-room-${ri}-ent-${ei}`,
+          });
+        }
+        globalRoomIndex++;
+      }
+    }
+    if (result.length > 0) return result;
+  }
   const rooms = getRooms(config);
   if (rooms.length > 0) {
     const fromRooms = rooms.flatMap((room, roomIndex) =>
@@ -112,6 +178,7 @@ export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): Fl
         entity,
         roomIndex,
         entityIndexInRoom,
+        buildingIndex: null as number | null,
         room,
         uniqueKey: `room-${roomIndex}-ent-${entityIndexInRoom}`,
       }))
@@ -123,6 +190,7 @@ export function getFlattenedEntities(config: RoomPlanCardConfig | undefined): Fl
     entity,
     roomIndex: null,
     entityIndexInRoom,
+    buildingIndex: null,
     room: null,
     uniqueKey: `legacy-ent-${entityIndexInRoom}`,
   }));

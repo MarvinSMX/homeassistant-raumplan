@@ -62,6 +62,24 @@ export interface RoomPlanRoom {
   entities: RoomPlanEntity[];
 }
 
+/** Ein Gebäude: eigenes Bild, Position/Größe auf dem Hauptplan (%), enthält Räume. */
+export interface RoomPlanBuilding {
+  /** Anzeigename des Gebäudes (optional). */
+  name?: string;
+  /** Bild-URL des Gebäudeplans (z. B. Grundriss dieses Gebäudes). */
+  image: string;
+  /** X-Position auf dem Hauptplan in % (0–100). */
+  x?: number;
+  /** Y-Position auf dem Hauptplan in % (0–100). */
+  y?: number;
+  /** Breite auf dem Hauptplan in % (0–100). */
+  width?: number;
+  /** Höhe auf dem Hauptplan in % (0–100). */
+  height?: number;
+  /** Räume in diesem Gebäude. */
+  rooms: RoomPlanRoom[];
+}
+
 /** Ein Eintrag in room_boundaries: Rechteck (x1,y1,x2,y2) oder Polygon (points mit mind. 3 Ecken). */
 export type RoomBoundaryItem =
   | { x1: number; y1: number; x2: number; y2: number; opacity?: number }
@@ -99,8 +117,10 @@ export interface RoomPlanCardConfig extends LovelaceCardConfig {
   alert_badge_action?: ActionConfig;
   /** Kategorien für Filter-Tabs (id + Anzeigename). Fehlt/leer = Standard-Kategorien (entfernbar im Editor). */
   categories?: { id: string; label: string }[];
-  /** Räume: jeder Raum hat Boundary + Entities (Temperatur, Licht etc. nutzen Raumboundary). */
+  /** Räume: jeder Raum hat Boundary + Entities (Temperatur, Licht etc. nutzen Raumboundary). Bei Vorhandensein von buildings werden diese ignoriert (Räume liegen in buildings[].rooms). */
   rooms?: RoomPlanRoom[];
+  /** Gebäude: jedes hat Bild + Position auf dem Plan und enthält Räume. Wenn gesetzt, werden rooms nicht genutzt. */
+  buildings?: RoomPlanBuilding[];
   /** @deprecated Nutze rooms[].entities. Flache Entitätsliste für Abwärtskompatibilität. */
   entities?: RoomPlanEntity[];
 }

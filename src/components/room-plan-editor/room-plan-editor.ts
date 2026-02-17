@@ -5,9 +5,9 @@ import { LitElement, html, css, type TemplateResult, type CSSResultGroup } from 
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant, fireEvent, type LovelaceCardEditor } from 'custom-card-helpers';
 
-import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom } from '../../lib/types';
+import type { RoomPlanCardConfig, RoomPlanEntity, RoomPlanRoom, RoomPlanBuilding } from '../../lib/types';
 import type { RoomBoundary } from '../../lib/utils';
-import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, getEffectiveCategories, getEntityCategoryId } from '../../lib/utils';
+import { getFriendlyName, getEntityBoundaries, isPolygonBoundary, getRooms, getRoomBoundingBox, getEffectiveCategories, getEntityCategoryId, getBuildings, getBuildingAndRoomIndex } from '../../lib/utils';
 
 @customElement('room-plan-editor')
 export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
@@ -19,7 +19,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     rooms: [],
   };
 
-  /** „Auf Plan einzeichnen“: roomIndex + entityIndex (in Raum) oder boundaryIndex (Raum-Zone). */
+  /** „Auf Plan einzeichnen“: roomIndex + entityIndex (in Raum) oder boundaryIndex (Raum-Zone) oder buildingPlace. */
   @state() private _pickerFor:
     | { type: 'position'; roomIndex: number; entityIndex: number }
     | { type: 'rect'; roomIndex: number; boundaryIndex: number }
@@ -28,6 +28,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     | { type: 'polygonNew'; roomIndex: number }
     | { type: 'line'; roomIndex: number; entityIndex: number; lineIndex: number }
     | { type: 'lineNew'; roomIndex: number; entityIndex: number }
+    | { type: 'buildingPlace'; buildingIndex: number }
     | null = null;
   @state() private _drawStart: { x: number; y: number } | null = null;
   @state() private _drawCurrent: { x: number; y: number } | null = null;
@@ -39,6 +40,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   @state() private _pickerContentRect: { left: number; top: number; width: number; height: number } | null = null;
   /** Eingeklappte Räume (Indizes) zur Übersicht. */
   @state() private _roomCollapsed = new Set<number>();
+  /** Eingeklappte Gebäude (Indizes) zur Übersicht. */
+  @state() private _buildingCollapsed = new Set<number>();
   /** Neue Kategorie (ID / Label) beim Hinzufügen. */
   @state() private _newCategoryId = '';
   @state() private _newCategoryLabel = '';
@@ -101,10 +104,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       rooms = [{ name: '', boundary: [], entities }];
     }
     if (rooms.length === 0) rooms = [{ name: '', boundary: [], entities: [] }];
+    const buildings = Array.isArray(base.buildings) ? base.buildings : undefined;
     this._config = {
       ...base,
       image: img,
       rooms,
+      buildings,
       entities: undefined,
       entity_filter: Array.isArray(base.entity_filter) ? base.entity_filter : undefined,
       alert_entities: Array.isArray(base.alert_entities) ? base.alert_entities : undefined,
@@ -151,7 +156,26 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     return getRooms(this._config);
   }
 
+  private _getBuildings(): RoomPlanBuilding[] {
+    return getBuildings(this._config);
+  }
+
   private _updateRoom(roomIndex: number, updates: Partial<RoomPlanRoom>): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) =>
+        bi !== buildingPos.buildingIndex
+          ? b
+          : {
+              ...b,
+              rooms: b.rooms.map((r, ri) =>
+                ri !== buildingPos.roomIndexInBuilding ? r : { ...r, ...updates }
+              ),
+            }
+      );
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     rooms[roomIndex] = { ...rooms[roomIndex], ...updates };
@@ -163,9 +187,53 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._updateConfig({ rooms });
   }
 
+  private _addRoomToBuilding(buildingIndex: number): void {
+    const buildings = [...(this._config.buildings ?? [])];
+    if (buildingIndex >= buildings.length) return;
+    const building = buildings[buildingIndex];
+    buildings[buildingIndex] = {
+      ...building,
+      rooms: [...(building.rooms ?? []), { name: '', boundary: [], entities: [] }],
+    };
+    this._updateConfig({ buildings });
+  }
+
   private _removeRoom(roomIndex: number): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) =>
+        bi !== buildingPos.buildingIndex
+          ? b
+          : { ...b, rooms: b.rooms.filter((_, ri) => ri !== buildingPos.roomIndexInBuilding) },
+      );
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = this._getRooms().filter((_, i) => i !== roomIndex);
     this._updateConfig({ rooms: rooms.length ? rooms : [{ name: '', boundary: [], entities: [] }] });
+  }
+
+  private _removeBuilding(buildingIndex: number): void {
+    const buildings = (this._config.buildings ?? []).filter((_, i) => i !== buildingIndex);
+    this._updateConfig({ buildings });
+  }
+
+  private _updateBuilding(buildingIndex: number, updates: Partial<RoomPlanBuilding>): void {
+    const buildings = [...(this._config.buildings ?? [])];
+    if (buildingIndex >= buildings.length) return;
+    buildings[buildingIndex] = { ...buildings[buildingIndex], ...updates };
+    this._updateConfig({ buildings });
+  }
+
+  private _addBuilding(): void {
+    const buildings = [...(this._config.buildings ?? []), { name: '', image: '', x: 0, y: 0, width: 20, height: 20, rooms: [] }];
+    this._updateConfig({ buildings });
+  }
+
+  private _openPickerBuildingPlace(buildingIndex: number): void {
+    this._pickerFor = { type: 'buildingPlace', buildingIndex };
+    this._drawStart = null;
+    this._drawCurrent = null;
   }
 
   private _getRoomEntities(roomIndex: number): RoomPlanEntity[] {
@@ -175,6 +243,20 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _updateRoomEntity(roomIndex: number, entityIndex: number, updates: Partial<RoomPlanEntity>): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const entities = [...(b.rooms[buildingPos.roomIndexInBuilding]?.entities ?? [])];
+        if (entityIndex >= entities.length) return b;
+        entities[entityIndex] = { ...entities[entityIndex], ...updates };
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], entities };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const entities = [...(rooms[roomIndex].entities ?? [])];
@@ -185,6 +267,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _removeRoomEntity(roomIndex: number, entityIndex: number): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const entities = (b.rooms[buildingPos.roomIndexInBuilding]?.entities ?? []).filter((_, i) => i !== entityIndex);
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], entities };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const entities = rooms[roomIndex].entities?.filter((_, i) => i !== entityIndex) ?? [];
@@ -193,6 +287,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _addRoomEntity(roomIndex: number): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const entities = [...(b.rooms[buildingPos.roomIndexInBuilding]?.entities ?? []), { entity: '' }];
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], entities };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const entities = [...(rooms[roomIndex].entities ?? []), { entity: '' }];
@@ -207,6 +313,20 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _updateRoomBoundary(roomIndex: number, boundaryIndex: number, updates: Partial<RoomBoundary>): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const list = [...(b.rooms[buildingPos.roomIndexInBuilding]?.boundary ?? [])];
+        if (boundaryIndex >= list.length) return b;
+        list[boundaryIndex] = { ...list[boundaryIndex], ...updates };
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], boundary: list };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const list = [...this._getRoomBoundaries(roomIndex)];
@@ -217,6 +337,19 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _addRoomBoundary(roomIndex: number, isTemperature: boolean): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const list = [...(b.rooms[buildingPos.roomIndexInBuilding]?.boundary ?? [])];
+        list.push(isTemperature ? { x1: 10, y1: 10, x2: 40, y2: 40, opacity: 0.4 } : { x1: 0, y1: 0, x2: 100, y2: 0 });
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], boundary: list };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const list = [...this._getRoomBoundaries(roomIndex)];
@@ -228,6 +361,19 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _addRoomBoundaryPolygon(roomIndex: number, points: { x: number; y: number }[]): void {
     if (points.length < 3) return;
     const round = (v: number) => Math.round(v * 10) / 10;
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const list = [...(b.rooms[buildingPos.roomIndexInBuilding]?.boundary ?? [])];
+        list.push({ points: points.map((p) => ({ x: round(p.x), y: round(p.y) })), opacity: 0.4 });
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], boundary: list };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const list = [...this._getRoomBoundaries(roomIndex)];
@@ -237,6 +383,18 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _removeRoomBoundary(roomIndex: number, boundaryIndex: number): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const list = (b.rooms[buildingPos.roomIndexInBuilding]?.boundary ?? []).filter((_, i) => i !== boundaryIndex);
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], boundary: list };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const list = this._getRoomBoundaries(roomIndex).filter((_, i) => i !== boundaryIndex);
@@ -246,6 +404,24 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
   /** Entity-Boundary (Fensterkontakt-Linien) – bleibt an der Entität. */
   private _updateEntityBoundary(roomIndex: number, entityIndex: number, boundaryIndex: number, updates: Partial<RoomBoundary>): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const entities = [...(b.rooms[buildingPos.roomIndexInBuilding]?.entities ?? [])];
+        const ent = entities[entityIndex];
+        if (!ent) return b;
+        const list = [...getEntityBoundaries(ent)];
+        if (boundaryIndex >= list.length) return b;
+        list[boundaryIndex] = { ...list[boundaryIndex], ...updates };
+        entities[entityIndex] = { ...ent, room_boundaries: list };
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], entities };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const entities = [...(rooms[roomIndex].entities ?? [])];
@@ -260,6 +436,23 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _addEntityBoundary(roomIndex: number, entityIndex: number, isTemperature: boolean): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const entities = [...(b.rooms[buildingPos.roomIndexInBuilding]?.entities ?? [])];
+        const ent = entities[entityIndex];
+        if (!ent) return b;
+        const list = [...getEntityBoundaries(ent)];
+        list.push(isTemperature ? { x1: 10, y1: 10, x2: 40, y2: 40, opacity: 0.4 } : { x1: 0, y1: 0, x2: 100, y2: 0 });
+        entities[entityIndex] = { ...ent, room_boundaries: list };
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], entities };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const entities = [...(rooms[roomIndex].entities ?? [])];
@@ -275,6 +468,23 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _addEntityBoundaryPolygon(roomIndex: number, entityIndex: number, points: { x: number; y: number }[]): void {
     if (points.length < 3) return;
     const round = (v: number) => Math.round(v * 10) / 10;
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const entities = [...(b.rooms[buildingPos.roomIndexInBuilding]?.entities ?? [])];
+        const ent = entities[entityIndex];
+        if (!ent) return b;
+        const list = [...getEntityBoundaries(ent)];
+        list.push({ points: points.map((p) => ({ x: round(p.x), y: round(p.y) })), opacity: 0.4 });
+        entities[entityIndex] = { ...ent, room_boundaries: list };
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], entities };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const entities = [...(rooms[roomIndex].entities ?? [])];
@@ -288,6 +498,23 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   }
 
   private _removeEntityBoundary(roomIndex: number, entityIndex: number, boundaryIndex: number): void {
+    const buildingPos = getBuildingAndRoomIndex(this._config, roomIndex);
+    if (buildingPos) {
+      const buildings = this._config.buildings!.map((b, bi) => {
+        if (bi !== buildingPos.buildingIndex) return b;
+        const entities = [...(b.rooms[buildingPos.roomIndexInBuilding]?.entities ?? [])];
+        const ent = entities[entityIndex];
+        if (!ent) return b;
+        const next = getEntityBoundaries(ent).filter((_, i) => i !== boundaryIndex);
+        const updated = next.length ? { ...ent, room_boundaries: next } : { ...ent, room_boundaries: undefined, room_boundary: undefined };
+        entities[entityIndex] = updated;
+        const rooms = [...b.rooms];
+        rooms[buildingPos.roomIndexInBuilding] = { ...rooms[buildingPos.roomIndexInBuilding], entities };
+        return { ...b, rooms };
+      });
+      this._updateConfig({ buildings });
+      return;
+    }
     const rooms = [...this._getRooms()];
     if (roomIndex >= rooms.length) return;
     const entities = [...(rooms[roomIndex].entities ?? [])];
@@ -460,6 +687,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _onPickerDocMove(e: MouseEvent): void {
     const p = this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerDrag || !this._pickerFor) return;
+    if (this._pickerFor.type === 'buildingPlace') return;
     const roomIndex = this._pickerFor.roomIndex;
     const round = (v: number) => Math.round(v * 10) / 10;
     if (this._pickerDrag.kind === 'position' && this._pickerFor.type === 'position') {
@@ -559,6 +787,22 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     e.preventDefault();
     const p = this._getPercentFromEvent(e) ?? this._getPercentFromPickerEvent(e);
     if (!p || !this._pickerFor) return;
+    if (this._pickerFor.type === 'buildingPlace') {
+      if (!this._drawStart) {
+        this._drawStart = p;
+        this._drawCurrent = p;
+        return;
+      }
+      const rx1 = Math.min(this._drawStart.x, p.x);
+      const ry1 = Math.min(this._drawStart.y, p.y);
+      const rx2 = Math.max(this._drawStart.x, p.x);
+      const ry2 = Math.max(this._drawStart.y, p.y);
+      const width = Math.max(5, rx2 - rx1);
+      const height = Math.max(5, ry2 - ry1);
+      this._updateBuilding(this._pickerFor.buildingIndex, { x: rx1, y: ry1, width, height });
+      this._closePicker();
+      return;
+    }
     const roomIndex = this._pickerFor.roomIndex;
     if (this._pickerFor.type === 'position') {
       this._updateRoomEntity(roomIndex, this._pickerFor.entityIndex, { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
@@ -635,6 +879,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const p = this._getPercentFromEvent(e);
     if (!this._pickerFor || !this._drawStart) return;
     if (
+      this._pickerFor.type === 'buildingPlace' ||
       this._pickerFor.type === 'line' ||
       this._pickerFor.type === 'lineNew' ||
       this._pickerFor.type === 'rect' ||
@@ -670,7 +915,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
 
     let pickerEntity: RoomPlanEntity | null = null;
     let pickerBoundaries: RoomBoundary[] = [];
-    if (this._pickerFor) {
+    if (this._pickerFor && 'roomIndex' in this._pickerFor) {
       const ri = this._pickerFor.roomIndex;
       if (this._pickerFor.type === 'position' || this._pickerFor.type === 'line' || this._pickerFor.type === 'lineNew') {
         pickerEntity = this._getRoomEntities(ri)[this._pickerFor.entityIndex] ?? null;
@@ -687,6 +932,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
             <div class="picker-header">
               <span class="picker-title">
+                ${this._pickerFor.type === 'buildingPlace' ? 'Gebäude platzieren: zwei Punkte klicken (Ecke – gegenüberliegende Ecke des Gebäudebereichs)' : ''}
                 ${this._pickerFor.type === 'position'
                   ? (() => {
                       const r = this._getRooms()[this._pickerFor!.roomIndex];
@@ -726,7 +972,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 : 'left:0;top:0;width:100%;height:100%'}
                 @click=${(e: MouseEvent) => {
                   const handle = e.target === e.currentTarget ||
-                    this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygonNew';
+                    this._pickerFor?.type === 'rectNew' || this._pickerFor?.type === 'lineNew' || this._pickerFor?.type === 'polygonNew' || this._pickerFor?.type === 'buildingPlace';
                   if (handle) {
                     this._onPickerImageClick(e);
                     e.stopPropagation();
@@ -784,7 +1030,25 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <div class="picker-point ${canDrag ? 'draggable' : ''}" style="left:${left + w}%;top:${top + h}%"
                       @mousedown=${canDrag ? (e: MouseEvent) => this._startPickerDragRect(bi, 1, e) : undefined} @click=${canDrag ? stopClick : undefined}></div>`;
                 }) : ''}
-                ${this._drawStart && this._drawCurrent ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
+                ${this._pickerFor?.type === 'buildingPlace' ? (() => {
+                  const buildings = this._getBuildings();
+                  const bi = this._pickerFor.buildingIndex;
+                  const b = buildings[bi];
+                  const hasPos = b && Number(b.x) != null && Number(b.y) != null && Number(b.width) != null && Number(b.height) != null;
+                  return html`
+                    ${hasPos ? html`
+                      <div class="picker-rect editing" style="left:${b!.x}%;top:${b!.y}%;width:${b!.width}%;height:${b!.height}%"></div>
+                      <div class="picker-point" style="left:${b!.x}%;top:${b!.y}%"></div>
+                      <div class="picker-point" style="left:${(b!.x ?? 0) + (b!.width ?? 0)}%;top:${(b!.y ?? 0) + (b!.height ?? 0)}%"></div>
+                    ` : ''}
+                    ${this._drawStart && this._drawCurrent ? html`
+                      <div class="picker-rect draw-preview" style="left:${Math.min(this._drawStart.x, this._drawCurrent.x)}%;top:${Math.min(this._drawStart.y, this._drawCurrent.y)}%;width:${Math.abs(this._drawCurrent.x - this._drawStart.x) || 1}%;height:${Math.abs(this._drawCurrent.y - this._drawStart.y) || 1}%"></div>
+                      <div class="picker-point draw-preview" style="left:${this._drawStart.x}%;top:${this._drawStart.y}%"></div>
+                      <div class="picker-point draw-preview" style="left:${this._drawCurrent.x}%;top:${this._drawCurrent.y}%"></div>
+                    ` : ''}
+                  `;
+                })() : ''}
+                ${this._drawStart && this._drawCurrent && this._pickerFor?.type !== 'buildingPlace' ? (this._pickerFor?.type === 'rect' || this._pickerFor?.type === 'rectNew'
                   ? (() => {
                       const l = Math.min(this._drawStart.x, this._drawCurrent.x);
                       const t = Math.min(this._drawStart.y, this._drawCurrent.y);
@@ -876,8 +1140,163 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           </div>
         </section>
         <section class="editor-section">
+          ${this._getBuildings().length > 0 ? html`
+          <h4 class="section-title"><ha-icon icon="mdi:office-building"></ha-icon> Gebäude</h4>
+          <p class="section-hint">Gebäude haben ein eigenes Bild und werden auf dem Hauptplan positioniert. Die Räume liegen in den jeweiligen Gebäuden.</p>
+          <div class="room-list">
+            ${this._getBuildings().map((building, bi) => html`
+              <div class="room-block building-block">
+                <div class="room-header">
+                  <button type="button" class="btn-collapse" title="${this._buildingCollapsed.has(bi) ? 'Aufklappen' : 'Einklappen'}"
+                    @click=${() => { const s = new Set(this._buildingCollapsed); if (s.has(bi)) s.delete(bi); else s.add(bi); this._buildingCollapsed = s; }}>
+                    <ha-icon icon="${this._buildingCollapsed.has(bi) ? 'mdi:chevron-right' : 'mdi:chevron-down'}"></ha-icon>
+                  </button>
+                  <input type="text" class="room-name" .value=${building.name ?? ''} placeholder="Gebäudename (optional)"
+                    @change=${(e: Event) => this._updateBuilding(bi, { name: (e.target as HTMLInputElement).value.trim() || undefined })} />
+                  <button type="button" class="btn-remove" @click=${() => this._removeBuilding(bi)} title="Gebäude entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                </div>
+                <div class="room-body ${this._buildingCollapsed.has(bi) ? 'collapsed' : ''}">
+                  <div class="field" style="margin-bottom: 8px;">
+                    <label>Bild-URL des Gebäudeplans</label>
+                    <input type="text" .value=${building.image ?? ''} placeholder="/local/gebaeude_a.png"
+                      @change=${(e: Event) => this._updateBuilding(bi, { image: (e.target as HTMLInputElement).value.trim() })} />
+                  </div>
+                  <div class="entity-coords-wrap" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px;">
+                    <span class="boundaries-label">Position auf Plan (%):</span>
+                    <input type="number" min="0" max="100" step="0.1" .value=${String(Number(building.x) ?? 0)} placeholder="x" style="width: 56px;"
+                      @change=${(e: Event) => this._updateBuilding(bi, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                    <input type="number" min="0" max="100" step="0.1" .value=${String(Number(building.y) ?? 0)} placeholder="y" style="width: 56px;"
+                      @change=${(e: Event) => this._updateBuilding(bi, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                    <input type="number" min="1" max="100" step="0.1" .value=${String(Number(building.width) ?? 20)} placeholder="Breite" style="width: 56px;"
+                      @change=${(e: Event) => this._updateBuilding(bi, { width: Math.min(100, Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 20)) })} />
+                    <input type="number" min="1" max="100" step="0.1" .value=${String(Number(building.height) ?? 20)} placeholder="Höhe" style="width: 56px;"
+                      @change=${(e: Event) => this._updateBuilding(bi, { height: Math.min(100, Math.max(1, parseFloat((e.target as HTMLInputElement).value) || 20)) })} />
+                    <button type="button" class="btn-draw" @click=${() => img && this._openPickerBuildingPlace(bi)} ?disabled=${!img} title="Auf Plan platzieren"><ha-icon icon="mdi:map-marker"></ha-icon> Auf Plan platzieren</button>
+                  </div>
+                  <span class="boundaries-label">Räume in diesem Gebäude:</span>
+                  ${(building.rooms ?? []).map((room, ri) => {
+                    const globalRoomIndex = this._getBuildings().slice(0, bi).reduce((acc, b) => acc + (b.rooms?.length ?? 0), 0) + ri;
+                    return html`
+              <div class="room-block">
+                <div class="room-header">
+                  <button type="button" class="btn-collapse" title="${this._roomCollapsed.has(globalRoomIndex) ? 'Aufklappen' : 'Einklappen'}"
+                    @click=${() => { const s = new Set(this._roomCollapsed); if (s.has(globalRoomIndex)) s.delete(globalRoomIndex); else s.add(globalRoomIndex); this._roomCollapsed = s; }}>
+                    <ha-icon icon="${this._roomCollapsed.has(globalRoomIndex) ? 'mdi:chevron-right' : 'mdi:chevron-down'}"></ha-icon>
+                  </button>
+                  <input type="text" class="room-name" .value=${room.name ?? ''} placeholder="Raumname (optional)"
+                    @change=${(e: Event) => this._updateRoom(globalRoomIndex, { name: (e.target as HTMLInputElement).value.trim() || undefined })} />
+                  <button type="button" class="btn-remove" @click=${() => this._removeRoom(globalRoomIndex)} title="Raum entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                </div>
+                <div class="room-body ${this._roomCollapsed.has(globalRoomIndex) ? 'collapsed' : ''}">
+                <div class="room-boundaries" title="Grenze / Heatmap-Zone dieses Raums (Rechteck oder Polygon)">
+                  <span class="boundaries-label">Boundary (Raum/Heatmap):</span>
+                  ${this._getRoomBoundaries(globalRoomIndex).map((b, bbi) => {
+                    if (isPolygonBoundary(b)) {
+                      return html`
+                    <div class="entity-coords room-boundary">
+                      <span class="boundary-type">Polygon (${b.points.length} Ecken)</span>
+                      <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(b.opacity) ?? 0.4)))} title="Deckkraft"
+                        @change=${(e: Event) => this._updateRoomBoundary(globalRoomIndex, bbi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerPolygon(globalRoomIndex, bbi)} title="Polygon bearbeiten"><ha-icon icon="mdi:vector-polygon"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeRoomBoundary(globalRoomIndex, bbi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                    </div>
+                  `;
+                    }
+                    const r = b as { x1: number; y1: number; x2: number; y2: number; opacity?: number };
+                    return html`
+                    <div class="entity-coords room-boundary">
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.x1) ?? 0)} placeholder="x1"
+                        @change=${(e: Event) => this._updateRoomBoundary(globalRoomIndex, bbi, { x1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.y1) ?? 0)} placeholder="y1"
+                        @change=${(e: Event) => this._updateRoomBoundary(globalRoomIndex, bbi, { y1: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.x2) ?? 100)} placeholder="x2"
+                        @change=${(e: Event) => this._updateRoomBoundary(globalRoomIndex, bbi, { x2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="100" step="0.01" .value=${String(Number(r.y2) ?? 100)} placeholder="y2"
+                        @change=${(e: Event) => this._updateRoomBoundary(globalRoomIndex, bbi, { y2: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 100)) })} />
+                      <input type="number" min="0" max="1" step="0.01" class="entity-opacity" .value=${String(Math.min(1, Math.max(0, Number(r.opacity) ?? 0.4)))} title="Deckkraft"
+                        @change=${(e: Event) => this._updateRoomBoundary(globalRoomIndex, bbi, { opacity: Math.min(1, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 0.4)) })} />
+                      <button type="button" class="btn-draw" @click=${() => this._openPickerRect(globalRoomIndex, bbi)} title="Rechteck bearbeiten"><ha-icon icon="mdi:draw"></ha-icon></button>
+                      <button type="button" class="btn-remove" @click=${() => this._removeRoomBoundary(globalRoomIndex, bbi)} title="Zone entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+                    </div>
+                  `;
+                  })}
+                  <button type="button" class="btn-add-small" @click=${() => this._addRoomBoundary(globalRoomIndex, true)} title="Rechteck-Zone"><ha-icon icon="mdi:plus"></ha-icon></button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerRect(globalRoomIndex)} title="Rechteck zeichnen"><ha-icon icon="mdi:draw"></ha-icon> Rechteck</button>
+                  <button type="button" class="btn-draw-small" @click=${() => this._openPickerPolygon(globalRoomIndex)} title="Polygon zeichnen"><ha-icon icon="mdi:vector-polygon"></ha-icon> Polygon</button>
+                </div>
+                <div class="room-entities">
+                  <span class="boundaries-label">Entitäten im Raum:</span>
+                  ${(room.entities ?? []).map((ent, ei) => html`
+              <div class="entity-row">
+                <input type="text" list="rp-entities-${globalRoomIndex}-${ei}" .value=${ent.entity} placeholder="light.wohnzimmer"
+                  @change=${(e: Event) => this._updateRoomEntity(globalRoomIndex, ei, { entity: (e.target as HTMLInputElement).value.trim() })} />
+                <datalist id="rp-entities-${globalRoomIndex}-${ei}">
+                  ${entityIds.slice(0, 200).map((eid) => html`<option value="${eid}">${getFriendlyName(this.hass, eid)}</option>`)}
+                </datalist>
+                <input type="text" class="entity-icon" .value=${ent.icon ?? ''} placeholder="Icon (mdi:...)"
+                  @change=${(e: Event) => { const v = (e.target as HTMLInputElement).value.trim(); this._updateRoomEntity(globalRoomIndex, ei, { icon: v || undefined }); }} />
+                <select class="entity-preset" .value=${ent.preset ?? 'default'}
+                  @change=${(e: Event) => {
+                    const preset = (e.target as HTMLSelectElement).value as RoomPlanEntity['preset'];
+                    this._updateRoomEntity(globalRoomIndex, ei, preset === 'smoke_detector' ? { preset, show_name: false } : { preset });
+                  }}>
+                  <option value="default">Standard</option>
+                  <option value="temperature">Temperatur</option>
+                  <option value="binary_sensor">Binary Sensor</option>
+                  <option value="window_contact">Fensterkontakt</option>
+                  <option value="sliding_door">Schiebetür</option>
+                  <option value="smoke_detector">Rauchmelder</option>
+                </select>
+                <span class="boundaries-label" title="Filter-Tab">Kategorie:</span>
+                <select class="entity-category" .value=${getEntityCategoryId(ent)}
+                  @change=${(e: Event) => {
+                    const v = (e.target as HTMLSelectElement).value;
+                    this._updateRoomEntity(globalRoomIndex, ei, { category_id: v === (ent.preset ?? 'default') ? undefined : v });
+                  }}>
+                  ${this._getEffectiveCategories().map((c) => html`<option value=${c.id}>${c.label}</option>`)}
+                </select>
+                <div class="entity-coords-wrap">
+                  <div class="entity-coords">
+                    <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.x) || 50)} title="X (%)"
+                      @input=${(e: Event) => {
+                        const v = Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50));
+                        this._scheduleXyUpdate(globalRoomIndex, ei, { x: v });
+                      }}
+                      @change=${(e: Event) => {
+                        this._xyPending.delete(`${globalRoomIndex}-${ei}`);
+                        this._updateRoomEntity(globalRoomIndex, ei, { x: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) });
+                      }} />
+                    <input type="number" min="0" max="100" step="0.1" .value=${String(Number(ent.y) || 50)} title="Y (%)"
+                      @input=${(e: Event) => {
+                        const v = Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50));
+                        this._scheduleXyUpdate(globalRoomIndex, ei, { y: v });
+                      }}
+                      @change=${(e: Event) => {
+                        this._xyPending.delete(`${globalRoomIndex}-${ei}`);
+                        this._updateRoomEntity(globalRoomIndex, ei, { y: Math.min(100, Math.max(0, parseFloat((e.target as HTMLInputElement).value) || 50)) });
+                      }} />
+                    <button type="button" class="btn-draw" @click=${() => this._openPickerPosition(globalRoomIndex, ei)} title="Auf Plan setzen"><ha-icon icon="mdi:crosshairs-gps"></ha-icon></button>
+                  </div>
+                </div>
+                <button type="button" class="btn-remove" @click=${() => this._removeRoomEntity(globalRoomIndex, ei)} title="Entität entfernen"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+              </div>
+                  `)}
+                  <button type="button" class="btn-add-small" @click=${() => this._addRoomEntity(globalRoomIndex)}><ha-icon icon="mdi:plus"></ha-icon> Entität</button>
+                </div>
+                </div>
+              </div>
+            `;
+                  })}
+                  <button type="button" class="btn-add-small" @click=${() => this._addRoomToBuilding(bi)}><ha-icon icon="mdi:plus"></ha-icon> Raum in diesem Gebäude</button>
+                </div>
+              </div>
+            `)}
+          <button type="button" class="btn-add-small" style="margin-top: 8px;" @click=${() => this._addBuilding()}><ha-icon icon="mdi:plus"></ha-icon> Gebäude hinzufügen</button>
+          </div>
+          ` : html`
           <h4 class="section-title"><ha-icon icon="mdi:door-open"></ha-icon> Räume</h4>
-          <p class="section-hint">Jeder Raum hat eine Boundary (Heatmap/Abdunkeln). Darin liegende Entities (Temperatur, Licht etc.) nutzen diese.</p>
+          <p class="section-hint">Jeder Raum hat eine Boundary (Heatmap/Abdunkeln). Darin liegende Entities (Temperatur, Licht etc.) nutzen diese. Optional können Sie <strong>Gebäude</strong> nutzen: Gebäude haben ein eigenes Bild und werden auf dem Hauptplan positioniert; die Räume liegen dann in den Gebäuden.</p>
+          <button type="button" class="btn-add-small" style="margin-bottom: 10px;" @click=${() => this._addBuilding()}><ha-icon icon="mdi:office-building"></ha-icon> Gebäude nutzen (neu)</button>
           <div class="room-list">
             ${rooms.map((room, ri) => html`
               <div class="room-block">
@@ -1091,6 +1510,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           <button type="button" class="btn-add" @click=${this._addRoom}>
             <ha-icon icon="mdi:plus"></ha-icon> Raum hinzufügen
           </button>
+          `}
         </section>
         <section class="editor-section">
           <h4 class="section-title"><ha-icon icon="mdi:bell-badge-outline"></ha-icon> Meldungen (Badge)</h4>
