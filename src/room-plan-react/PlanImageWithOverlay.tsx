@@ -585,6 +585,11 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     boxSizing: 'border-box',
   };
 
+  /* Bei Gebäuden: Workspace = ganze Card (absolut füllend), damit Fit/Reset sich an der Kartengröße orientiert. */
+  const wrapStyle = hasBuildings
+    ? { position: 'absolute' as const, left: 0, top: 0, right: 0, bottom: 0, overflow: 'hidden' as const, boxSizing: 'border-box' as const }
+    : fitBoxStyle;
+
   return (
     <div
       className="flex-1 min-h-0 overflow-hidden w-full min-w-0"
@@ -600,7 +605,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
         <div
           ref={panZoomWrapRef}
           style={{
-            ...fitBoxStyle,
+            ...wrapStyle,
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
             transformOrigin: '50% 50%',
             touchAction: 'none',

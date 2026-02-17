@@ -1088,6 +1088,23 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
           const bi = this._buildingPlacementPicker;
           const buildings = this._getBuildings();
           const currentName = buildings[bi]?.name ?? `Gebäude ${(bi ?? 0) + 1}`;
+          let left = 100, top = 100, right = 0, bottom = 0;
+          for (const b of buildings) {
+            const x = Number(b.x) ?? 0;
+            const y = Number(b.y) ?? 0;
+            const w = Number(b.width) ?? 20;
+            const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+            const h = ar != null ? w / ar : (Number(b.height) ?? 20);
+            left = Math.min(left, x);
+            top = Math.min(top, y);
+            right = Math.max(right, x + w);
+            bottom = Math.max(bottom, y + h);
+          }
+          const boxW = Math.max(0.1, right - left);
+          const boxH = Math.max(0.1, bottom - top);
+          const cx = (left + right) / 2;
+          const cy = (top + bottom) / 2;
+          const viewScale = Math.min(5, Math.max(1, 100 / boxW, 100 / boxH));
           return html`
         <div class="picker-modal-backdrop" @click=${(e: MouseEvent) => e.target === e.currentTarget && (this._buildingPlacementPicker = null)}>
           <div class="picker-modal" @click=${(e: MouseEvent) => e.stopPropagation()}>
@@ -1099,24 +1116,26 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
               class="building-placement-wrap building-placement-fullscreen"
               style="position: relative; flex: 1; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; background: transparent; ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: default;'}"
             >
-              ${buildings.map((b, bj) => {
-                const isCurrent = bj === bi;
-                const rot = Number(b.rotation) ?? 0;
-                const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
-                const w = Number(b.width) ?? 20;
-                const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
-                const h = ar != null ? w / ar : (Number(b.height) ?? 20);
-                const imgSrc = typeof b.image === 'string' ? b.image : '';
-                return html`
-                  <div class="building-box"
-                    style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent !important;"
-                    aria-hidden
-                    @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev); } : undefined}
-                  >
-                    ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
-                  </div>
-                `;
-              })}
+              <div class="building-placement-inner" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform: translate(${50 - cx}%, ${50 - cy}%) scale(${viewScale}); transform-origin: 50% 50%;">
+                ${buildings.map((b, bj) => {
+                  const isCurrent = bj === bi;
+                  const rot = Number(b.rotation) ?? 0;
+                  const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+                  const w = Number(b.width) ?? 20;
+                  const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+                  const h = ar != null ? w / ar : (Number(b.height) ?? 20);
+                  const imgSrc = typeof b.image === 'string' ? b.image : '';
+                  return html`
+                    <div class="building-box"
+                      style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent !important;"
+                      aria-hidden
+                      @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev); } : undefined}
+                    >
+                      ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
+                    </div>
+                  `;
+                })}
+              </div>
             </div>
           </div>
         </div>
