@@ -496,7 +496,8 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
       const x = Number(b.x) ?? 0;
       const y = Number(b.y) ?? 0;
       const w = Number(b.width) ?? 20;
-      const h = Number(b.height) ?? 20;
+      const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+      const h = ar != null ? w / ar : (Number(b.height) ?? 20);
       left = Math.min(left, x);
       top = Math.min(top, y);
       right = Math.max(right, x + w);
@@ -645,6 +646,9 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           {/* Bei Gebäuden: nur Gebäude-Bereiche mit eigenem Bild (kein globales Plan-Bild). pointer-events: none damit Pan/Zoom (Wrapper) funktioniert. */}
           {hasBuildings && buildings.map((b, bi) => {
             const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+            const w = Number(b.width) ?? 20;
+            const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+            const h = ar != null ? w / ar : (Number(b.height) ?? 20);
             return (
             <div
               key={bi}
@@ -652,13 +656,14 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                 position: 'absolute',
                 left: `${Number(b.x) ?? 0}%`,
                 top: `${Number(b.y) ?? 0}%`,
-                width: `${Number(b.width) ?? 20}%`,
-                height: `${Number(b.height) ?? 20}%`,
+                width: `${w}%`,
+                height: `${h}%`,
                 overflow: 'hidden',
                 boxSizing: 'border-box',
                 pointerEvents: 'none',
                 transform: `scale(${scale}) rotate(${Number(b.rotation) ?? 0}deg)`,
                 transformOrigin: '50% 50%',
+                background: 'transparent',
               }}
             >
               <img
@@ -673,7 +678,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
                   margin: 0,
                   padding: 0,
                   boxSizing: 'border-box',
-                  objectFit: 'contain',
+                  objectFit: ar != null ? 'fill' : 'contain',
                   objectPosition: 'center',
                   display: 'block',
                 }}

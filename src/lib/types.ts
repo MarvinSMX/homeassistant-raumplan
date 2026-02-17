@@ -80,6 +80,8 @@ export interface RoomPlanBuilding {
   rotation?: number;
   /** Skalierung (1 = 100 %, z. B. 0.5 = halb, 1.5 = 150 %). */
   scale?: number;
+  /** Seitenverhältnis des Bildes (Breite/Höhe), damit die Boundary exakt Bildgröße hat. Wird beim Laden des Bildes gesetzt. */
+  aspect_ratio?: number;
   /** Räume in diesem Gebäude. */
   rooms: RoomPlanRoom[];
 }

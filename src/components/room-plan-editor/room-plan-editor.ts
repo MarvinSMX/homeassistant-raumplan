@@ -233,6 +233,12 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._updateConfig({ buildings });
   }
 
+  private _onBuildingImageLoad(buildingIndex: number, e: Event): void {
+    const img = e.target as HTMLImageElement;
+    if (img?.naturalWidth && img?.naturalHeight)
+      this._updateBuilding(buildingIndex, { aspect_ratio: img.naturalWidth / img.naturalHeight });
+  }
+
   private _addBuilding(): void {
     const buildings = [...(this._config.buildings ?? []), { name: '', image: '', x: 10, y: 10, width: 25, height: 25, rooms: [] }];
     this._updateConfig({ buildings });
@@ -265,7 +271,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     const b = this._getBuildings()[d.buildingIndex];
     if (!b) return;
     const w = Number(b.width) ?? 20;
-    const h = Number(b.height) ?? 20;
+    const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+    const h = ar != null ? w / ar : (Number(b.height) ?? 20);
     const newX = Math.min(100 - w, Math.max(0, d.startBX + dx));
     const newY = Math.min(100 - h, Math.max(0, d.startBY + dy));
     this._updateBuilding(d.buildingIndex, { x: Math.round(newX * 10) / 10, y: Math.round(newY * 10) / 10 });
@@ -1096,14 +1103,17 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 const isCurrent = bj === bi;
                 const rot = Number(b.rotation) ?? 0;
                 const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+                const w = Number(b.width) ?? 20;
+                const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+                const h = ar != null ? w / ar : (Number(b.height) ?? 20);
                 const imgSrc = typeof b.image === 'string' ? b.image : '';
                 return html`
-                  <div
-                    style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent;"
+                  <div class="building-box"
+                    style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent !important;"
                     aria-hidden
                     @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev); } : undefined}
                   >
-                    ${imgSrc ? html`<img src="${imgSrc}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; display: block; pointer-events: none;" />` : ''}
+                    ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
                   </div>
                 `;
               })}
@@ -1226,14 +1236,17 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                       const isCurrent = bj === bi;
                       const rot = Number(b.rotation) ?? 0;
                       const scale = Math.max(0.25, Math.min(3, Number(b.scale) ?? 1));
+                      const w = Number(b.width) ?? 20;
+                      const ar = Number(b.aspect_ratio) > 0 ? b.aspect_ratio! : null;
+                      const h = ar != null ? w / ar : (Number(b.height) ?? 20);
                       const imgSrc = typeof b.image === 'string' ? b.image : '';
                       return html`
-                        <div
-                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent;"
+                  <div class="building-box"
+                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent !important;"
                           aria-hidden
                           @mousedown=${isCurrent ? (ev: MouseEvent) => this._startBuildingDrag(bi, ev) : undefined}
                         >
-                          ${imgSrc ? html`<img src="${imgSrc}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; display: block; pointer-events: none;" />` : ''}
+                          ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
                         </div>
                       `;
                     })}
