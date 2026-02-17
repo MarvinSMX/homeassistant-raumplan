@@ -1159,9 +1159,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                   const imgSrc = typeof b.image === 'string' ? b.image : '';
                   return html`
                     <div class="building-box"
-                      style="position: absolute; left: ${leftPct}%; top: ${topPct}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; border: 1px solid var(--divider-color); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
-                      aria-hidden
-                      @mousedown=${(ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bj, ev, viewScale); }}
+style="position: absolute; left: ${leftPct}%; top: ${topPct}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; outline: 1px solid var(--divider-color); outline-offset: 0; pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
+                    aria-hidden
+                    @mousedown=${(ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bj, ev, viewScale); }}
                     >
                       ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
                     </div>
@@ -1275,7 +1275,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 const imgSrc = typeof b.image === 'string' ? b.image : '';
                 return html`
                   <div class="building-box"
-                    style="position: absolute; left: ${leftPct}%; top: ${topPct}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; border: 1px solid var(--divider-color); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
+                    style="position: absolute; left: ${leftPct}%; top: ${topPct}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; outline: 1px solid var(--divider-color); outline-offset: 0; pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
                     aria-hidden
                     @mousedown=${(e: MouseEvent) => { e.stopPropagation(); this._startBuildingDrag(bj, e); }}
                   >

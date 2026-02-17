@@ -122,9 +122,9 @@ function ut(t){return ct({...t,state:!0})}var dt;
               <div class="building-placement-inner" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform: translate(${50-c}%, ${50-u}%) scale(${d}); transform-origin: 50% 50%;">
                 ${t.map((t,i)=>{const r=Number(t.rotation)??0,o=Math.max(.25,Math.min(3,Number(t.scale)??1)),a=Number(t.width)??20,s=Number(t.aspect_ratio)>0?t.aspect_ratio:null,l=null!=s?a/s:Number(t.height)??20,c=(Number(t.x)??0)+e,u=(Number(t.y)??0)+n,h="string"==typeof t.image?t.image:"";return L`
                     <div class="building-box"
-                      style="position: absolute; left: ${c}%; top: ${u}%; width: ${a}%; height: ${l}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; border: 1px solid var(--divider-color); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
-                      aria-hidden
-                      @mousedown=${t=>{t.stopPropagation(),this._startBuildingDrag(i,t,d)}}
+style="position: absolute; left: ${c}%; top: ${u}%; width: ${a}%; height: ${l}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; outline: 1px solid var(--divider-color); outline-offset: 0; pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
+                    aria-hidden
+                    @mousedown=${t=>{t.stopPropagation(),this._startBuildingDrag(i,t,d)}}
                     >
                       ${h?L`<img src="${h}" alt="" style="width: 100%; height: 100%; object-fit: ${null!=s?"fill":"contain"}; object-position: center; display: block; pointer-events: none;" @load=${t=>this._onBuildingImageLoad(i,t)} />`:""}
                     </div>
@@ -221,7 +221,7 @@ function ut(t){return ct({...t,state:!0})}var dt;
           >
             ${(()=>{const t=Number(this._config.plan_offset_x)||0,e=Number(this._config.plan_offset_y)||0;return this._getBuildings().map((n,i)=>{const r=Number(n.rotation)??0,o=Math.max(.25,Math.min(3,Number(n.scale)??1)),a=Number(n.width)??20,s=Number(n.aspect_ratio)>0?n.aspect_ratio:null,l=null!=s?a/s:Number(n.height)??20,c=(Number(n.x)??0)+t,u=(Number(n.y)??0)+e,d="string"==typeof n.image?n.image:"";return L`
                   <div class="building-box"
-                    style="position: absolute; left: ${c}%; top: ${u}%; width: ${a}%; height: ${l}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; border: 1px solid var(--divider-color); pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
+                    style="position: absolute; left: ${c}%; top: ${u}%; width: ${a}%; height: ${l}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; outline: 1px solid var(--divider-color); outline-offset: 0; pointer-events: auto; cursor: grab; display: flex; align-items: center; justify-content: center; background: transparent !important;"
                     aria-hidden
                     @mousedown=${t=>{t.stopPropagation(),this._startBuildingDrag(i,t)}}
                   >
