@@ -29,8 +29,8 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     | { type: 'line'; roomIndex: number; entityIndex: number; lineIndex: number }
     | { type: 'lineNew'; roomIndex: number; entityIndex: number }
     | null = null;
-  /** Gebäude-Platzierung im Editor verschieben (Drag in Preview oder Vollbild). */
-  @state() private _buildingDrag: { buildingIndex: number; startX: number; startY: number; startBX: number; startBY: number; previewW: number; previewH: number } | null = null;
+  /** Gebäude-Platzierung im Editor verschieben (Drag in Preview oder Vollbild). viewScale = 1 in Preview, im Vollbild die Skalierung des Layers. */
+  @state() private _buildingDrag: { buildingIndex: number; startX: number; startY: number; startBX: number; startBY: number; previewW: number; previewH: number; viewScale: number } | null = null;
   /** Gebäude-Platzierung im Vollbild (buildingIndex wenn geöffnet). */
   @state() private _buildingPlacementPicker: number | null = null;
   @state() private _drawStart: { x: number; y: number } | null = null;
@@ -244,7 +244,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
     this._updateConfig({ buildings });
   }
 
-  private _startBuildingDrag(buildingIndex: number, e: MouseEvent): void {
+  private _startBuildingDrag(buildingIndex: number, e: MouseEvent, viewScale: number = 1): void {
     e.preventDefault();
     const preview = (e.target as HTMLElement).closest('.building-placement-wrap') as HTMLElement | null;
     if (!preview) return;
@@ -259,6 +259,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
       startBY: Number(b.y) ?? 0,
       previewW: rect.width,
       previewH: rect.height,
+      viewScale,
     };
     document.addEventListener('mousemove', this._buildingDragMove);
     document.addEventListener('mouseup', this._buildingDragUp);
@@ -266,8 +267,9 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
   private _buildingDragMove = (e: MouseEvent): void => {
     const d = this._buildingDrag;
     if (!d) return;
-    const dx = ((e.clientX - d.startX) / d.previewW) * 100;
-    const dy = ((e.clientY - d.startY) / d.previewH) * 100;
+    /* Im Vollbild ist der Layer mit viewScale skaliert → Maus-Delta durch viewScale teilen für korrekte %-Bewegung */
+    const dx = ((e.clientX - d.startX) / d.previewW) * 100 / d.viewScale;
+    const dy = ((e.clientY - d.startY) / d.previewH) * 100 / d.viewScale;
     const b = this._getBuildings()[d.buildingIndex];
     if (!b) return;
     const w = Number(b.width) ?? 20;
@@ -1129,7 +1131,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                     <div class="building-box"
                       style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${w}%; height: ${h}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent !important;"
                       aria-hidden
-                      @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev); } : undefined}
+                      @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev, viewScale); } : undefined}
                     >
                       ${imgSrc ? html`<img src="${imgSrc}" alt="" style="width: 100%; height: 100%; object-fit: ${ar != null ? 'fill' : 'contain'}; object-position: center; display: block; pointer-events: none;" @load=${(e: Event) => this._onBuildingImageLoad(bj, e)} />` : ''}
                     </div>
