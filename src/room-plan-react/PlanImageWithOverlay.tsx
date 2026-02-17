@@ -518,13 +518,22 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
     });
   }, [hasBuildings, buildings]);
 
+  /** Reset mit zweitem Lauf nach Layout-Update, damit nach Zoom-Änderung die Kartengröße stimmt. */
+  const applyFitBuildingsViewStable = useCallback(() => {
+    applyFitBuildingsView();
+    const t = requestAnimationFrame(() => {
+      requestAnimationFrame(applyFitBuildingsView);
+    });
+    return () => cancelAnimationFrame(t);
+  }, [applyFitBuildingsView]);
+
   useEffect(() => {
     if (!hasBuildings || buildings.length === 0) return;
     const t = requestAnimationFrame(() => {
-      applyFitBuildingsView();
+      applyFitBuildingsViewStable();
     });
     return () => cancelAnimationFrame(t);
-  }, [hasBuildings, applyFitBuildingsView]);
+  }, [hasBuildings, applyFitBuildingsViewStable]);
 
   const zoomBtnStyle: Record<string, string | number> = {
     width: 32,
@@ -1002,7 +1011,7 @@ export function PlanImageWithOverlay(props: PlanImageWithOverlayProps) {
           </button>
           <button
             type="button"
-            onClick={() => { if (hasBuildings) applyFitBuildingsView(); else { setPan({ x: 0, y: 0 }); setScale(1); } }}
+            onClick={() => { if (hasBuildings) applyFitBuildingsViewStable(); else { setPan({ x: 0, y: 0 }); setScale(1); } }}
             style={zoomBtnStyle}
             title="Ansicht zurücksetzen"
           >
