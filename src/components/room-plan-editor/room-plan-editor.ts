@@ -1090,7 +1090,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
             </div>
             <div
               class="building-placement-wrap building-placement-fullscreen"
-              style="position: relative; flex: 1; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; background: var(--secondary-background-color); ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: default;'}"
+              style="position: relative; flex: 1; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; background: transparent; ${this._buildingDrag?.buildingIndex === bi ? 'cursor: grabbing;' : 'cursor: default;'}"
             >
               ${buildings.map((b, bj) => {
                 const isCurrent = bj === bi;
@@ -1099,7 +1099,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                 const imgSrc = typeof b.image === 'string' ? b.image : '';
                 return html`
                   <div
-                    style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
+                    style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent;"
                     aria-hidden
                     @mousedown=${isCurrent ? (ev: MouseEvent) => { ev.stopPropagation(); this._startBuildingDrag(bi, ev); } : undefined}
                   >
@@ -1221,7 +1221,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                       @change=${(e: Event) => this._updateBuilding(bi, { scale: Math.min(3, Math.max(0.25, parseFloat((e.target as HTMLInputElement).value) || 1)) })} />
                   </div>
                   <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung:</div>
-                  <div class="building-placement-preview building-placement-wrap" style="position: relative; width: 100%; max-width: 280px; height: 160px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px;">
+                  <div class="building-placement-preview building-placement-wrap" style="position: relative; width: 100%; max-width: 280px; height: 160px; background: transparent; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px;">
                     ${this._getBuildings().map((b, bj) => {
                       const isCurrent = bj === bi;
                       const rot = Number(b.rotation) ?? 0;
@@ -1229,7 +1229,7 @@ export class RoomPlanEditor extends LitElement implements LovelaceCardEditor {
                       const imgSrc = typeof b.image === 'string' ? b.image : '';
                       return html`
                         <div
-                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
+                          style="position: absolute; left: ${Number(b.x) ?? 0}%; top: ${Number(b.y) ?? 0}%; width: ${Number(b.width) ?? 20}%; height: ${Number(b.height) ?? 20}%; transform: scale(${scale}) rotate(${rot}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${isCurrent ? 'border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;' : 'border: 1px solid var(--divider-color); pointer-events: none;'} display: flex; align-items: center; justify-content: center; background: transparent;"
                           aria-hidden
                           @mousedown=${isCurrent ? (ev: MouseEvent) => this._startBuildingDrag(bi, ev) : undefined}
                         >

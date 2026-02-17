@@ -116,11 +116,11 @@ function ut(t){return ct({...t,state:!0})}var dt;
             </div>
             <div
               class="building-placement-wrap building-placement-fullscreen"
-              style="position: relative; flex: 1; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; background: var(--secondary-background-color); ${this._buildingDrag?.buildingIndex===t?"cursor: grabbing;":"cursor: default;"}"
+              style="position: relative; flex: 1; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; background: transparent; ${this._buildingDrag?.buildingIndex===t?"cursor: grabbing;":"cursor: default;"}"
             >
               ${e.map((e,n)=>{const i=n===t,r=Number(e.rotation)??0,o=Math.max(.25,Math.min(3,Number(e.scale)??1)),a="string"==typeof e.image?e.image:"";return L`
                   <div
-                    style="position: absolute; left: ${Number(e.x)??0}%; top: ${Number(e.y)??0}%; width: ${Number(e.width)??20}%; height: ${Number(e.height)??20}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${i?"border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;":"border: 1px solid var(--divider-color); pointer-events: none;"} display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
+                    style="position: absolute; left: ${Number(e.x)??0}%; top: ${Number(e.y)??0}%; width: ${Number(e.width)??20}%; height: ${Number(e.height)??20}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${i?"border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;":"border: 1px solid var(--divider-color); pointer-events: none;"} display: flex; align-items: center; justify-content: center; background: transparent;"
                     aria-hidden
                     @mousedown=${i?e=>{e.stopPropagation(),this._startBuildingDrag(t,e)}:void 0}
                   >
@@ -237,10 +237,10 @@ function ut(t){return ct({...t,state:!0})}var dt;
                       @change=${t=>this._updateBuilding(e,{scale:Math.min(3,Math.max(.25,parseFloat(t.target.value)||1))})} />
                   </div>
                   <div class="boundaries-label" style="margin-bottom: 4px;">Platzierung:</div>
-                  <div class="building-placement-preview building-placement-wrap" style="position: relative; width: 100%; max-width: 280px; height: 160px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px;">
+                  <div class="building-placement-preview building-placement-wrap" style="position: relative; width: 100%; max-width: 280px; height: 160px; background: transparent; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; margin-bottom: 6px;">
                     ${this._getBuildings().map((t,n)=>{const i=n===e,r=Number(t.rotation)??0,o=Math.max(.25,Math.min(3,Number(t.scale)??1)),a="string"==typeof t.image?t.image:"";return L`
                         <div
-                          style="position: absolute; left: ${Number(t.x)??0}%; top: ${Number(t.y)??0}%; width: ${Number(t.width)??20}%; height: ${Number(t.height)??20}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${i?"border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;":"border: 1px solid var(--divider-color); pointer-events: none;"} display: flex; align-items: center; justify-content: center; background: var(--secondary-background-color);"
+                          style="position: absolute; left: ${Number(t.x)??0}%; top: ${Number(t.y)??0}%; width: ${Number(t.width)??20}%; height: ${Number(t.height)??20}%; transform: scale(${o}) rotate(${r}deg); transform-origin: 50% 50%; overflow: hidden; box-sizing: border-box; ${i?"border: 2px solid var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); pointer-events: auto; cursor: grab;":"border: 1px solid var(--divider-color); pointer-events: none;"} display: flex; align-items: center; justify-content: center; background: transparent;"
                           aria-hidden
                           @mousedown=${i?t=>this._startBuildingDrag(e,t):void 0}
                         >
